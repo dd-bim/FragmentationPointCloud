@@ -1,0 +1,51 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="RevitPlugin" Manufacturer="HTW Dresden" Version="2.0.0" UpgradeCode="5a088871-a19a-4afc-96bf-c8d43ab2ee7e" Scope="perMachine" >
+	  <MajorUpgrade DowngradeErrorMessage="A newer version of CPM is already installed." />
+	  <MediaTemplate EmbedCab="yes"/>
+	  
+    <ComponentGroup Id="AddinFileGroup" Directory="YearDir">
+			<Component Id="CMP_RevitPluginAddin" Guid="{6771D8DA-7EBB-4AEA-A7F9-FB21094572E4}">
+				<File Id="FILE_RevitPluginAddin" Source="$(var.Revit.ProjectDir)CPM.addin" KeyPath="yes"/>
+			</Component>
+			<Component Id="CMP_RevitPluginSettings" Guid="{3C0FE5EF-FBC4-48B2-A954-B3B703246BD9}">
+				<File Id="FILE_RevitPluginSettings" Source="$(var.Revit.ProjectDir)CPMSettings.json" KeyPath="yes"/>
+			</Component>
+			<!-- Adding Additional Executable Files -->
+			<Component Id="CMP_SearchVoxel" Guid="{31D76B02-656F-426F-AB34-5DBBE0B8C8AC}">
+				<File Id="FILE_SearchVoxel" Source="D:\06_Green3DScan\000_C++\Green3D\x64\Release\SearchVoxel.exe" KeyPath="yes"/>
+			</Component>
+			<Component Id="CMP_SegmentationBBox" Guid="{72492684-3A92-4B60-869A-0B2ACE36FBB4}">
+				<File Id="FILE_SegmentationBBox" Source="D:\06_Green3DScan\000_C++\Green3D\x64\Release\SegmentationBBox.exe" KeyPath="yes"/>
+			</Component>
+			<Component Id="CMP_SegmentationVoxel" Guid="{F88B450B-311C-41E8-81D6-11C6B78AF5F3}">
+				<File Id="FILE_SegmentationVoxel" Source="D:\06_Green3DScan\000_C++\Green3D\x64\Release\SegmentationVoxel.exe" KeyPath="yes"/>
+			</Component>
+		</ComponentGroup>
+
+		<Feature Id="CPMMainProduct" Title="RevitPlugin" Level="1">
+			<ComponentGroupRef Id="AddinFileGroup"/>
+			<ComponentGroupRef Id="HarvestedComponents"/>
+		</Feature>
+
+		<!-- UI of Installer-->
+		<Property Id="ApplicationFolderName" Value ="CPM"></Property>
+		<Property Id="WixAppFolder" Value="WixPerMachineFolder"></Property>
+		<Property Id="WIXUI_INSTALLDIR" Value="APPLICATIONFOLDER"></Property>
+		<WixVariable Id="WixUILicenseRtf" Value="CPMLicense.rtf"/> 
+		<ui:WixUI Id="WixUI_InstallDir"/>
+
+		<!-- Directory Structure -->
+		<StandardDirectory Id="CommonAppDataFolder">
+			<Directory Id="AutodeskDir" Name="Autodesk">
+				<Directory Id="RevitDir" Name="Revit">
+					<Directory Id="AddinDir" Name="Addins">
+						<Directory Id="YearDir" Name="2023">
+							<Directory Id="APPLICATIONFOLDER" Name="CPM" ComponentGuidGenerationSeed="{81C56ECF-ED92-4211-9486-1165E7AD7A8E}">
+							</Directory>
+						</Directory>
+					</Directory>
+				</Directory>
+			</Directory>
+		</StandardDirectory>
+	</Package>
+</Wix>
