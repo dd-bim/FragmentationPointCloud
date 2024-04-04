@@ -1,18 +1,15 @@
 ﻿<Project Sdk="WixToolset.Sdk/4.0.0">
   <PropertyGroup>
-    <DefineConstants Condition=" '$(Configuration)' == 'Debug' ">HarvestPath=..\ConstructionProgressMonitoring\bin\Debug</DefineConstants>
-    <DefineConstants Condition=" '$(Configuration)' == 'Release' ">HarvestPath=..\ConstructionProgressMonitoring\bin\Release</DefineConstants>
+    <DefineConstants Condition=" '$(Configuration)' == 'Debug' ">HarvestPath=..\FragmentationPointCloud\bin\Debug</DefineConstants>
+    <DefineConstants Condition=" '$(Configuration)' == 'Release' ">HarvestPath=..\FragmentationPointCloud\bin\Release</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="WixToolset.Heat" Version="4.0.3" />
     <PackageReference Include="WixToolset.UI.wixext" Version="4.0.3" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\ConstructionProgressMonitoring\Revit.csproj" />
-  </ItemGroup>
   <!-- Harvesting Project Output-->
   <ItemGroup>
-    <HarvestDirectory Include="$(SolutionDir)ConstructionProgressMonitoring\bin\$(configuration)" SuppressRegistry="true" SuppressRootDirectory="true" DirectoryRefID="APPLICATIONFOLDER" HarvestDirectoryGenerateGuidsNow="true">
+    <HarvestDirectory Include="$(SolutionDir)FragmentationPointCloud\bin\$(configuration)" SuppressRegistry="true" SuppressRootDirectory="true" DirectoryRefID="APPLICATIONFOLDER" HarvestDirectoryGenerateGuidsNow="true">
       <PreprocessorVariable>var.Revit.TargetDir</PreprocessorVariable>
       <ComponentGroupName>HarvestedComponents</ComponentGroupName>
       <HarvestDirectoryAutogenerateGuids>false</HarvestDirectoryAutogenerateGuids>
@@ -20,6 +17,9 @@
     </HarvestDirectory>
   </ItemGroup>
   <ItemGroup>
-    <None Include="CPMLicense.rtf" />
+    <None Include="License.rtf" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FragmentationPointCloud\Revit.csproj" />
   </ItemGroup>
 </Project>

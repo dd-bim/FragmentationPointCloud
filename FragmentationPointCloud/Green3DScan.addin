@@ -2,11 +2,11 @@
 <RevitAddIns>
  <AddIn Type="Application">
     <Name>Green3D</Name>
-       <FullClassName>Revit.GUI.GuiCpm</FullClassName>
-       <Text>CPM</Text> 
+       <FullClassName>Revit.GUI.GuiGreen3DScan</FullClassName>
+       <Text>Green3DScan</Text> 
        <Description>Plugin for fragmentation of point clouds</Description>
        <VisibilityMode>AlwaysVisible</VisibilityMode>
-       <Assembly>CPM\Revit.dll</Assembly>
+       <Assembly>Green3DScan\Revit.dll</Assembly>
        <AddInId>db36ce02-981d-4ccc-a4e6-fa61b4a7ecb4</AddInId>
        <VendorId>HTW Dresden</VendorId>
        <VendorDescription>Faculty of Spatial Information</VendorDescription>

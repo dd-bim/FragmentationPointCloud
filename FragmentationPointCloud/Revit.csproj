@@ -375,7 +375,7 @@
     <Compile Include="Green3DScan\FragmentationBBox.cs" />
     <Compile Include="GUI\CmdIfc2Ccv.cs" />
     <Compile Include="GUI\CmdShowSettings.cs" />
-    <Compile Include="GUI\GuiCpm.cs" />
+    <Compile Include="GUI\GuiGreen3DScan.cs" />
     <Compile Include="GUI\WinSettings.xaml.cs">
       <DependentUpon>WinSettings.xaml</DependentUpon>
     </Compile>
@@ -392,12 +392,9 @@
     <Compile Include="Green3DScan\Pcd2E57.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\.editorconfig">
-      <Link>.editorconfig</Link>
-    </None>
     <None Include="app.config" />
-    <None Include="CPM.addin" />
-    <None Include="CPMSettings.json">
+    <None Include="Green3DScan.addin" />
+    <None Include="SettingsGreen3DScan.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />

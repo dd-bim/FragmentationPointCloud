@@ -10,8 +10,8 @@ namespace Revit
         public static readonly double meter2Feet = 1.0 / feet2Meter;
         public static readonly double squareFeet2SquareMeter = feet2Meter * feet2Meter;
 
-        public static readonly string pathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\CPMSettings.json";
-        public static readonly string readPathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\CPM\CPMSettings.json";
+        public static readonly string pathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\SettingsGreen3DScan.json";
+        public static readonly string readPathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\Green3DScan\SettingsGreen3DScan.json";
 
         public static readonly string fragmentationBBox = @"C:\ProgramData\Autodesk\Revit\Addins\2023\SegmentationBBox.exe";
         public static readonly string fragmentationVoxel = @"C:\ProgramData\Autodesk\Revit\Addins\2023\SegmentationVoxel.exe";
@@ -19,9 +19,9 @@ namespace Revit
 
         public static readonly string cloudComparePath = @"C:\Program Files\CloudCompare\CloudCompare.exe";
 
-        //public static readonly string directory = "C:";
-        //public static readonly string lineDecap = "cd C:\\Program Files\\Autodesk\\Autodesk ReCap";
-        public static readonly string directory = "D:";
-        public static readonly string lineDecap = "cd D:\\Programme_\\Autodesk ReCap";
+        public static readonly string directory = "C:";
+        public static readonly string lineDecap = "cd C:\\Program Files\\Autodesk\\Autodesk ReCap";
+        //public static readonly string directory = "D:";
+        //public static readonly string lineDecap = "cd D:\\Programme_\\Autodesk ReCap";
     }
 }

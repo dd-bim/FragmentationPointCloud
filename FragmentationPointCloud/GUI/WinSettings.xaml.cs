@@ -70,12 +70,12 @@ namespace Revit.GUI
 
             var currentTabItem = new TabItem
             {
-                Header = "CPM"
+                Header = "Green3DScan"
             };
             var attrList = AttributeContainer.GetAttrContainerFromDict(x);
             currentTabItem.Content = attrList;
 
-            Data.Add("CPM", attrList);
+            Data.Add("Green3DScan", attrList);
             tabs.Items.Add(currentTabItem);
         }
         private void SaveClick(object sender, RoutedEventArgs e)
@@ -133,7 +133,7 @@ namespace Revit.GUI
         {
             Json.PathPointCloud = newPath;
 
-            var pathPointCloudAttr = Data["CPM"].FirstOrDefault(attr => attr.AttributName == "PathPointCloud");
+            var pathPointCloudAttr = Data["Green3DScan"].FirstOrDefault(attr => attr.AttributName == "PathPointCloud");
             if (pathPointCloudAttr != null)
             {
                 pathPointCloudAttr.AttributValue = newPath;

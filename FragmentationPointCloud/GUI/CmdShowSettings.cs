@@ -57,7 +57,7 @@ namespace Revit.GUI
                 if (propUI.SaveChanges)
                 {
                     var modified = propUI.Data;
-                    var j = modified["CPM"];
+                    var j = modified["Green3DScan"];
                     var json = new SettingsJson
                     {
                         ConstructionTolerance_Meter = double.Parse(j[0].AttributValue),
