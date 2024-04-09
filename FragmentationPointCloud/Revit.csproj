@@ -406,48 +406,15 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="img\cloud.PNG" />
-    <Content Include="img\face.PNG">
+    <Content Include="Resources\cloud.PNG" />
+    <Content Include="Resources\ifc.PNG" />
+    <Content Include="Resources\set.PNG">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="img\patch.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="img\play.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="img\ref1.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="img\ref2.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="img\ref_bunt.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="img\room.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="img\set.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="img\tls.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="img\tool1.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="img\tool.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <None Include="Resources\Image1.bmp" />
     <None Include="Resources\oBBoxXY.PNG" />
     <None Include="Resources\fragment.PNG" />
     <None Include="Resources\loadFragmentation.PNG" />
-    <None Include="img\tool2.PNG" />
-    <Content Include="img\wall.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <None Include="Resources\tool.PNG" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ResourcePng.resx">

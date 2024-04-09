@@ -119,13 +119,13 @@
   </resheader>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="cloud" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\cloud.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
-  <data name="face" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\face.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Resources\cloud.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="fragment" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\fragment.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="ifc" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\ifc.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="loadFragmentation" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\loadFragmentation.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
@@ -133,37 +133,13 @@
   <data name="oBBoxXY" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\oBBoxXY.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="patch" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\patch.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
-  <data name="play" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\play.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
-  <data name="ref1" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\ref1.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
-  <data name="ref2" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\ref2.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
-  <data name="ref_bunt" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\ref_bunt.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
-  <data name="room" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\room.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="oBBoxXY1" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\oBBoxXY.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="set" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\set.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
-  <data name="tls" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\tls.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Resources\set.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="tool" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\tool.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
-  <data name="tool2" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\tool2.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
-  <data name="wall" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>img\wall.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Resources\tool.PNG;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
 </root>

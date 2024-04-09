@@ -48,22 +48,26 @@ namespace Revit.GUI
             oBBoxComplete.LargeImage = getBitmapFromResx(ResourcePng.oBBoxXY);
 
             PushButton sectionBoxComplete = panel1.AddItem(new PushButtonData("7", "SectionBox\ncomplete", thisAssemblyPath, "Revit.Green3DScan.FragmentationSectionBoxComplete")) as PushButton;
-            sectionBoxComplete.ToolTip = "Export the Boudingboxes and oriented Boundingboxes.";
+            sectionBoxComplete.ToolTip = "Export the SectionBox and fragmented the point cloud.";
             sectionBoxComplete.LargeImage = getBitmapFromResx(ResourcePng.oBBoxXY);
+
+            PushButton fragmentationIFC = panel1.AddItem(new PushButtonData("8", "Fragmentation IFC", thisAssemblyPath, "Revit.Green3DScan.FragmentationSectionBoxComplete")) as PushButton;
+            fragmentationIFC.ToolTip = "Use an IFC file to calculate the oriented bounding boxes and fragmented the point cloud.";
+            fragmentationIFC.LargeImage = getBitmapFromResx(ResourcePng.ifc);
 
             RibbonPanel panel2 = application.CreateRibbonPanel(tabName, "Routing");
 
             PushButton route = panel2.AddItem(new PushButtonData("8", "RoutePgm", thisAssemblyPath, "Revit.Green3DScan.RoutePgm")) as PushButton;
             route.ToolTip = "Export plan as Portable Grey Map.";
-            route.LargeImage = getBitmapFromResx(ResourcePng.tool2);
+            route.LargeImage = getBitmapFromResx(ResourcePng.tool);
 
             PushButton route2 = panel2.AddItem(new PushButtonData("9", "RoutePgmPicture", thisAssemblyPath, "Revit.Green3DScan.RoutePgm2")) as PushButton;
             route2.ToolTip = "Export plan as Portable Grey Map.";
-            route2.LargeImage = getBitmapFromResx(ResourcePng.tool2);
+            route2.LargeImage = getBitmapFromResx(ResourcePng.tool);
             
             PushButton route3 = panel2.AddItem(new PushButtonData("10", "RouteStations", thisAssemblyPath, "Revit.Green3DScan.RouteStations")) as PushButton;
             route3.ToolTip = "Export coordinates of ScanStations.";
-            route3.LargeImage = getBitmapFromResx(ResourcePng.tool2);
+            route3.LargeImage = getBitmapFromResx(ResourcePng.tool);
 
             return Result.Succeeded;
         }

@@ -73,9 +73,9 @@ namespace Revit {
         /// <summary>
         ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap face {
+        public static System.Drawing.Bitmap fragment {
             get {
-                object obj = ResourceManager.GetObject("face", resourceCulture);
+                object obj = ResourceManager.GetObject("fragment", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -83,9 +83,9 @@ namespace Revit {
         /// <summary>
         ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap fragment {
+        public static System.Drawing.Bitmap ifc {
             get {
-                object obj = ResourceManager.GetObject("fragment", resourceCulture);
+                object obj = ResourceManager.GetObject("ifc", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -113,59 +113,9 @@ namespace Revit {
         /// <summary>
         ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap patch {
+        public static System.Drawing.Bitmap oBBoxXY1 {
             get {
-                object obj = ResourceManager.GetObject("patch", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
-        /// </summary>
-        public static System.Drawing.Bitmap play {
-            get {
-                object obj = ResourceManager.GetObject("play", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
-        /// </summary>
-        public static System.Drawing.Bitmap ref_bunt {
-            get {
-                object obj = ResourceManager.GetObject("ref_bunt", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
-        /// </summary>
-        public static System.Drawing.Bitmap ref1 {
-            get {
-                object obj = ResourceManager.GetObject("ref1", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
-        /// </summary>
-        public static System.Drawing.Bitmap ref2 {
-            get {
-                object obj = ResourceManager.GetObject("ref2", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
-        /// </summary>
-        public static System.Drawing.Bitmap room {
-            get {
-                object obj = ResourceManager.GetObject("room", resourceCulture);
+                object obj = ResourceManager.GetObject("oBBoxXY1", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -183,39 +133,9 @@ namespace Revit {
         /// <summary>
         ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
         /// </summary>
-        public static System.Drawing.Bitmap tls {
-            get {
-                object obj = ResourceManager.GetObject("tls", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
-        /// </summary>
         public static System.Drawing.Bitmap tool {
             get {
                 object obj = ResourceManager.GetObject("tool", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
-        /// </summary>
-        public static System.Drawing.Bitmap tool2 {
-            get {
-                object obj = ResourceManager.GetObject("tool2", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
-        /// </summary>
-        public static System.Drawing.Bitmap wall {
-            get {
-                object obj = ResourceManager.GetObject("wall", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
