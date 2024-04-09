@@ -1,0 +1,9 @@
+.idea
+*.json
+*.csv
+*.log
+/TestData/
+/build/
+/contourCalculation/build/
+/contourCalculation/dist/
+/contourCalculation/contourCalculator.spec

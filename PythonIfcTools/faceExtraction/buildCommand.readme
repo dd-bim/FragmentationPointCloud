@@ -1,0 +1,3 @@
+pyinstaller -F --distpath ./faceExtraction/dist/ faceExtraction/IFCFaceExtractor.py
+
+pyinstaller -F --distpath ./faceBoxExtraction/dist/ faceExtraction/IFCFaceBoxExtractor.py
