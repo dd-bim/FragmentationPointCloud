@@ -1,4 +1,4 @@
-# pyIFCTools
+# PythonIfcTools
 
 ## Todo
 - write documentation and how to use on computer without conda env
