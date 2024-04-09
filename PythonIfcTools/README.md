@@ -4,32 +4,29 @@
 - write documentation and how to use on computer without conda env
 - Re-generated Environment.yml before shipping
 
-## Voraussetzungen
-Um die entwickelten Tools nutzen zu können, muss eine entsprechende
-Pythonlaufzeitumgebung auf dem Computer vorhanden sein.
+## Requirements
+In order to use the developed tools, a corresponding Python runtime environment must 
+be available on the computer.
 
-Die Tools wurden mit der Python-Version 3.11 entwickelt. Weiterhin werden unter anderem 
-folgende Bibliotheken verwendet: 
+The tools were developed with Python version 3.11. The following libraries are also used:
 - IfcOpenShell
 - PythonOCC
 - Numpy
 - PyQT5 (nur für Visualisierung notwendig)
 
-Es wird empfohlen eine eigene virtuelle Python Umgebung mittels Miniconda zu erstellen
-Miniconda kann [hier](https://docs.conda.io/en/latest/miniconda.html) heruntergeladen und installiert
-werden. Nachdem Miniconda erfolgreich installiert wurde kann die notwendige Python-Umgebung
-mit Hilfe der mitgeliferten Environment.yml Datei wiederhergestellt werden. 
+It is recommended to create your own virtual Python environment using Miniconda. 
+Miniconda can be downloaded and installed [here](https://docs.conda.io/en/latest/miniconda.html). After Miniconda 
+has been successfully 
+installed, the required Python environment can be restored using the supplied 
+Environment.yml file. 
 
-Dazu muss zunächst die mit Miniconda mitgelieferte Anaconda Prompt gestartet und folgender
-Befehl abgesetzt werden
+To do this, the Anaconda prompt supplied with Miniconda must first be started and the following command executed:
 
 ```
 conda env create -f environment.yml
 ```
-
-Dies erstellt eine neue virtuelle Umgebung und installiert alle notwendigen Packages im 
-Standard-Pfad von Miniconda. Wird ein anderer Installationsort gewünscht, kann dieser über
-den Parameter `-p` angegeben werden:
+This creates a new virtual environment and installs all necessary packages in the standard Miniconda path. 
+If a different installation location is required, this can be specified using the `-p` parameter:
 
 ```
 conda env create -f environment.yml -p D:\dev\envs\env_name
