@@ -262,7 +262,7 @@ namespace Revit.Green3DScan
                 }
 
                 // step 2: fragmentation an save small pcd
-                string exeGreen3DPath = Constants.fragmentationBBox;
+                string exeGreen3DPath = Constants.exeFragmentationBBox;
 
                 string command = $"{pcdPathPointcloud} {csvPathBBoxes} {rcpFilePath} {dateBimLastModified}";
                 if (!Helper.Fragmentation2Pcd(exeGreen3DPath, command))

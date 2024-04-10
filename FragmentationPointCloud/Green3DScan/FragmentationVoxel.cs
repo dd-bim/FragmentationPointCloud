@@ -16,7 +16,6 @@ namespace Revit.Green3DScan
     [Transaction(TransactionMode.Manual)]
     public class FragmentationVoxel : IExternalCommand
     {
-        string cloudComparePath = Constants.cloudComparePath;
         #region Execute
         string path;
         string dateBimLastModified;
@@ -72,7 +71,7 @@ namespace Revit.Green3DScan
                 Log.Information("read csv successful");
 
                 // step 2: Fragmentation and save small pcd
-                string exeGreen3DPath = Constants.fragmentationBBox;
+                string exeGreen3DPath = Constants.exeFragmentationBBox;
                 string rcpFilePathBBox = Path.Combine(path, "07_FragmentationBBox\\");
                 if (!Directory.Exists(rcpFilePathBBox))
                 {
@@ -105,7 +104,7 @@ namespace Revit.Green3DScan
                 }
 
                 // step 5: Fragmentation and save voxel as pcd
-                string pathExeFragmentationVoxel = Constants.fragmentationVoxel;
+                string pathExeFragmentationVoxel = Constants.exeFragmentationVoxel;
                 string rcpFilePathVoxel = Path.Combine(path, "08_FragmentationVoxel\\");
                 if (!Directory.Exists(rcpFilePathVoxel))
                 {
@@ -119,7 +118,7 @@ namespace Revit.Green3DScan
                 }
 
                 // Schritt 6: Suchen der Voxel Indices zu jeder BBox
-                string pathExeSearchVoxel = Constants.searchVoxel;
+                string pathExeSearchVoxel = Constants.exeSearchVoxel;
                 string commandSearch = $"{pcdPathPointcloud} {csvPathBBoxes} {path} {set.FragmentationVoxelResolution_Meter.ToString(Sys.InvariantCulture)}";
                 if (!SearchVoxel(pathExeSearchVoxel, commandSearch))
                 {

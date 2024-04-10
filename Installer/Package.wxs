@@ -7,8 +7,8 @@
 			<Component Id="CMP_RevitPluginAddin" Guid="{6771D8DA-7EBB-4AEA-A7F9-FB21094572E4}">
 				<File Id="FILE_RevitPluginAddin" Source="$(var.Revit.ProjectDir)Green3DScan.addin" KeyPath="yes"/>
 			</Component>
-			<Component Id="CMP_RevitPluginSettings" Guid="{3C0FE5EF-FBC4-48B2-A954-B3B703246BD9}">
-				<File Id="FILE_RevitPluginSettings" Source="$(var.Revit.ProjectDir)SettingsGreen3DScan.json" KeyPath="yes"/>
+			<Component Id="CMP_Settings" Guid="{3C0FE5EF-FBC4-48B2-A954-B3B703246BD9}">
+				<File Id="FILE_Settings" Source="$(var.Revit.ProjectDir)SettingsGreen3DScan.json" KeyPath="yes"/>
 			</Component>
 			<!-- Adding Additional Executable Files -->
 			<Component Id="CMP_SearchVoxel" Guid="{31D76B02-656F-426F-AB34-5DBBE0B8C8AC}">
@@ -20,7 +20,14 @@
 			<Component Id="CMP_SegmentationVoxel" Guid="{F88B450B-311C-41E8-81D6-11C6B78AF5F3}">
 				<File Id="FILE_SegmentationVoxel" Source="D:\06_Green3DScan\000_C++\Green3D\x64\Release\SegmentationVoxel.exe" KeyPath="yes"/>
 			</Component>
-		</ComponentGroup>
+			<Component Id="CMP_SegmentationIFC" Guid="{4A6B9C25-91BA-4774-8B62-215FC6B86925}">
+				<File Id="FILE_SegmentationIFC" Source="D:\06_Green3DScan\00_GIT\FragmentationPointCloud\PythonIfcTools\faceBoxExtraction\dist\IFCFaceBoxExtractor.exe" KeyPath="yes"/>
+			</Component>
+			<Component Id="CMP_SettingsIFC" Guid="{85ECB70A-E753-439B-8DF7-E50F14F0870D}">
+				<File Id="FILE_SettingsIFC" Source="$(var.Revit.ProjectDir)basicList.json" KeyPath="yes"/>
+			</Component>
+
+	</ComponentGroup>
 
 		<Feature Id="Green3DScanMainProduct" Title="RevitPlugin" Level="1">
 			<ComponentGroupRef Id="AddinFileGroup"/>

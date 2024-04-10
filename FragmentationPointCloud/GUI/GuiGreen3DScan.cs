@@ -51,7 +51,7 @@ namespace Revit.GUI
             sectionBoxComplete.ToolTip = "Export the SectionBox and fragmented the point cloud.";
             sectionBoxComplete.LargeImage = GetBitmapFromResx(ResourcePng.oBBoxXY);
 
-            PushButton fragmentationIFC = panel1.AddItem(new PushButtonData("8", "Fragmentation IFC", thisAssemblyPath, "Revit.Green3DScan.FragmentationSectionBoxComplete")) as PushButton;
+            PushButton fragmentationIFC = panel1.AddItem(new PushButtonData("8", "Fragmentation IFC", thisAssemblyPath, "Revit.Green3DScan.FragmentationIFC")) as PushButton;
             fragmentationIFC.ToolTip = "Use IFC to calculate the oriented bounding boxes and fragmented the point cloud.";
             fragmentationIFC.LargeImage = GetBitmapFromResx(ResourcePng.ifc);
 

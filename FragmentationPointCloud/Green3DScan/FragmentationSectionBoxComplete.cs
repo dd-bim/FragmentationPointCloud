@@ -16,7 +16,6 @@ namespace Revit.Green3DScan
     [Transaction(TransactionMode.Manual)]
     public class FragmentationSectionBoxComplete : IExternalCommand
     {
-        string cloudComparePath = Constants.cloudComparePath;
         public const string CsvHeader = "Oriented;StateId;ObjectGuid;ElementId;" +
             "BBoxMinX;BBoxMinY;BBoxMinZ;" +
             "BBoxMaxX;BBoxMaxY;BBoxMaxZ;" +
@@ -136,7 +135,7 @@ namespace Revit.Green3DScan
                 WriteOBBoxToOBJFile(oBBoxes, Path.Combine(path, sectionBoxName + ".obj"));
 
                 // step 1: Fragmentation and saving of the small PCD
-                string exeGreen3DPath = Constants.fragmentationBBox;
+                string exeGreen3DPath = Constants.exeFragmentationBBox;
 
                 string command = $"{set.PathPointCloud} {csvBBoxesPath} {sectionBoxPath} {dateBimLastModified}";
                 if (!Helper.Fragmentation2Pcd(exeGreen3DPath, command))
@@ -159,7 +158,7 @@ namespace Revit.Green3DScan
                     return Result.Failed;
                 }
                 
-                // Laden der RCP
+                // load rcp
                 if (!LoadPointCloud(doc, Path.Combine(sectionBoxPath, sectionBoxName +".rcp"), transInverse))
                 {
                     TaskDialog.Show("Message", "RCP file not available");

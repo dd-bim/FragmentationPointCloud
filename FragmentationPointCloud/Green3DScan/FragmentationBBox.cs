@@ -16,7 +16,6 @@ namespace Revit.Green3DScan
     [Transaction(TransactionMode.Manual)]
     public class FragmentationBBox : IExternalCommand
     {
-        string cloudComparePath = Constants.cloudComparePath;
         #region Execute
         string path;
         string dateBimLastModified;
@@ -50,8 +49,6 @@ namespace Revit.Green3DScan
             Log.Information(set.ConstructionTolerance_Meter.ToString());
             #endregion setup
 
-            string pcdPathPointcloud = set.PathPointCloud;
-
             // step 1: select csv file with bboxes
             FileOpenDialog fodBBox = new FileOpenDialog("CSV file (*.csv)|*.csv");
             fodBBox.Title = "Select CSV file with BBoxes from Revit!";
@@ -69,14 +66,14 @@ namespace Revit.Green3DScan
             }
 
             // step 2: fragmentation an save small pcd
-            string exeGreen3DPath = Constants.fragmentationBBox;
+            string exeGreen3DPath = Constants.exeFragmentationBBox;
             string rcpFilePath = Path.Combine(path, "07_FragmentationBBox\\");
             if (!Directory.Exists(rcpFilePath))
             {
                 Directory.CreateDirectory(rcpFilePath);
             }
 
-            string command = $"{pcdPathPointcloud} {csvPathBBoxes} {rcpFilePath} {dateBimLastModified}";
+            string command = $"{set.PathPointCloud} {csvPathBBoxes} {rcpFilePath} {dateBimLastModified}";
             if (!Helper.Fragmentation2Pcd(exeGreen3DPath, command))
             {
                 TaskDialog.Show("Message", "Fragmentation not successful!");

@@ -64,8 +64,10 @@ namespace Revit
             public double HalfLength { get; }
             public double HalfWidth { get; }
             public double HalfHeight { get; }
+            public XYZ Min { get; }
+            public XYZ Max { get; }
 
-            public OrientedBoundingBox(bool oriented, string stateId, string objectGuid, string elementId, XYZ center, XYZ xDir, XYZ yDir, XYZ zDir, double halfLength, double halfWidth, double halfHeight)
+            public OrientedBoundingBox(bool oriented, string stateId, string objectGuid, string elementId, XYZ center, XYZ xDir, XYZ yDir, XYZ zDir, double halfLength, double halfWidth, double halfHeight, XYZ min = default, XYZ max= default)
             {
                 Oriented = oriented;
                 StateId = stateId;
@@ -78,6 +80,8 @@ namespace Revit
                 HalfLength = halfLength;
                 HalfWidth = halfWidth;
                 HalfHeight = halfHeight;
+                Min = min;
+                Max = max;
             }
         }
 
