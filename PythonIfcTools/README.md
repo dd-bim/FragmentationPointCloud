@@ -2,18 +2,18 @@
 
 ## Extract planar faces with parameters and BBoxes from IFC-File
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -i I                  the input Ifc-File
-  -faces                If flag is set, face information are calculated and stored in file -faceFile
-  -faceFile FACEFILE    The path to the face info output csv file
-  -boxes                If flag is set, bounding boxes for products will be calcualted and stord in file -boxFile
-  -boxFile BOXFILE      The path to the box info output csv file
-  -boxBuffer BOXBUFFER  Size of the buffer arround extracted bounding boxes in meter
-  -entityList ENTITYLIST
-                        JSON file of IfcProducts that should be processed or excluded
-  -buildingCS           Generate Patches in Coordinate System of Building NOT Site
-  -stateID STATEID      the state / phase id for the analyzed IFC file
+### optional arguments:
+
+- h, --help            	show this help message and exit
+- i I                  	the input Ifc-File
+- faces                	If flag is set, face information are calculated and stored in file -faceFile
+- faceFile FACEFILE    	The path to the face info output csv file
+- boxes                	If flag is set, bounding boxes for products will be calcualted and stord in file -boxFile
+- boxFile BOXFILE      	The path to the box info output csv file
+- boxBuffer BOXBUFFER  	Size of the buffer arround extracted bounding boxes in meter
+- entityList ENTITYLIST	JSON file of IfcProducts that should be processed or excluded
+- buildingCS           	Generate Patches in Coordinate System of Building NOT Site
+- stateID STATEID      	the state / phase id for the analyzed IFC file
 
 ## Todo
 - write documentation and how to use on computer without conda env

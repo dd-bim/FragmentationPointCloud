@@ -1,5 +1,5 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-  <Package Name="RevitPlugin" Manufacturer="HTW Dresden" Version="1.0.1" UpgradeCode="b91bf47a-ed28-40ed-9cc8-b573c91486a3" Scope="perMachine" >
+  <Package Name="RevitPlugin" Manufacturer="HTW Dresden" Version="1.0.2" UpgradeCode="b91bf47a-ed28-40ed-9cc8-b573c91486a3" Scope="perMachine" >
 	  <MajorUpgrade DowngradeErrorMessage="A newer version of Green3DScan is already installed." />
 	  <MediaTemplate EmbedCab="yes"/>
 	  
