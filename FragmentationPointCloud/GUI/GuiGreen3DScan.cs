@@ -71,11 +71,11 @@ namespace Revit.GUI
 
             RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "Tools");
 
-            PushButton pcd2E57 = panel3.AddItem(new PushButtonData("18", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as PushButton;
+            PushButton pcd2E57 = panel3.AddItem(new PushButtonData("11", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as PushButton;
             pcd2E57.ToolTip = "pcd2E57";
             pcd2E57.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            PushButton e572pcd = panel3.AddItem(new PushButtonData("19", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as PushButton;
+            PushButton e572pcd = panel3.AddItem(new PushButtonData("12", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as PushButton;
             e572pcd.ToolTip = "e572pcd";
             e572pcd.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 

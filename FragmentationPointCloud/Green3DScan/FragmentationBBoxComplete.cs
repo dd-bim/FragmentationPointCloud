@@ -55,7 +55,7 @@ namespace Revit.Green3DScan
                .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
                .CreateLogger();
             Log.Information("start FragmentationBBoxComplete");
-            Log.Information(set.ConstructionTolerance_Meter.ToString());
+            Log.Information(set.BBox_Buffer.ToString());
             #endregion setup
 
             string pcdPathPointcloud = set.PathPointCloud;
