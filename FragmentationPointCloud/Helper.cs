@@ -18,7 +18,7 @@ namespace Revit
         /// <param name="doc"></param>
         /// <param name="set"></param>
         /// <returns></returns>
-        public static Transform GetTransformation(in Document doc, in SettingsJson set)
+        public static Transform GetTransformation(in Document doc, in SettingsJson set, out D3.CoordinateSystem crs)
         {
             ProjectLocation projloc = doc.ActiveProjectLocation;
             ProjectPosition position_data = projloc.GetProjectPosition(XYZ.Zero);
@@ -37,7 +37,8 @@ namespace Revit
             XYZ vectorTranslation = new XYZ(easting, northing, elevation);
             Transform tTranslation = Transform.CreateTranslation(vectorTranslation);
             Transform transformation = tTranslation.Multiply(tRotation);
-
+            
+            crs = new D3.CoordinateSystem(new D3.Vector(easting, northing, elevation), new D3.Direction(angle, GeometryLib.Double.Constants.HALFPI), D3.Axes.X, new D3.Direction(angle + GeometryLib.Double.Constants.HALFPI, GeometryLib.Double.Constants.HALFPI));
             return transformation;
         }
         public class BoundingBox

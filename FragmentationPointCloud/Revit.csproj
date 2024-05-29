@@ -360,10 +360,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Constants.cs" />
+    <Compile Include="Data\Id.cs" />
+    <Compile Include="Data\Octant.cs" />
+    <Compile Include="Data\PlanarFace.cs" />
+    <Compile Include="Data\ReferencePlane.cs" />
     <Compile Include="Green3DScan\E572Pcd.cs" />
     <Compile Include="Green3DScan\FragmentationIFC.cs" />
     <Compile Include="Green3DScan\LoadFragmentationVoxel.cs" />
     <Compile Include="Green3DScan\FragmentationBBoxComplete.cs" />
+    <Compile Include="Green3DScan\Raycasting.cs" />
+    <Compile Include="Green3DScan\Revit2Stations.cs" />
     <Compile Include="Green3DScan\SelectPointcloud.cs" />
     <Compile Include="Green3DScan\FragmentationVoxel.cs" />
     <Compile Include="Green3DScan\LoadFragmentationIFC.cs" />
