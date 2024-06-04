@@ -124,9 +124,15 @@ namespace Revit.Data
             {
                 var normal = (Direction)nrm;
                 var planeX = (Direction)px;
-                IPlane plane = strings.Length >= LineCountCxx && D6.SpdMatrix.TryParseArray(strings[4], out var cxx)
-                    ? new StochasticPlane(position, normal, planeX, cxx)
-                    : new Plane(position, normal, planeX);
+                IPlane plane;
+                if (strings.Length >= LineCountCxx && D6.SpdMatrix.TryParseArray(strings[4], out var cxx))
+{
+                    plane = new StochasticPlane(position, normal, planeX, cxx);
+                }
+                else
+                {
+                    plane = new Plane(position, normal, planeX);
+                }
 
                 referencePlane = new ReferencePlane(strings[0], plane);
                 error = string.Empty;

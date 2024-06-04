@@ -63,7 +63,7 @@ namespace Revit.Green3DScan
                 return Result.Failed;
             }
 
-            Transform trans = Helper.GetTransformation(doc, set);
+            Transform trans = Helper.GetTransformation(doc, set, out var crs);
             Transform transInverse = trans.Inverse;
 
             int fail = 0;

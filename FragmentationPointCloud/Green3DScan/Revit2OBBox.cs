@@ -58,7 +58,7 @@ namespace Revit.Green3DScan
             Log.Information(set.BBox_Buffer.ToString());
             #endregion setup
 
-            Transform trans = Helper.GetTransformation(doc, set);
+            Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
             string csvPath = Path.Combine(path, "06_BBox/");
 

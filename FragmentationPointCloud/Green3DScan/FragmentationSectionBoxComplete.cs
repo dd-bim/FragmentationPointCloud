@@ -56,7 +56,7 @@ namespace Revit.Green3DScan
             Log.Information("start");
             Log.Information(set.BBox_Buffer.ToString());
             #endregion setup
-            Transform trans = Helper.GetTransformation(doc, set);
+            Transform trans = Helper.GetTransformation(doc, set, out var crs);
             Transform transInverse = trans.Inverse;
 
             string sectionBoxPath = Path.Combine(path, "09_FragmentationSectionBox\\");

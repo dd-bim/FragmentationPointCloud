@@ -65,7 +65,7 @@ namespace Revit.Green3DScan
                 Directory.CreateDirectory(rcpFilePath);
             }
 
-            Transform trans = Helper.GetTransformation(doc, set);
+            Transform trans = Helper.GetTransformation(doc, set, out var crs);
             Transform transInverse = trans.Inverse;
 
             using StreamWriter csv = File.CreateText(Path.Combine(rcpFilePath, "BIM_BBoxes.csv"));

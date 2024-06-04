@@ -20,8 +20,7 @@ using D = Revit.Data;
 namespace Revit.Green3DScan
 {
     [Transaction(TransactionMode.Manual)]
-    
-    public class Test : IExternalCommand
+    public class Revit2Stations : IExternalCommand
     {
         string path;
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -77,7 +76,7 @@ namespace Revit.Green3DScan
             var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
 
             #endregion select files
-
+            TaskDialog.Show("Message", "DEBUG Test");
             #region read files
 
             var facesRevit = D.PlanarFace.ReadCsv(csvPathPfRevit, out var lineErrors1, out string error1);
@@ -86,11 +85,15 @@ namespace Revit.Green3DScan
             {
                 facesMap[pf.Id] = pf;
             }
+
+            TaskDialog.Show("Message", "DEBUG Test");
+
             var referencePlanesRevit = D.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
 
             #endregion read files
 
             //Faces
+
 
             View activeView = doc.ActiveView;
 
@@ -128,14 +131,13 @@ namespace Revit.Green3DScan
                     var objectId = "x";
                     // var faceId = "y";
                     string createStateId = "TODO";
-                    string demolishedStateId = "TODO";
 
                     //string convertRepresentation = e.ConvertToStableRepresentation(doc);
                     //string[] tokenList = convertRepresentation.Split(new char[] { ':' });
                     //var faceIdnew = Convert.ToInt64(tokenList[1]);
 
                     // combine ID
-                    var id = new D.Id(createStateId, demolishedStateId, objectId, faceId);
+                    var id = new D.Id(createStateId, objectId, faceId.ToString());
                     var faceNormalTranform = trans.OfVector(planarFace.FaceNormal);
                     var normal = D3.Direction.Create(faceNormalTranform.X, faceNormalTranform.Y, faceNormalTranform.Z, out var length);
                     var originTranform = trans.OfPoint(planarFace.Origin) * Constants.feet2Meter;
@@ -221,6 +223,20 @@ namespace Revit.Green3DScan
             }
 
             TaskDialog.Show("Message", doors.Count.ToString() + " Türen werden verwendet");
+
+            // Sammeln der Raummitten: 
+            
+
+            //List<XYZ> roomCenters = GetRoomCenters(doc);
+
+            //// Ausgabe der Mittelpunkte (z.B. in der Ausgabe-Konsole oder anderweitig)
+            //foreach (XYZ center in roomCenters)
+            //{
+            //    Log.Information("Room Center", $"X: {center.X}, Y: {center.Y}, Z: {center.Z}");
+            //}
+        
+
+
 
             //List<D3.Vector> stations = new List<D3.Vector>
             //{
@@ -339,6 +355,28 @@ namespace Revit.Green3DScan
                 rings.Add(linestr);
             }
             return rings;
+        }
+        private List<XYZ> GetRoomCenters(Document doc)
+        {
+            List<XYZ> roomCenters = new List<XYZ>();
+
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            collector.OfCategory(BuiltInCategory.OST_Rooms).OfClass(typeof(SpatialElement));
+
+            foreach (Element element in collector)
+            {
+                SpatialElement room = element as SpatialElement;
+                if (room != null)
+                {
+                    LocationPoint locationPoint = room.Location as LocationPoint;
+                    if (locationPoint != null)
+                    {
+                        roomCenters.Add(locationPoint.Point);
+                    }
+                }
+            }
+
+            return roomCenters;
         }
 
     }

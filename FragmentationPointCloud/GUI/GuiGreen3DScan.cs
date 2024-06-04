@@ -69,13 +69,19 @@ namespace Revit.GUI
             route3.ToolTip = "Export coordinates of ScanStations.";
             route3.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "Tools");
+            RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "ScanStations");
 
-            PushButton pcd2E57 = panel3.AddItem(new PushButtonData("11", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as PushButton;
+            PushButton stations = panel3.AddItem(new PushButtonData("11", "BIM2Stations", thisAssemblyPath, "Revit.Green3DScan.Revit2Stations")) as PushButton;
+            stations.ToolTip = "pcd2E57";
+            stations.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+
+            RibbonPanel panel4 = application.CreateRibbonPanel(tabName, "Tools");
+
+            PushButton pcd2E57 = panel4.AddItem(new PushButtonData("12", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as PushButton;
             pcd2E57.ToolTip = "pcd2E57";
             pcd2E57.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            PushButton e572pcd = panel3.AddItem(new PushButtonData("12", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as PushButton;
+            PushButton e572pcd = panel4.AddItem(new PushButtonData("13", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as PushButton;
             e572pcd.ToolTip = "e572pcd";
             e572pcd.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 

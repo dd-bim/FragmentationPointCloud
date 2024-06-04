@@ -61,7 +61,7 @@ namespace Revit.Green3DScan
             string pathPgmWithoutExtension = Path.Combine(routePath, "RoutePNGwithoutExtension.pgm");
             string pathYaml = Path.Combine(routePath, "RoutePGM.yaml");
 
-            Transform trans = Helper.GetTransformation(doc, set);
+            Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
             try
             {

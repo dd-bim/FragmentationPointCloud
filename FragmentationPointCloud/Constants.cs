@@ -10,6 +10,14 @@ namespace Revit
         public static readonly double meter2Feet = 1.0 / feet2Meter;
         public static readonly double squareFeet2SquareMeter = feet2Meter * feet2Meter;
 
+        public static readonly double SQRT2 = 1.4142135623730950488016887242097;
+
+        public static readonly double SQRT3 = 1.7320508075688772935274463415059;
+
+        public static readonly double RSQRT2 = 0.70710678118654752440084436210485;
+
+        public static readonly double RSQRT3 = 0.57735026918962576450914878050196;
+
         public static readonly string pathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\SettingsGreen3DScan.json";
         public static readonly string readPathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\Green3DScan\SettingsGreen3DScan.json";
 

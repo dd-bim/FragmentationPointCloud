@@ -150,7 +150,7 @@ namespace Revit.Data
             var line = new string[LineCount];
             line[0] = Id.StateId;
             line[1] = Id.ObjectId;
-            line[2] = Id.PartId == 0 ? $"{Id.FaceId}" : $"{Id.FaceId}_{Id.PartId}";
+            line[2] = Id.FaceId;
             line[3] = ReferencePlaneId;
             line[4] = PlanarBtmLft.ToWktString();
             line[5] = PlanarBtmRgt.ToWktString();

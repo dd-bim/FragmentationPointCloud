@@ -11,6 +11,14 @@ namespace Revit.Data
         YPlus = 4,
         YNeg = 8,
         ZPlus = 16,
-        ZNeg = 32
+        ZNeg = 32,
+        PPP = XPlus | YPlus | ZPlus,
+        NPP = XNeg | YPlus | ZPlus,
+        PNP = XPlus | YNeg | ZPlus,
+        NNP = XNeg | YNeg | ZPlus,
+        PPN = XPlus | YPlus | ZNeg,
+        NPN = XNeg | YPlus | ZNeg,
+        PNN = XPlus | YNeg | ZNeg,
+        NNN = XNeg | YNeg | ZNeg,
     }
 }

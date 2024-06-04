@@ -60,15 +60,15 @@ namespace Revit.GUI
                     var j = modified["Green3DScan"];
                     var json = new SettingsJson
                     {
-                        BBox_Buffer = double.Parse(j[2].AttributValue),
-                        OnlyPlanarFaces = bool.Parse(j[4].AttributValue),
-                        CoordinatesReduction = bool.Parse(j[5].AttributValue),
-                        PgmHeightOfLevel_Meter = double.Parse(j[8].AttributValue),
-                        PgmImageExpansion_Px = double.Parse(j[9].AttributValue),
-                        PgmImageResolution_Meter = double.Parse(j[10].AttributValue),
-                        VerbosityLevel = j[11].AttributValue,
-                        PathPointCloud = j[12].AttributValue,
-                        FragmentationVoxelResolution_Meter = double.Parse(j[13].AttributValue)
+                        BBox_Buffer = double.Parse(j[0].AttributValue),
+                        OnlyPlanarFaces = bool.Parse(j[1].AttributValue),
+                        CoordinatesReduction = bool.Parse(j[2].AttributValue),
+                        PgmHeightOfLevel_Meter = double.Parse(j[3].AttributValue),
+                        PgmImageExpansion_Px = double.Parse(j[4].AttributValue),
+                        PgmImageResolution_Meter = double.Parse(j[5].AttributValue),
+                        VerbosityLevel = j[6].AttributValue,
+                        PathPointCloud = j[7].AttributValue,
+                        FragmentationVoxelResolution_Meter = double.Parse(j[8].AttributValue)
                     };
                     // overwrite updated json
                     SettingsJson.WriteSettingsJson(json, Constants.pathSettings);
