@@ -3,19 +3,20 @@ using System.Collections.Generic;
 using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
 using D = Revit.Data;
+using S = ScantraIO.Data;
 
 namespace Revit.Green3DScan
 {
     public static class Raycasting
     {
-        public static HashSet<D.Id>[] VisibleFaces(IReadOnlyCollection<D.PlanarFace> planarFaces, IReadOnlyDictionary<string, D.ReferencePlane> refPlanes, IReadOnlyList<D3.Vector> stations, SettingsJson set, out D3.Vector[][] pointClouds)
+        public static HashSet<S.Id>[] VisibleFaces(IReadOnlyCollection<S.PlanarFace> planarFaces, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, IReadOnlyList<D3.Vector> stations, SettingsJson set, out D3.Vector[][] pointClouds)
         {
-            var pFMap = new Dictionary<D.Id, D.PlanarFace>();
+            var pFMap = new Dictionary<S.Id, S.PlanarFace>();
             foreach (var pf in planarFaces)
             {
                 pFMap[pf.Id] = pf;
             }
-            var vf = new HashSet<D.Id>[stations.Count];
+            var vf = new HashSet<S.Id>[stations.Count];
             pointClouds = new D3.Vector[vf.Length][];
             for (int i = 0; i < vf.Length; i++)
             {
@@ -33,13 +34,13 @@ namespace Revit.Green3DScan
             return octant;
         }
 
-        private static bool GetMinDist(Dictionary<D.Id, D.PlanarFace> pFMap, IReadOnlyDictionary<string, D.ReferencePlane> refPlanes, Dictionary<D.Octant, HashSet<D.Id>> octants, D3.Vector station, D3.Direction direction, SettingsJson set, out D.Id minId, out D3.Vector minPoint)
+        private static bool GetMinDist(Dictionary<S.Id, S.PlanarFace> pFMap, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, Dictionary<D.Octant, HashSet<S.Id>> octants, D3.Vector station, D3.Direction direction, SettingsJson set, out S.Id minId, out D3.Vector minPoint)
         {
             // test only faces in the correct octant
             var octantFaces = octants[GetOctant(direction)];
             var minDistance = double.PositiveInfinity;
             minPoint = default;
-            minId = new D.Id();
+            minId = new S.Id();
 
             foreach (var id in octantFaces)
             {
@@ -77,21 +78,21 @@ namespace Revit.Green3DScan
             return !double.IsInfinity(minDistance);
         }
 
-        private static HashSet<D.Id> VisibleFaces(Dictionary<D.Id, D.PlanarFace> pfMap, IReadOnlyDictionary<string, D.ReferencePlane> refPlanes, D3.Vector station, SettingsJson set, out D3.Vector[] pointCloud, int stepsPerFullTurn)
+        private static HashSet<S.Id> VisibleFaces(Dictionary<S.Id, S.PlanarFace> pfMap, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, D3.Vector station, SettingsJson set, out D3.Vector[] pointCloud, int stepsPerFullTurn)
         {
-            var visibleFaces = new HashSet<D.Id>();
+            var visibleFaces = new HashSet<S.Id>();
             var points = new List<D3.Vector>();
 
             // create octants
-            var octants = new Dictionary<D.Octant, HashSet<D.Id>>{
-                {D.Octant.PPP, new HashSet<D.Id>()},
-                {D.Octant.NPP, new HashSet<D.Id>()},
-                {D.Octant.PNP, new HashSet<D.Id>()},
-                {D.Octant.NNP, new HashSet<D.Id>()},
-                {D.Octant.PPN, new HashSet<D.Id>()},
-                {D.Octant.NPN, new HashSet<D.Id>()},
-                {D.Octant.PNN, new HashSet<D.Id>()},
-                {D.Octant.NNN, new HashSet<D.Id>()}
+            var octants = new Dictionary<D.Octant, HashSet<S.Id>>{
+                {D.Octant.PPP, new HashSet<S.Id>()},
+                {D.Octant.NPP, new HashSet<S.Id>()},
+                {D.Octant.PNP, new HashSet<S.Id>()},
+                {D.Octant.NNP, new HashSet<S.Id>()},
+                {D.Octant.PPN, new HashSet<S.Id>()},
+                {D.Octant.NPN, new HashSet<S.Id>()},
+                {D.Octant.PNN, new HashSet<S.Id>()},
+                {D.Octant.NNN, new HashSet<S.Id>()}
                 };
 
             // assigning faces to octants
@@ -114,7 +115,7 @@ namespace Revit.Green3DScan
             var azimuth = D2.Direction.UnitX;
             var inclination = D2.Direction.UnitX;
             var step = new D2.Direction(Math.PI / halfSteps);
-            D.Id minId;
+            S.Id minId;
             D3.Vector minPoint;
 
             // faces at the poles

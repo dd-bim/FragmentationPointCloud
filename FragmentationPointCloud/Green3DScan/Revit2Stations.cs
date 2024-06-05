@@ -14,7 +14,7 @@ using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
 using View = Autodesk.Revit.DB.View;
 using Line = Autodesk.Revit.DB.Line;
-using D = Revit.Data;
+using S = ScantraIO.Data;
 
 
 namespace Revit.Green3DScan
@@ -54,8 +54,8 @@ namespace Revit.Green3DScan
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
-            string csvVisibleFaces = Path.Combine(path, "Revit2StationsVisibleFaces");
-            string csvVisibleFacesRef = Path.Combine(path, "Revit2StationsVisibleFacesRef");
+            string csvVisibleFaces = Path.Combine(path, "Revit2StationsVisibleFaces.csv");
+            string csvVisibleFacesRef = Path.Combine(path, "Revit2StationsVisibleFacesRef.csv");
 
             #region select files
             // Revit
@@ -76,33 +76,29 @@ namespace Revit.Green3DScan
             var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
 
             #endregion select files
-            TaskDialog.Show("Message", "DEBUG Test");
+            //TaskDialog.Show("Message", "DEBUG Test");
             #region read files
 
-            var facesRevit = D.PlanarFace.ReadCsv(csvPathPfRevit, out var lineErrors1, out string error1);
-            var facesMap = new Dictionary<D.Id, D.PlanarFace>();
+            var facesRevit = S.PlanarFace.ReadCsv(csvPathPfRevit, out var lineErrors1, out string error1);
+            var facesMap = new Dictionary<S.Id, S.PlanarFace>();
             foreach (var pf in facesRevit)
             {
                 facesMap[pf.Id] = pf;
             }
 
-            TaskDialog.Show("Message", "DEBUG Test");
-
-            var referencePlanesRevit = D.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
+            var referencePlanesRevit = S.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
 
             #endregion read files
 
             //Faces
-
-
             View activeView = doc.ActiveView;
 
             // Sammeln aller Räume in der aktiven Ansicht
             FilteredElementCollector collFaces= new FilteredElementCollector(doc, activeView.Id);
             ICollection<Element> rooms = collFaces.OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().ToElements();
 
-            var refPlanes = new List<D.ReferencePlane>();
-            var faces = new List<D.PlanarFace>();
+            var refPlanes = new List<S.ReferencePlane>();
+            var faces = new List<S.PlanarFace>();
             int totalFailedFaces = 0;
             var faceId = 0;
 
@@ -137,12 +133,12 @@ namespace Revit.Green3DScan
                     //var faceIdnew = Convert.ToInt64(tokenList[1]);
 
                     // combine ID
-                    var id = new D.Id(createStateId, objectId, faceId.ToString());
+                    var id = new S.Id(createStateId, objectId, faceId.ToString());
                     var faceNormalTranform = trans.OfVector(planarFace.FaceNormal);
                     var normal = D3.Direction.Create(faceNormalTranform.X, faceNormalTranform.Y, faceNormalTranform.Z, out var length);
                     var originTranform = trans.OfPoint(planarFace.Origin) * Constants.feet2Meter;
                     var plane = new D3.Plane(new D3.Vector(originTranform.X, originTranform.Y, originTranform.Z), normal);
-                    var refPlane = new D.ReferencePlane(crs, plane, 2);
+                    var refPlane = new S.ReferencePlane(crs, plane, 2);
                     refPlanes.Add(refPlane);
 
                     var rings = CurveLoops(planarFace, trans);
@@ -150,7 +146,7 @@ namespace Revit.Green3DScan
                     try
                     {
                         NTSWrapper.GeometryLib.ToPolygon2d(plane, rings, out D2.Polygon polygon, out D3.BBox bbox, out double maxPlaneDist);
-                        var planarFaceIO = new D.PlanarFace(id, refPlane, bbox, polygon);
+                        var planarFaceIO = new S.PlanarFace(id, refPlane, bbox, polygon);
                         if (!(maxPlaneDist <= 0.01)) //Parameter
                         {
                             Log.Information("maxPlaneDist: " + maxPlaneDist);
@@ -166,19 +162,19 @@ namespace Revit.Green3DScan
             }
 
             // write faces
-            string csvPlanarFaces = Path.Combine(path, "roomFaces");
-            string csvReferencePlanes = Path.Combine(path, "roomFacesRef");
-            D.PlanarFace.WriteCsv(csvPlanarFaces, faces);
-            D.ReferencePlane.WriteCsv(csvReferencePlanes, refPlanes);
+            string csvPlanarFaces = Path.Combine(path, "roomFaces.csv");
+            string csvReferencePlanes = Path.Combine(path, "roomFacesRef.csv");
+            S.PlanarFace.WriteCsv(csvPlanarFaces, faces);
+            S.ReferencePlane.WriteCsv(csvReferencePlanes, refPlanes);
             // write OBJ
-            Dictionary<string, D.ReferencePlane> objPlanes = new Dictionary<string, D.ReferencePlane>();
-            foreach (D.ReferencePlane refPlane in refPlanes)
+            Dictionary<string, S.ReferencePlane> objPlanes = new Dictionary<string, S.ReferencePlane>();
+            foreach (S.ReferencePlane refPlane in refPlanes)
             {
                 objPlanes.Add(refPlane.Id, refPlane);
             }
-            D.PlanarFace.WriteObj(Path.Combine(path, "roomFaces"), objPlanes, faces);
+            S.PlanarFace.WriteObj(Path.Combine(path, "roomFaces"), objPlanes, faces);
 
-            var refPlanesMap = new Dictionary<string, D.ReferencePlane>();
+            var refPlanesMap = new Dictionary<string, S.ReferencePlane>();
             foreach (var plane in refPlanes)
             {
                 refPlanesMap[plane.Id] = plane;
@@ -225,16 +221,16 @@ namespace Revit.Green3DScan
             TaskDialog.Show("Message", doors.Count.ToString() + " Türen werden verwendet");
 
             // Sammeln der Raummitten: 
-            
 
-            //List<XYZ> roomCenters = GetRoomCenters(doc);
 
-            //// Ausgabe der Mittelpunkte (z.B. in der Ausgabe-Konsole oder anderweitig)
-            //foreach (XYZ center in roomCenters)
-            //{
-            //    Log.Information("Room Center", $"X: {center.X}, Y: {center.Y}, Z: {center.Z}");
-            //}
-        
+            List<XYZ> roomCenters = GetRoomCenters(doc);
+
+            // Ausgabe der Mittelpunkte (z.B. in der Ausgabe-Konsole oder anderweitig)
+            foreach (XYZ center in roomCenters)
+            {
+                Log.Information("Room Center", $"X: {center.X}, Y: {center.Y}, Z: {center.Z}");
+            }
+
 
 
 
@@ -249,10 +245,10 @@ namespace Revit.Green3DScan
             var visibleFacesId = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stations, set, out D3.Vector[][] pointClouds);
             #region write pointcloud in XYZ
             List<string> lines = new List<string>();
-            var visibleFaceId = new HashSet<D.Id>();
+            var visibleFaceId = new HashSet<S.Id>();
             for (int i = 0; i < stations.Count; i++)
             {
-                foreach (D.Id id in visibleFacesId[i])
+                foreach (S.Id id in visibleFacesId[i])
                 {
                     visibleFaceId.Add(id);
                 }
@@ -261,29 +257,29 @@ namespace Revit.Green3DScan
                     lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
                 }
             }
-            File.WriteAllLines(Path.Combine(path, "simulatedPointcloud"), lines);
+            File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
             #endregion write pointcloud in XYZ
 
-            var visibleFaces = new HashSet<D.PlanarFace>();
-            var pFMap = new Dictionary<D.Id, D.PlanarFace>();
+            var visibleFaces = new HashSet<S.PlanarFace>();
+            var pFMap = new Dictionary<S.Id, S.PlanarFace>();
             foreach (var pf in facesRevit)
             {
                 pFMap[pf.Id] = pf;
             }
             for (int i = 0; i < stations.Count; i++)
             {
-                foreach (D.Id id in visibleFacesId[i])
+                foreach (S.Id id in visibleFacesId[i])
                 {
                     visibleFaces.Add(pFMap[id]);
                 }
             }
-            D.PlanarFace.WriteCsv(csvVisibleFaces, visibleFaces);
-            D.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
+            S.PlanarFace.WriteCsv(csvVisibleFaces, visibleFaces);
+            S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
 
             //List<S.Id> listVisibleFaceId = new List<S.Id>(visibleFaceId);
 
-            var notVisibleFaces = new List<D.Id>();
-            var facesIdList = new List<D.Id>();
+            var notVisibleFaces = new List<S.Id>();
+            var facesIdList = new List<S.Id>();
             foreach (var item in facesMap)
             {
                 facesIdList.Add(item.Key);

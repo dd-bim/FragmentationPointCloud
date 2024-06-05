@@ -1,0 +1,179 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>ScantraIO</name>
+    </assembly>
+    <members>
+        <member name="T:ScantraIO.Data.Id">
+            <summary>
+            Eindeutiger Identifier für Planarfaces, kombinierter Schlüssel aus 3 einzelnen Ids
+            </summary>
+            <seealso cref="T:System.IEquatable`1"/>
+        </member>
+        <member name="P:ScantraIO.Data.Id.StateId">
+            <summary>Id für Status (z.B. Phase, CalculationId, RegistrationID ...)</summary>
+        </member>
+        <member name="P:ScantraIO.Data.Id.ObjectId">
+            <summary>Id des Objektes, bei Scantra: <c>GlobalPlaneID</c> als Text bzw. die <c>StationID</c> des lokalen Patches</summary>
+        </member>
+        <member name="P:ScantraIO.Data.Id.FaceId">
+            <summary>Id des Faces bei Scantra: entweder die <c>GlobalPlaneID</c> oder die lokale <c>ParameterID</c></summary>
+        </member>
+        <member name="M:ScantraIO.Data.Id.#ctor(System.String,System.String,System.String)">
+            <summary>
+            Initializes a new instance of the <see cref="T:ScantraIO.Data.Id"/> struct.
+            </summary>
+            <param name="stateId"><see cref="P:ScantraIO.Data.Id.StateId"/></param>
+            <param name="objectId"><see cref="P:ScantraIO.Data.Id.ObjectId"/></param>
+            <param name="faceId"><see cref="P:ScantraIO.Data.Id.FaceId"/></param>
+        </member>
+        <member name="M:ScantraIO.Data.Id.Equals(System.Object)">
+            <summary>
+            Indicates whether this instance and a specified object are equal.
+            </summary>
+            <param name="obj">The object to compare with the current instance.</param>
+            <returns>
+              <see langword="true" /> if <paramref name="obj" /> and this instance are the same type and represent the same value; otherwise, <see langword="false" />.
+            </returns>
+        </member>
+        <member name="M:ScantraIO.Data.Id.Equals(ScantraIO.Data.Id)">
+            <summary>
+            Indicates whether the current object is equal to another object of the same type.
+            </summary>
+            <param name="other">An object to compare with this object.</param>
+            <returns>
+              <see langword="true" /> if the current object is equal to the <paramref name="other" /> parameter; otherwise, <see langword="false" />.
+            </returns>
+        </member>
+        <member name="M:ScantraIO.Data.Id.GetHashCode">
+            <summary>
+            Returns a hash code for this instance.
+            </summary>
+            <returns>
+            A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table. 
+            </returns>
+        </member>
+        <member name="M:ScantraIO.Data.Id.op_Equality(ScantraIO.Data.Id,ScantraIO.Data.Id)">
+            <summary>
+            Implements the operator ==.
+            </summary>
+            <param name="left">The left.</param>
+            <param name="right">The right.</param>
+            <returns>
+            The result of the operator.
+            </returns>
+        </member>
+        <member name="M:ScantraIO.Data.Id.op_Inequality(ScantraIO.Data.Id,ScantraIO.Data.Id)">
+            <summary>
+            Implements the operator !=.
+            </summary>
+            <param name="left">The left.</param>
+            <param name="right">The right.</param>
+            <returns>
+            The result of the operator.
+            </returns>
+        </member>
+        <member name="M:ScantraIO.Data.Id.ToString">
+            <summary>
+            Converts to string.
+            </summary>
+            <returns>
+            The fully qualified type name.
+            </returns>
+        </member>
+        <member name="P:ScantraIO.Data.PlanarFace.BBox">
+            <summary>
+            Bounding Box, Min X Y Z + Max X Y Z
+            </summary>
+        </member>
+        <member name="T:ScantraIO.Scantra.GlobalStation">
+            <summary>Klasse für GlobalStation aus Scantra Datenbank</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.GlobalStation.RegistrationId">
+            <summary>Id der Registration</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.GlobalStation.StationId">
+            <summary>Id des Standpunktes</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.GlobalStation.Rotation">
+            <summary>Rotation des lokalen Standpunktsystems in das globale System</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.GlobalStation.Position">
+            <summary>Position des Standpunkts im globalen System</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.GlobalStation.Cxx">
+            <summary>Werte der Kovarianzmatrix (7x7): c00, c01, c02, c03, c04, c05, c06, c11, c12, c13, c14, c15, c16, c22, c23, c24, c25, c26, c33, c34, c35, c36, c44, c45, c46, c55, c56, c66 </summary>
+        </member>
+        <member name="M:ScantraIO.Scantra.GlobalStation.#ctor(System.String,System.String,GeometryLib.Double.D3.Quaternion,GeometryLib.Double.D3.Vector,GeometryLib.Double.Linear.SymMatrix)">
+            <summary>  Konstruktor</summary>
+            <param name="registrationId"><see cref="P:ScantraIO.Scantra.GlobalStation.RegistrationId"/></param>
+            <param name="stationId"><see cref="P:ScantraIO.Scantra.GlobalStation.StationId"/></param>
+            <param name="rotation"><see cref="P:ScantraIO.Scantra.GlobalStation.Rotation"/></param>
+            <param name="position"><see cref="P:ScantraIO.Scantra.GlobalStation.Position"/></param>
+            <param name="cxx"><see cref="P:ScantraIO.Scantra.GlobalStation.Cxx"/></param>
+        </member>
+        <member name="P:ScantraIO.Scantra.Patch.ParameterId">
+            <summary>Id des Patches</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.Patch.StationId">
+            <summary>Id des Standpunktes</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.Patch.Plane">
+            <summary>Ebene im Standpunktsystem</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.Patch.Boundary">
+            <summary>Polygon des Umrings des Patches</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.Patch.NumberOfPoints">
+            <summary>Anzahl der Messpunkte auf Patch</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.Patch.VtPV">
+            <summary>Quadratsumme der Verbesserungen der Patch Ebene</summary>
+        </member>
+        <member name="P:ScantraIO.Scantra.Patch.Qxx">
+            <summary>Kovarianzmatrix (3x3) der Patch Ebene</summary>
+        </member>
+        <member name="M:ScantraIO.Scantra.Read.ReadFromScantraGlobalPlanes(System.String@,ScantraIO.Data.PlanarFaceStochastic[]@,System.String[]@,System.String@,System.Nullable{System.Int64})">
+            <summary>
+            Lesen der GlobalPlaneParameter aus Scantra
+            </summary>
+            <param name="path">Pfad zur Datenbank</param>
+            <param name="stochastic">Rückgabe der Stochastic der globalen Ebenen</param>
+            <param name="invalidPlanes">Ids der ungültigen Ebenen</param>
+            <param name="error">Fehlerstring</param>
+            <param name="calculationId">evtl. Vorgabe der CalculationId, sonst wird neueste gelesen</param>
+            <returns></returns>
+        </member>
+        <member name="M:ScantraIO.Scantra.Read.ReadFromScantraGlobalStations(System.String@,System.String@,System.String)">
+            <summary>Lesen der GlobalStations aus Scantra</summary>
+            <param name="path">Pfad zur Datenbank</param>
+            <param name="error">Fehlerstring</param>
+            <param name="registrationId">evtl. Vorgabe der RegistrationId, sonst wird neueste gelesen</param>
+            <returns></returns>
+        </member>
+        <member name="M:ScantraIO.Scantra.Read.ReadFromScantraLocalPatches(System.String@,System.Double@,System.Double@,System.Double@,System.Double@,System.Double@,System.String[]@,System.String@)">
+            <summary>Lesen localer Ebenenpatches (im globalen System) aus Scantra</summary>
+            <param name="path">Pfad zur Datenbank</param>
+            <param name="minDistToStation">Minimaler Abstand eines Punktes auf dem Patch zur Station</param>
+            <param name="maxDistToStation">Maximaler Abstand eines Punktes auf dem Patch zur Station</param>
+            <param name="minPatchLength">Minimale Seitenlänge eines Patches</param>
+            <param name="maxPatchLength">Maximale Seitenlänge eines Patches</param>
+            <param name="maxDistToArc">Maximaler Abstand des Facerandes zum gekrümmten Patchrand</param>
+            <param name="patchErrors">The patch errors.</param>
+            <param name="error">The error.</param>
+            <returns></returns>
+        </member>
+        <member name="M:ScantraIO.Scantra.Write.BimToPlanes(System.String,System.Collections.Generic.IReadOnlyDictionary{ScantraIO.Data.Id,GeometryLib.Double.D3.Plane}@,System.String,System.String,System.Double,System.Boolean)">
+            <summary>
+            Schreibt Ebenen nach Scantra als Standpunkt
+            </summary>
+            <param name="path">Pfad zur Scantra Datenbank</param>
+            <param name="facePlanes">Dictionary mit Face Id als Key und Ebene des Faces als Value</param>
+            <param name="groupCaption">Bezeichnung der Gruppe der einzuführenden Station</param>
+            <param name="stationId">Einzuführende Station der Faces</param>
+            <param name="stdDev">Standardabweichung</param>
+            <param name="flipNormals">Drehe die Normalen der Ebenen</param>
+            <returns></returns>
+        </member>
+    </members>
+</doc>

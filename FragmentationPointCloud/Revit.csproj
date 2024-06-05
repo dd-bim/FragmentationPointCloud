@@ -440,6 +440,13 @@
       <Project>{919ef403-98f3-4840-a452-94c00fe697a8}</Project>
       <Name>NTSWrapper</Name>
     </ProjectReference>
+    <ProjectReference Include="..\ScantraIO\ScantraIO.csproj">
+      <Project>{bd6c50b5-3972-46ba-9207-9ae04ad194c5}</Project>
+      <Name>ScantraIO</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\NETStandard.Library.2.0.3\build\netstandard2.0\NETStandard.Library.targets" Condition="Exists('..\packages\NETStandard.Library.2.0.3\build\netstandard2.0\NETStandard.Library.targets')" />
