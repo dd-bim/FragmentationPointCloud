@@ -1,21 +1,15 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
-using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
 using Serilog;
 using Transform = Autodesk.Revit.DB.Transform;
-using Sys = System.Globalization.CultureInfo;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
-using View = Autodesk.Revit.DB.View;
 using Line = Autodesk.Revit.DB.Line;
-using S = ScantraIO.Data;
-
 
 namespace Revit.Green3DScan
 {
@@ -23,6 +17,7 @@ namespace Revit.Green3DScan
     public class AddStation : IExternalCommand
     {
         string path;
+        private TextBox heightTextBox;
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
@@ -31,6 +26,7 @@ namespace Revit.Green3DScan
 
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
             Document doc = uidoc.Document;
+            UIApplication uiapp = commandData.Application;
             try
             {
                 path = Path.GetDirectoryName(doc.PathName);
@@ -53,90 +49,73 @@ namespace Revit.Green3DScan
             #endregion setup
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
+            double heigth = 1;
+            
+            XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, heigth)) * Constants.meter2Feet; 
 
-            // Step 1: User clicks to select a point
-            XYZ point;
+            double radius = 0.25 * Constants.meter2Feet; // Set the desired radius
+
             try
             {
-                point = uidoc.Selection.PickPoint("Click to place a sphere");
+                using (TransactionGroup tg = new TransactionGroup(doc, "Place Spheres"))
+                {
+                    tg.Start();
+
+                    while (true)
+                    {
+                        // Step 1: User clicks to select a point
+                        XYZ point;
+                        try
+                        {
+                            point = uidoc.Selection.PickPoint("Click to place a sphere or press ESC to finish");
+                        }
+                        catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                        {
+                            break; // Exit the loop when ESC is pressed
+                        }
+
+                        using (Transaction tx = new Transaction(doc, "Place Sphere"))
+                        {
+                            tx.Start();
+
+                            // Create a profile curve for the sphere (a semi-circle)
+                            List<Curve> profileCurves = new List<Curve>();
+                            XYZ center = new XYZ(point.X, point.Y, transformedHeight.Z);
+                            XYZ top = new XYZ(point.X, point.Y, transformedHeight.Z + radius);
+                            XYZ bottom = new XYZ(point.X, point.Y, transformedHeight.Z - radius);
+                            Arc arc = Arc.Create(top, bottom, center + new XYZ(radius, 0, 0));
+                            profileCurves.Add(Line.CreateBound(bottom, top));
+                            profileCurves.Add(arc);
+
+                            CurveLoop profile = CurveLoop.Create(profileCurves);
+
+                            // Axis of revolution (Y-axis through the center point)
+                            Line axis = Line.CreateBound(point, point + XYZ.BasisY);
+
+                            // Create a revolved solid using the profile and the axis
+                            Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(
+                                new Frame(point, XYZ.BasisX, XYZ.BasisY, XYZ.BasisZ),
+                                new CurveLoop[] { profile },
+                                0,
+                                2 * Math.PI);
+
+                            // Create a DirectShape element in Revit
+                            DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                            ds.SetShape(new GeometryObject[] { sphere });
+
+                            tx.Commit();
+                        }
+                    }
+
+                    tg.Assimilate(); // Commit the transaction group
+                }
             }
-            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            catch (Exception ex)
             {
-                return Result.Cancelled;
+                message = ex.Message;
+                return Result.Failed;
             }
 
-            // Step 2: Create a sphere at the clicked point
-            using (Transaction tx = new Transaction(doc, "Place Sphere"))
-            {
-                tx.Start();
-
-                // Sphere parameters
-                double radius = 5.0; // Set the desired radius
-
-                // Create a profile curve for the sphere (a semi-circle)
-                List<Curve> profileCurves = new List<Curve>();
-                XYZ center = new XYZ(point.X, point.Y, point.Z);
-                XYZ top = new XYZ(point.X, point.Y, point.Z + radius);
-                XYZ bottom = new XYZ(point.X, point.Y, point.Z - radius);
-                Arc arc = Arc.Create(top, bottom, center + new XYZ(radius, 0, 0));
-                profileCurves.Add(Line.CreateBound(bottom, top));
-                profileCurves.Add(arc);
-
-                CurveLoop profile = CurveLoop.Create(profileCurves);
-
-                // Axis of revolution (Y-axis through the center point)
-                Line axis = Line.CreateBound(point, point + XYZ.BasisY);
-
-                // Create a revolved solid using the profile and the axis
-                Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(
-                    new Frame(point, XYZ.BasisX, XYZ.BasisY, XYZ.BasisZ),
-                    new CurveLoop[] { profile },
-                    0,
-                    2 * Math.PI);
-
-                // Create a DirectShape element in Revit
-                DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                ds.SetShape(new GeometryObject[] { sphere });
-
-                tx.Commit();
-            }
-
-            return Result.Succeeded;
-
-            //for (int i = 0; i < stations.Count; i++)
-            //{
-
-            //    // sphere
-            //    List<Curve> profile = new List<Curve>();
-            //    XYZ station = new XYZ(stations[i].x, stations[i].y, stations[i].z);
-            //    var stationTransform = trans.OfVector(station);
-            //    XYZ center = stationTransform * Constants.meter2Feet;
-            //    double radius = 0.15 * Constants.meter2Feet;
-            //    XYZ profile00 = center;
-            //    XYZ profilePlus = center + new XYZ(0, radius, 0);
-            //    XYZ profileMinus = center - new XYZ(0, radius, 0);
-
-            //    profile.Add(Line.CreateBound(profilePlus, profileMinus));
-            //    profile.Add(Arc.Create(profileMinus, profilePlus, center + new XYZ(radius, 0, 0)));
-
-            //    CurveLoop curveLoop = CurveLoop.Create(profile);
-            //    SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
-
-            //    Frame frame = new Frame(center, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
-            //    if (Frame.CanDefineRevitGeometry(frame) == true)
-            //    {
-            //        Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
-            //        using Transaction t = new Transaction(doc, "Create sphere direct shape");
-            //        t.Start();
-            //        // create direct shape and assign the sphere shape
-            //        DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-            //        ds.ApplicationId = "Application id";
-            //        ds.ApplicationDataId = "Geometry object id";
-            //        ds.SetShape(new GeometryObject[] { sphere });
-            //        t.Commit();
-            //    }
-            //}
-            //TaskDialog.Show("Message", "Fertig");
             return Result.Succeeded;
         }
 
@@ -184,6 +163,5 @@ namespace Revit.Green3DScan
 
             return roomCenters;
         }
-
     }
 }

@@ -15,6 +15,9 @@ using Document = Autodesk.Revit.DB.Document;
 using View = Autodesk.Revit.DB.View;
 using Line = Autodesk.Revit.DB.Line;
 using S = ScantraIO.Data;
+using NetTopologySuite.Algorithm;
+using System.Collections.ObjectModel;
+using Autodesk.Revit.DB.Visual;
 
 
 namespace Revit.Green3DScan
@@ -50,14 +53,16 @@ namespace Revit.Green3DScan
                .CreateLogger();
             Log.Information("start");
             Log.Information(set.BBox_Buffer.ToString());
-            #endregion setup
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
+
+            #endregion setup
 
             string csvVisibleFaces = Path.Combine(path, "Revit2StationsVisibleFaces.csv");
             string csvVisibleFacesRef = Path.Combine(path, "Revit2StationsVisibleFacesRef.csv");
 
             #region select files
+
             // Revit
             var fodPfRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
             fodPfRevit.Title = "Select CSV file with BimFaces from Revit!";
@@ -76,7 +81,7 @@ namespace Revit.Green3DScan
             var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
 
             #endregion select files
-            //TaskDialog.Show("Message", "DEBUG Test");
+
             #region read files
 
             var facesRevit = S.PlanarFace.ReadCsv(csvPathPfRevit, out var lineErrors1, out string error1);
@@ -94,8 +99,8 @@ namespace Revit.Green3DScan
             View activeView = doc.ActiveView;
 
             // Sammeln aller Räume in der aktiven Ansicht
-            FilteredElementCollector collFaces= new FilteredElementCollector(doc, activeView.Id);
-            ICollection<Element> rooms = collFaces.OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().ToElements();
+            FilteredElementCollector active= new FilteredElementCollector(doc, activeView.Id);
+            ICollection<Element> rooms = active.OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().ToElements();
 
             var refPlanes = new List<S.ReferencePlane>();
             var faces = new List<S.PlanarFace>();
@@ -118,7 +123,7 @@ namespace Revit.Green3DScan
                 foreach (Face geomFace in geomSolid.Faces)
                 {
                     faceId += 1;
-                    if (!(geomFace is Autodesk.Revit.DB.PlanarFace planarFace))
+                    if (!(geomFace is PlanarFace planarFace))
                     {
                         continue;
                     }
@@ -166,6 +171,7 @@ namespace Revit.Green3DScan
             string csvReferencePlanes = Path.Combine(path, "roomFacesRef.csv");
             S.PlanarFace.WriteCsv(csvPlanarFaces, faces);
             S.ReferencePlane.WriteCsv(csvReferencePlanes, refPlanes);
+            
             // write OBJ
             Dictionary<string, S.ReferencePlane> objPlanes = new Dictionary<string, S.ReferencePlane>();
             foreach (S.ReferencePlane refPlane in refPlanes)
@@ -181,15 +187,20 @@ namespace Revit.Green3DScan
             }
 
             TaskDialog.Show("Message", faces.Count.ToString() + " Faces wurden von Räumen geschrieben");
+            
+            #region stations
 
-            //Standpunkte
+            //----------------------------------
+            // Stations
+            //----------------------------------
 
-            // Sammeln aller Türen im Modell
-            FilteredElementCollector collRooms = new FilteredElementCollector(doc, activeView.Id);
-            ICollection<Element> doors = collRooms.OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements();
-
-            // Liste für die Speicherung der Mittelpunkte
             List<D3.Vector> stations = new List<D3.Vector>();
+
+            // collect doors
+            ICollection<Element> doors = active.OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements();
+            
+            double heigth = 1;
+            XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, heigth)) * Constants.meter2Feet;
 
             foreach (Element door in doors)
             {
@@ -197,69 +208,35 @@ namespace Revit.Green3DScan
 
                 if (loc is LocationCurve locationCurve)
                 {
-                    Curve curve = locationCurve.Curve;
-
-                    if (curve is Line line)
-                    {
-                        var center2D = (line.GetEndPoint(0) + line.GetEndPoint(1)) / 2;
-
-                        // must be transformed if coordinatereduktion true
-                        var center3D = trans.OfPoint(center2D + new XYZ(0, 0, 1)) * Constants.feet2Meter;
-                    }
-                    else
-                    {
-                        Log.Information("Wall, but the LocationCurve is not a line.");
-                    }
+                    Log.Information("Wall, but no LocationPoint.");
                 }   
                 else if (loc is LocationPoint locationPoint)
                 {
-                    var point = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
-                    stations.Add(new D3.Vector(point.X, point.Y, 1));
+                    var doorPoint = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
+                    stations.Add(new D3.Vector(doorPoint.X, doorPoint.Y, transformedHeight.Z));
                 }
             }
 
-            TaskDialog.Show("Message", doors.Count.ToString() + " Türen werden verwendet");
+            TaskDialog.Show("Message", doors.Count.ToString() + " doors");
 
-            // Sammeln der Raummitten: 
-
-
-            List<XYZ> roomCenters = GetRoomCenters(doc);
-
-            // Ausgabe der Mittelpunkte (z.B. in der Ausgabe-Konsole oder anderweitig)
-            foreach (XYZ center in roomCenters)
+            // collect rooms
+            foreach (Element room in rooms)
             {
-                Log.Information("Room Center", $"X: {center.X}, Y: {center.Y}, Z: {center.Z}");
+                if (room is SpatialElement spatialRoom && spatialRoom.Location is LocationPoint locationPoint)
+                {
+                    var roomPoint = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
+                    stations.Add(new D3.Vector(roomPoint.X, roomPoint.Y, transformedHeight.Z));
+                }
             }
 
+            TaskDialog.Show("Message", rooms.Count.ToString() + " rooms");
+            
+            #endregion stations
 
-
-
-            //List<D3.Vector> stations = new List<D3.Vector>
-            //{
-            //    //new D3.Vector(0, 0, 0),
-            //    //new D3.Vector(20.70, 0.50, 0.4),
-            //    new D3.Vector(5, -3, 1.5),
-            //    new D3.Vector(2, -2, 1.5)
-            //};
+            #region visible and not visible faces
 
             var visibleFacesId = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stations, set, out D3.Vector[][] pointClouds);
-            #region write pointcloud in XYZ
-            List<string> lines = new List<string>();
             var visibleFaceId = new HashSet<S.Id>();
-            for (int i = 0; i < stations.Count; i++)
-            {
-                foreach (S.Id id in visibleFacesId[i])
-                {
-                    visibleFaceId.Add(id);
-                }
-                for (int j = 0; j < pointClouds[i].Length; j++)
-                {
-                    lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
-                }
-            }
-            File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
-            #endregion write pointcloud in XYZ
-
             var visibleFaces = new HashSet<S.PlanarFace>();
             var pFMap = new Dictionary<S.Id, S.PlanarFace>();
             foreach (var pf in facesRevit)
@@ -276,8 +253,6 @@ namespace Revit.Green3DScan
             S.PlanarFace.WriteCsv(csvVisibleFaces, visibleFaces);
             S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
 
-            //List<S.Id> listVisibleFaceId = new List<S.Id>(visibleFaceId);
-
             var notVisibleFaces = new List<S.Id>();
             var facesIdList = new List<S.Id>();
             foreach (var item in facesMap)
@@ -293,26 +268,45 @@ namespace Revit.Green3DScan
                 }
             }
 
+            #endregion visible and not visible faces
+
+            #region write pointcloud in XYZ
+            List<string> lines = new List<string>();
             for (int i = 0; i < stations.Count; i++)
             {
+                foreach (S.Id id in visibleFacesId[i])
+                {
+                    visibleFaceId.Add(id);
+                }
+                for (int j = 0; j < pointClouds[i].Length; j++)
+                {
+                    lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
+                }
+            }
+            File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
+            #endregion write pointcloud in XYZ
 
-                // sphere
+            #region sphere
+
+            for (int i = 0; i < stations.Count; i++)
+            {
+               // sphere
                 List<Curve> profile = new List<Curve>();
                 XYZ station = new XYZ(stations[i].x, stations[i].y, stations[i].z);
-                var stationTransform = trans.OfVector(station);
-                XYZ center = stationTransform * Constants.meter2Feet;
+                //var stationTransform = trans.OfVector(station);
+                //XYZ center = stationTransform * Constants.meter2Feet;
                 double radius = 0.15 * Constants.meter2Feet;
-                XYZ profile00 = center;
-                XYZ profilePlus = center + new XYZ(0, radius, 0);
-                XYZ profileMinus = center - new XYZ(0, radius, 0);
+                XYZ profile00 = station;
+                XYZ profilePlus = station + new XYZ(0, radius, 0);
+                XYZ profileMinus = station - new XYZ(0, radius, 0);
 
                 profile.Add(Line.CreateBound(profilePlus, profileMinus));
-                profile.Add(Arc.Create(profileMinus, profilePlus, center + new XYZ(radius, 0, 0)));
+                profile.Add(Arc.Create(profileMinus, profilePlus, station + new XYZ(radius, 0, 0)));
 
                 CurveLoop curveLoop = CurveLoop.Create(profile);
                 SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
 
-                Frame frame = new Frame(center, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
+                Frame frame = new Frame(station, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
                 if (Frame.CanDefineRevitGeometry(frame) == true)
                 {
                     Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
@@ -326,6 +320,8 @@ namespace Revit.Green3DScan
                     t.Commit();
                 }
             }
+            #endregion sphere
+
             TaskDialog.Show("Message", "Fertig");
             return Result.Succeeded;
         }
@@ -352,28 +348,5 @@ namespace Revit.Green3DScan
             }
             return rings;
         }
-        private List<XYZ> GetRoomCenters(Document doc)
-        {
-            List<XYZ> roomCenters = new List<XYZ>();
-
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            collector.OfCategory(BuiltInCategory.OST_Rooms).OfClass(typeof(SpatialElement));
-
-            foreach (Element element in collector)
-            {
-                SpatialElement room = element as SpatialElement;
-                if (room != null)
-                {
-                    LocationPoint locationPoint = room.Location as LocationPoint;
-                    if (locationPoint != null)
-                    {
-                        roomCenters.Add(locationPoint.Point);
-                    }
-                }
-            }
-
-            return roomCenters;
-        }
-
     }
 }

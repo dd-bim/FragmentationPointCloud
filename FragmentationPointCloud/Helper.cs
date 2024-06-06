@@ -6,6 +6,7 @@ using System.IO;
 using Autodesk.Revit.DB.ExtensibleStorage;
 using Autodesk.Revit.DB;
 using Serilog;
+using S = ScantraIO.Data;
 using D3 = GeometryLib.Double.D3;
 
 namespace Revit
@@ -237,6 +238,231 @@ namespace Revit
             int xor = tempId ^ elementId;
             return new Guid(uniqueId.Substring(0, 28) + xor.ToString("x8"));
         }
+        public class Paint
+        {
+            public static void ColourFace(Document doc, List<S.Id> ids, ElementId colourId)
+            {
+                foreach (var id in ids)
+                {
+                    // letzte Stelle entfernen, oder schon vorher entfernen, wenn ergebnisse zusammengefasst werden
+                    Reference refFace = Reference.ParseFromStableRepresentation(doc, id.FaceId);
+                    Face face = doc.GetElement(refFace).GetGeometryObjectFromReference(refFace) as Face;
 
+                    try
+                    {
+                        using (Transaction t1 = new Transaction(doc, "Painting"))
+                        {
+                            t1.Start();
+                            doc.Paint(refFace.ElementId, face, colourId);
+                            t1.Commit();
+                        }
+                    }
+                    catch
+                    {
+                        Log.Information("Fehler beim Einfärben");
+                    }
+                }
+            }
+        }
+        public static Schema GetSchemaByName(string schemaName)
+        {
+            var schemaList = Schema.ListSchemas();
+            foreach (var schema in schemaList)
+            {
+                if (schema.SchemaName == schemaName)
+                {
+                    return schema;
+                }
+            }
+            return null;
+        }
+        private Schema AddSchemaForUsageType(string schemaName, List<string> fieldList)
+        {
+            SchemaBuilder sb = new SchemaBuilder(Guid.NewGuid());
+            sb.SetSchemaName(schemaName);
+            sb.SetReadAccessLevel(AccessLevel.Public);
+            sb.SetWriteAccessLevel(AccessLevel.Public);
+            sb.SetVendorId("HTWDresden");
+
+            foreach (var entry in fieldList)
+            {
+                sb.AddSimpleField(entry, typeof(string));
+            }
+
+            return sb.Finish();
+        }
+        private ElementId[] ReadMaterialsDS(Document doc)
+        {
+            var mat = new ElementId[12];
+            using Transaction trans = new Transaction(doc, "Read Materials");
+            trans.Start();
+            Schema ppSchema = GetSchemaByName("Green3DScanMaterials");
+
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            IList<Element> dataStorageList = collector.OfClass(typeof(DataStorage)).ToElements();
+
+            foreach (var ds in dataStorageList)
+            {
+                Entity ent = ds.GetEntity(ppSchema);
+                if (ent.IsValid())
+                {
+                    var m0 = ent.Get<ElementId>(ppSchema.GetField("M0"));
+                    var m1 = ent.Get<ElementId>(ppSchema.GetField("M1"));
+                    var m2 = ent.Get<ElementId>(ppSchema.GetField("M2"));
+                    var m3 = ent.Get<ElementId>(ppSchema.GetField("M3"));
+                    var m4 = ent.Get<ElementId>(ppSchema.GetField("M4"));
+                    var m5 = ent.Get<ElementId>(ppSchema.GetField("M5"));
+                    var m6 = ent.Get<ElementId>(ppSchema.GetField("M6"));
+                    var m7 = ent.Get<ElementId>(ppSchema.GetField("M7"));
+                    var m8 = ent.Get<ElementId>(ppSchema.GetField("M8"));
+                    var m9 = ent.Get<ElementId>(ppSchema.GetField("M9"));
+                    var m10 = ent.Get<ElementId>(ppSchema.GetField("M10"));
+                    var m11 = ent.Get<ElementId>(ppSchema.GetField("M11"));
+
+                    trans.Commit();
+                    mat[0] = m0;
+                    mat[1] = m1;
+                    mat[2] = m2;
+                    mat[3] = m3;
+                    mat[4] = m4;
+                    mat[5] = m5;
+                    mat[6] = m6;
+                    mat[7] = m7;
+                    mat[8] = m8;
+                    mat[9] = m9;
+                    mat[10] = m10;
+                    mat[11] = m11;
+                }
+            }
+            return mat;
+        }
+        private ElementId[] AddMaterials(Document doc)
+        {
+            Color dRed = new Color(150, 20, 0);
+            Color red = new Color(190, 70, 0);
+            Color lRed = new Color(210, 120, 0);
+            Color dOra = new Color(225, 160, 0);
+            Color ora = new Color(240, 200, 0);
+            Color yel = new Color(230, 220, 0);
+            Color yelGre = new Color(130, 150, 0);
+            Color gre = new Color(130, 150, 0);
+            Color dGre = new Color(70, 120, 0);
+            Color ddGre = new Color(20, 70, 0);
+            Color grey = new Color(105, 105, 105);
+            Color blue = new Color(0, 120, 200);
+
+            var colorArr = new ElementId[12];
+
+            using Transaction t = new Transaction(doc, "AddMaterials");
+            t.Start();
+
+            // materials
+
+            var matDRed = Material.Create(doc, "CPM_darkred");
+            Material mat0 = doc.GetElement(matDRed) as Material;
+            mat0.Color = dRed;
+            colorArr[0] = matDRed;
+
+            var matRed = Material.Create(doc, "CPM_red");
+            Material mat1 = doc.GetElement(matRed) as Material;
+            mat1.Color = red;
+            colorArr[1] = matRed;
+
+            var matLRed = Material.Create(doc, "CPM_lightred");
+            Material mat2 = doc.GetElement(matLRed) as Material;
+            mat2.Color = lRed;
+            colorArr[2] = matLRed;
+
+            var matDOra = Material.Create(doc, "CPM_darkorange");
+            Material mat3 = doc.GetElement(matDOra) as Material;
+            mat3.Color = dOra;
+            colorArr[3] = matDOra;
+
+            var matOra = Material.Create(doc, "CPM_orange");
+            Material mat4 = doc.GetElement(matOra) as Material;
+            mat4.Color = ora;
+            colorArr[4] = matOra;
+
+            var matLOra = Material.Create(doc, "CPM_ligthorange");
+            Material mat5 = doc.GetElement(matLOra) as Material;
+            mat5.Color = yel;
+            colorArr[5] = matLOra;
+
+            var matYel = Material.Create(doc, "CPM_yellow");
+            Material mat6 = doc.GetElement(matYel) as Material;
+            mat6.Color = yelGre;
+            colorArr[6] = matYel;
+
+            var matYelGre = Material.Create(doc, "CPM_yellowgreen");
+            Material mat7 = doc.GetElement(matYelGre) as Material;
+            mat7.Color = gre;
+            colorArr[7] = matYelGre;
+
+            var matGre = Material.Create(doc, "CPM_green");
+            Material mat8 = doc.GetElement(matGre) as Material;
+            mat8.Color = dGre;
+            colorArr[8] = matGre;
+
+            var matDGre = Material.Create(doc, "CPM_darkgreen");
+            Material mat9 = doc.GetElement(matDGre) as Material;
+            mat9.Color = ddGre;
+            colorArr[9] = matDGre;
+
+            var matGrey = Material.Create(doc, "CPM_grey");
+            Material mat10 = doc.GetElement(matGrey) as Material;
+            mat10.Color = grey;
+            colorArr[10] = matGrey;
+
+            var matBlue = Material.Create(doc, "CPM_blue");
+            Material mat11 = doc.GetElement(matBlue) as Material;
+            mat11.Color = blue;
+            colorArr[11] = matBlue;
+
+            //DataStorage
+            Schema progressPatchMaterials = GetSchemaByName("Green3DScanMaterials");
+
+            if (progressPatchMaterials == null)
+            {
+                SchemaBuilder sb = new SchemaBuilder(Guid.NewGuid());
+                sb.SetSchemaName("Green3DScanMaterials");
+                sb.SetReadAccessLevel(AccessLevel.Public);
+                sb.SetWriteAccessLevel(AccessLevel.Public);
+
+                sb.AddSimpleField("M0", typeof(ElementId));
+                sb.AddSimpleField("M1", typeof(ElementId));
+                sb.AddSimpleField("M2", typeof(ElementId));
+                sb.AddSimpleField("M3", typeof(ElementId));
+                sb.AddSimpleField("M4", typeof(ElementId));
+                sb.AddSimpleField("M5", typeof(ElementId));
+                sb.AddSimpleField("M6", typeof(ElementId));
+                sb.AddSimpleField("M7", typeof(ElementId));
+                sb.AddSimpleField("M8", typeof(ElementId));
+                sb.AddSimpleField("M9", typeof(ElementId));
+                sb.AddSimpleField("M10", typeof(ElementId));
+                sb.AddSimpleField("M11", typeof(ElementId));
+
+                progressPatchMaterials = sb.Finish();
+            }
+            Entity ent = new Entity(progressPatchMaterials);
+            ent.Set("M0", colorArr[0]);
+            ent.Set("M1", colorArr[1]);
+            ent.Set("M2", colorArr[2]);
+            ent.Set("M3", colorArr[3]);
+            ent.Set("M4", colorArr[4]);
+            ent.Set("M5", colorArr[5]);
+            ent.Set("M6", colorArr[6]);
+            ent.Set("M7", colorArr[7]);
+            ent.Set("M8", colorArr[8]);
+            ent.Set("M9", colorArr[9]);
+            ent.Set("M10", colorArr[10]);
+            ent.Set("M11", colorArr[11]);
+
+            DataStorage materialsIdStorage = DataStorage.Create(doc);
+            materialsIdStorage.SetEntity(ent);
+
+            t.Commit();
+
+            return colorArr;
+        }
     }
 }
