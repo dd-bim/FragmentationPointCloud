@@ -236,10 +236,18 @@ namespace Revit.Green3DScan
                 }
             }
 
-            foreach (var item in stations)
+            //foreach (var item in stations)
+            //{
+            //    Log.Information(item.xyz.ToString());
+            //    var x = new XYZ(item.x, item.y, item.z);
+            //    var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
+            //    Log.Information(xTrans.ToString());
+            //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
+            //}
+            for (int i = 0; i < 1; i++)
             {
-                Log.Information(item.xyz.ToString());
-                var x = new XYZ(item.x, item.y, item.z);
+                Log.Information(stations[i].xyz.ToString());
+                var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
                 var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
                 Log.Information(xTrans.ToString());
                 stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
@@ -260,36 +268,46 @@ namespace Revit.Green3DScan
             {
                 pFMap[pf.Id] = pf;
             }
-            for (int i = 0; i < stations.Count; i++)
+            for (int i = 0; i < stationsPBP.Count; i++)
+            //for (int i = 0; i < stations.Count; i++)
             {
                 foreach (S.Id id in visibleFacesId[i])
                 {
                     visibleFaces.Add(pFMap[id]);
                 }
             }
+            // visible faces
             S.PlanarFace.WriteCsv(csvVisibleFaces, visibleFaces);
             S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
+            //S.PlanarFace.WriteObj(Path.Combine(path, "visible"), objPlanes, visibleFaces);
 
-            var notVisibleFaces = new List<S.Id>();
+            //var notVisibleFacesiD = new List<S.Id>();
+            var notVisibleFaces = new List<S.PlanarFace>();
+
             var facesIdList = new List<S.Id>();
             foreach (var item in facesMap)
             {
                 facesIdList.Add(item.Key);
             }
 
+            // not visible faces
             foreach (var item in facesIdList)
             {
                 if (!visibleFaceId.Contains(item))
                 {
-                    notVisibleFaces.Add(item);
+                    //notVisibleFacesiD.Add(item);
+                    notVisibleFaces.Add(facesMap[item]);
                 }
             }
+            S.PlanarFace.WriteCsv(csvVisibleFaces, notVisibleFaces);
+            S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
+            //S.PlanarFace.WriteObj(Path.Combine(path, "notVisible"), objPlanes, notVisibleFaces);
 
             #endregion visible and not visible faces
 
             #region write pointcloud in XYZ
             List<string> lines = new List<string>();
-            for (int i = 0; i < stations.Count; i++)
+            for (int i = 0; i < stationsPBP.Count; i++)
             {
                 foreach (S.Id id in visibleFacesId[i])
                 {
@@ -303,17 +321,24 @@ namespace Revit.Green3DScan
             File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
             #endregion write pointcloud in XYZ
 
+            #region color not visible faces     
+
+
+
+
+
+
+            #endregion  color not visible faces
+
             #region sphere
 
-            for (int i = 0; i < stations.Count; i++)
+            // create spheres with internal coordinates
+            for (int i = 0; i < stationsPBP.Count; i++)
             {
                // sphere
                 List<Curve> profile = new List<Curve>();
                 XYZ station = new XYZ(stations[i].x, stations[i].y, stations[i].z);
-                //XYZ stationTransform = trans.OfVector(station);
-                //XYZ center = stationTransform * Constants.meter2Feet;
-                double radius = set.SphereDiameter_Meter * Constants.meter2Feet;
-                XYZ profile00 = station;
+                double radius = set.SphereDiameter_Meter/2 * Constants.meter2Feet;
                 XYZ profilePlus = station + new XYZ(0, radius, 0);
                 XYZ profileMinus = station - new XYZ(0, radius, 0);
 

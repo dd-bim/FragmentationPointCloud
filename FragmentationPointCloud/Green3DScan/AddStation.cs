@@ -49,11 +49,10 @@ namespace Revit.Green3DScan
             #endregion setup
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
-            double heigth = 1;
             
-            XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, heigth)) * Constants.meter2Feet; 
+            XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, set.HeightOfSphere_Meter)) * Constants.meter2Feet; 
 
-            double radius = 0.25 * Constants.meter2Feet; // Set the desired radius
+            double radius = set.SphereDiameter_Meter/2 * Constants.meter2Feet;
 
             try
             {
