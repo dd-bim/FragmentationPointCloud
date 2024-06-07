@@ -18,6 +18,7 @@ using S = ScantraIO.Data;
 using NetTopologySuite.Algorithm;
 using System.Collections.ObjectModel;
 using Autodesk.Revit.DB.Visual;
+using Autodesk.Internal.Windows;
 
 
 namespace Revit.Green3DScan
@@ -99,8 +100,8 @@ namespace Revit.Green3DScan
             View activeView = doc.ActiveView;
 
             // Sammeln aller Räume in der aktiven Ansicht
-            FilteredElementCollector active= new FilteredElementCollector(doc, activeView.Id);
-            ICollection<Element> rooms = active.OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().ToElements();
+            FilteredElementCollector collRooms= new FilteredElementCollector(doc, activeView.Id);
+            ICollection<Element> rooms = collRooms.OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().ToElements();
 
             var refPlanes = new List<S.ReferencePlane>();
             var faces = new List<S.PlanarFace>();
@@ -194,13 +195,15 @@ namespace Revit.Green3DScan
             // Stations
             //----------------------------------
 
-            List<D3.Vector> stations = new List<D3.Vector>();
+            List<D3.Vector> stations = new List<D3.Vector>(); 
+            List<D3.Vector> stationsPBP = new List<D3.Vector>();
 
             // collect doors
-            ICollection<Element> doors = active.OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements();
+            FilteredElementCollector collDoors = new FilteredElementCollector(doc, activeView.Id);
+            ICollection<Element> doors = collDoors.OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements();
             
-            double heigth = 1;
-            XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, heigth)) * Constants.meter2Feet;
+            double heigth = set.HeightOfSphere_Meter;
+            //XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, heigth)) * Constants.meter2Feet;
 
             foreach (Element door in doors)
             {
@@ -212,8 +215,10 @@ namespace Revit.Green3DScan
                 }   
                 else if (loc is LocationPoint locationPoint)
                 {
-                    var doorPoint = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
-                    stations.Add(new D3.Vector(doorPoint.X, doorPoint.Y, transformedHeight.Z));
+                    //var doorPoint = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
+                    //stations.Add(new D3.Vector(doorPoint.X, doorPoint.Y, transformedHeight.Z));
+
+                    stations.Add(new D3.Vector(locationPoint.Point.X, locationPoint.Point.Y, heigth * Constants.meter2Feet));
                 }
             }
 
@@ -224,18 +229,30 @@ namespace Revit.Green3DScan
             {
                 if (room is SpatialElement spatialRoom && spatialRoom.Location is LocationPoint locationPoint)
                 {
-                    var roomPoint = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
-                    stations.Add(new D3.Vector(roomPoint.X, roomPoint.Y, transformedHeight.Z));
+                    //var roomPoint = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
+                    //stations.Add(new D3.Vector(roomPoint.X, roomPoint.Y, transformedHeight.Z));
+
+                    stations.Add(new D3.Vector(locationPoint.Point.X, locationPoint.Point.Y, heigth * Constants.meter2Feet));
                 }
             }
 
+            foreach (var item in stations)
+            {
+                Log.Information(item.xyz.ToString());
+                var x = new XYZ(item.x, item.y, item.z);
+                var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
+                Log.Information(xTrans.ToString());
+                stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
+            }
             TaskDialog.Show("Message", rooms.Count.ToString() + " rooms");
-            
+
             #endregion stations
+
+            TaskDialog.Show("Message", stations.Count.ToString() + " stations");
 
             #region visible and not visible faces
 
-            var visibleFacesId = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stations, set, out D3.Vector[][] pointClouds);
+            var visibleFacesId = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds);
             var visibleFaceId = new HashSet<S.Id>();
             var visibleFaces = new HashSet<S.PlanarFace>();
             var pFMap = new Dictionary<S.Id, S.PlanarFace>();
@@ -293,9 +310,9 @@ namespace Revit.Green3DScan
                // sphere
                 List<Curve> profile = new List<Curve>();
                 XYZ station = new XYZ(stations[i].x, stations[i].y, stations[i].z);
-                //var stationTransform = trans.OfVector(station);
+                //XYZ stationTransform = trans.OfVector(station);
                 //XYZ center = stationTransform * Constants.meter2Feet;
-                double radius = 0.15 * Constants.meter2Feet;
+                double radius = set.SphereDiameter_Meter * Constants.meter2Feet;
                 XYZ profile00 = station;
                 XYZ profilePlus = station + new XYZ(0, radius, 0);
                 XYZ profileMinus = station - new XYZ(0, radius, 0);

@@ -32,7 +32,10 @@ namespace Revit.GUI
                 { "PgmImageResolution_Meter", set.PgmImageResolution_Meter.ToString() },
                 { "VerbosityLevel", set.VerbosityLevel },
                 { "PathPointCloud", set.PathPointCloud },
-                { "FragmentationVoxelResulution_Meter", set.FragmentationVoxelResolution_Meter.ToString() }
+                { "FragmentationVoxelResulution_Meter", set.FragmentationVoxelResolution_Meter.ToString() },
+                { "StepsPerFullTurn", set.StepsPerFullTurn.ToString() },
+                { "SphereDiameter_Meter", set.SphereDiameter_Meter.ToString() },
+                { "HeightOfSphere_Meter", set.HeightOfSphere_Meter.ToString() }
             };
 
             var currentTabItem = new TabItem

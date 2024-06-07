@@ -17,6 +17,9 @@ namespace Revit
         public string VerbosityLevel { get; set; }
         public string PathPointCloud { get; set; }
         public double FragmentationVoxelResolution_Meter { get; set; }
+        public int StepsPerFullTurn { get; set; }
+        public double SphereDiameter_Meter { get; set; }
+        public double HeightOfSphere_Meter { get; set; }
 
         /// <summary>
         /// deserialize json file

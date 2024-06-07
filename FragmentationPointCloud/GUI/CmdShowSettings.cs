@@ -68,7 +68,10 @@ namespace Revit.GUI
                         PgmImageResolution_Meter = double.Parse(j[5].AttributValue),
                         VerbosityLevel = j[6].AttributValue,
                         PathPointCloud = j[7].AttributValue,
-                        FragmentationVoxelResolution_Meter = double.Parse(j[8].AttributValue)
+                        FragmentationVoxelResolution_Meter = double.Parse(j[8].AttributValue),
+                        StepsPerFullTurn = int.Parse(j[9].AttributValue),
+                        SphereDiameter_Meter = double.Parse(j[10].AttributValue),
+                        HeightOfSphere_Meter = double.Parse(j[11].AttributValue)
                     };
                     // overwrite updated json
                     SettingsJson.WriteSettingsJson(json, Constants.pathSettings);

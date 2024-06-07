@@ -7,5 +7,8 @@
   "PgmImageResolution_Meter": 0.05,
   "VerbosityLevel": "ddd",
   "PathPointCloud": "ddd",
-  "FragmentationVoxelResolution_Meter": 5
+  "FragmentationVoxelResolution_Meter": 5,
+  "StepsPerFullTurn": 36,
+  "SphereDiameter_Meter": 0.15,
+  "HeightOfSphere_Meter":  1.0
 }

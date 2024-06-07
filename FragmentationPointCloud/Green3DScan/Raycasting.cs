@@ -20,7 +20,7 @@ namespace Revit.Green3DScan
             pointClouds = new D3.Vector[vf.Length][];
             for (int i = 0; i < vf.Length; i++)
             {
-                vf[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud, 360);
+                vf[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud, set.StepsPerFullTurn);
                 pointClouds[i] = pointCloud;
             }
             return vf;
@@ -111,7 +111,7 @@ namespace Revit.Green3DScan
                 }
             }
 
-            int halfSteps = 360 / 2;
+            int halfSteps = set.StepsPerFullTurn / 2;
             var azimuth = D2.Direction.UnitX;
             var inclination = D2.Direction.UnitX;
             var step = new D2.Direction(Math.PI / halfSteps);
@@ -129,7 +129,7 @@ namespace Revit.Green3DScan
                 visibleFaces.Add(minId);
                 points.Add(minPoint);
             }
-            for (var i = 0; i < 360; i++)
+            for (var i = 0; i < set.StepsPerFullTurn; i++)
             {
                 inclination = step;
                 for (var j = 1; j < halfSteps; j++)
