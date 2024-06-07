@@ -281,7 +281,7 @@ namespace Revit.Green3DScan
             S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
             //S.PlanarFace.WriteObj(Path.Combine(path, "visible"), objPlanes, visibleFaces);
 
-            //var notVisibleFacesiD = new List<S.Id>();
+            var notVisibleFacesId = new List<S.Id>();
             var notVisibleFaces = new List<S.PlanarFace>();
 
             var facesIdList = new List<S.Id>();
@@ -295,7 +295,7 @@ namespace Revit.Green3DScan
             {
                 if (!visibleFaceId.Contains(item))
                 {
-                    //notVisibleFacesiD.Add(item);
+                    notVisibleFacesId.Add(item);
                     notVisibleFaces.Add(facesMap[item]);
                 }
             }
@@ -323,10 +323,20 @@ namespace Revit.Green3DScan
 
             #region color not visible faces     
 
+            ElementId[] matId = default;
 
+            // add materials and save the ElementIds in a DataStorage
+            try
+            {
+                matId = Helper.AddMaterials(doc);
+            }
+            catch (Exception)
+            {
 
+                matId = Helper.ReadMaterialsDS(doc);
+            }
 
-
+            Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
 
             #endregion  color not visible faces
 

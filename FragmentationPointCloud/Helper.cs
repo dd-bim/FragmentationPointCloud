@@ -276,7 +276,7 @@ namespace Revit
             }
             return null;
         }
-        private Schema AddSchemaForUsageType(string schemaName, List<string> fieldList)
+        public static Schema AddSchemaForUsageType(string schemaName, List<string> fieldList)
         {
             SchemaBuilder sb = new SchemaBuilder(Guid.NewGuid());
             sb.SetSchemaName(schemaName);
@@ -291,7 +291,7 @@ namespace Revit
 
             return sb.Finish();
         }
-        private ElementId[] ReadMaterialsDS(Document doc)
+        public static ElementId[] ReadMaterialsDS(Document doc)
         {
             var mat = new ElementId[12];
             using Transaction trans = new Transaction(doc, "Read Materials");
@@ -336,7 +336,7 @@ namespace Revit
             }
             return mat;
         }
-        private ElementId[] AddMaterials(Document doc)
+        public static ElementId[] AddMaterials(Document doc)
         {
             Color dRed = new Color(150, 20, 0);
             Color red = new Color(190, 70, 0);

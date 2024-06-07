@@ -56,7 +56,7 @@ namespace Revit.Green3DScan
                 // intersections
                 var p_ = (pfRefPlane.Position - station).Dot(pfRefPlane.Normal);
                 var distance = p_ / r_;
-                if (distance < 5 || distance > 20) //Parameter
+                if (distance < 0 || distance > 30) //Parameter
                 {
                     continue;
                 }
