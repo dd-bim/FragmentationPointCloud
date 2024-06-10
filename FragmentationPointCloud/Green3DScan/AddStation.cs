@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using D3 = GeometryLib.Double.D3;
 using Serilog;
 using Transform = Autodesk.Revit.DB.Transform;
 using Path = System.IO.Path;
@@ -17,7 +16,6 @@ namespace Revit.Green3DScan
     public class AddStation : IExternalCommand
     {
         string path;
-        private TextBox heightTextBox;
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
@@ -26,7 +24,6 @@ namespace Revit.Green3DScan
 
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
             Document doc = uidoc.Document;
-            UIApplication uiapp = commandData.Application;
             try
             {
                 path = Path.GetDirectoryName(doc.PathName);
@@ -94,9 +91,7 @@ namespace Revit.Green3DScan
                             // Create a revolved solid using the profile and the axis
                             Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(
                                 new Frame(point, XYZ.BasisX, XYZ.BasisY, XYZ.BasisZ),
-                                new CurveLoop[] { profile },
-                                0,
-                                2 * Math.PI);
+                                new CurveLoop[] { profile },0,2 * Math.PI);
 
                             // Create a DirectShape element in Revit
                             DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
@@ -108,6 +103,14 @@ namespace Revit.Green3DScan
 
                     tg.Assimilate(); // Commit the transaction group
                 }
+
+                Level currentLevel = doc.ActiveView.GenLevel;
+                string levelName = currentLevel.Name;
+
+                // Beispielkoordinate, wo die Kugel eingefügt wird
+                XYZ sphereCoordinate = new XYZ(10, 20, 30);
+
+                //Helper.CreateAndStoreSphereData(doc, sphereCoordinate, levelName);
             }
             catch (Exception ex)
             {
@@ -116,51 +119,6 @@ namespace Revit.Green3DScan
             }
 
             return Result.Succeeded;
-        }
-
-        private static List<D3.LineString> CurveLoops(Face face, Transform trans)
-        {
-            var rings = new List<D3.LineString>();
-            IList<CurveLoop> curveLoops = face.GetEdgesAsCurveLoops();
-            // exteriors and interiors
-            for (int i = 0; i < curveLoops.Count; i++)
-            {
-                var vertices = new List<D3.Vector>();
-                CurveLoop curveLoop = curveLoops[i];
-                foreach (Curve curve in curveLoop)
-                {
-                    XYZ pntStart = trans.OfPoint(curve.GetEndPoint(0)) * Constants.feet2Meter;
-                    vertices.Add(new D3.Vector(pntStart.X, pntStart.Y, pntStart.Z));
-                }
-                vertices.Add(vertices[0]);
-                // List umkehren
-                //vertices.Reverse();
-                var linestr = new D3.LineString(vertices);
-                rings.Add(linestr);
-            }
-            return rings;
-        }
-        private List<XYZ> GetRoomCenters(Document doc)
-        {
-            List<XYZ> roomCenters = new List<XYZ>();
-
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            collector.OfCategory(BuiltInCategory.OST_Rooms).OfClass(typeof(SpatialElement));
-
-            foreach (Element element in collector)
-            {
-                SpatialElement room = element as SpatialElement;
-                if (room != null)
-                {
-                    LocationPoint locationPoint = room.Location as LocationPoint;
-                    if (locationPoint != null)
-                    {
-                        roomCenters.Add(locationPoint.Point);
-                    }
-                }
-            }
-
-            return roomCenters;
         }
     }
 }

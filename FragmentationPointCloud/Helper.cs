@@ -464,5 +464,126 @@ namespace Revit
 
             return colorArr;
         }
+        public static Schema AddSchemaForUsageType(string schemaName)
+        {
+            SchemaBuilder sb = new SchemaBuilder(Guid.NewGuid());
+            sb.SetSchemaName(schemaName);
+            sb.SetReadAccessLevel(AccessLevel.Public);
+            sb.SetWriteAccessLevel(AccessLevel.Public);
+            sb.SetVendorId("HTWDresden");
+
+            sb.AddArrayField("Coordinates", typeof(XYZ));
+
+            return sb.Finish();
+        }
+        public static DataStorage GetOrCreateDataStorage(Document doc, string storageName, string levelName, Schema schema)
+        {
+            FilteredElementCollector collector = new FilteredElementCollector(doc)
+                .OfClass(typeof(DataStorage));
+
+            foreach (DataStorage ds in collector)
+            {
+                if (ds.Name == storageName)
+                {
+                    return ds;
+                }
+            }
+
+            using (Transaction trans = new Transaction(doc, "Create DataStorage"))
+            {
+                trans.Start();
+                DataStorage dataStorage = DataStorage.Create(doc);
+                dataStorage.Name = storageName;
+
+                Entity entity = new Entity(schema);
+                entity.Set("Level", levelName);
+                entity.Set<IList<XYZ>>("Coordinates", new List<XYZ>()); // Initial leere Liste
+                dataStorage.SetEntity(entity);
+
+                trans.Commit();
+                return dataStorage;
+            }
+        }
+        public static void AddCoordinates(Document doc, DataStorage dataStorage, IList<XYZ> coordinates)
+        {
+            using (Transaction trans = new Transaction(doc, "Add Coordinates"))
+            {
+                trans.Start();
+
+                Schema schema = Schema.Lookup(dataStorage.GetEntity().SchemaGUID);
+                Entity entity = dataStorage.GetEntity(schema);
+
+                IList<XYZ> existingCoordinates = entity.Get<IList<XYZ>>("Coordinates");
+                foreach (var coord in coordinates)
+                {
+                    existingCoordinates.Add(coord);
+                }
+
+                entity.Set("Coordinates", existingCoordinates);
+                dataStorage.SetEntity(entity);
+
+                trans.Commit();
+            }
+        }
+        //public static DataStorage GetOrCreateDataStorage(Document doc, string storageName, string levelName)
+        //{
+        //    // Suche nach bestehendem DataStorage-Element
+        //    FilteredElementCollector collector = new FilteredElementCollector(doc)
+        //        .OfClass(typeof(DataStorage));
+
+        //    foreach (DataStorage ds in collector)
+        //    {
+        //        if (ds.Name == storageName)
+        //        {
+        //            return ds;
+        //        }
+        //    }
+
+        //    // Erstelle neues DataStorage-Element
+        //    using (Transaction trans = new Transaction(doc, "Create DataStorage"))
+        //    {
+        //        trans.Start();
+        //        DataStorage dataStorage = DataStorage.Create(doc);
+        //        dataStorage.Name = storageName;
+
+        //        // Füge zusätzliche Daten hinzu
+        //        List<string> fieldList = new List<string> { "Level", "Coordinates" };
+        //        Schema schema = AddSchemaForUsageType(storageName, fieldList);
+        //        Entity entity = new Entity(schema);
+        //        entity.Set("Level", levelName);
+        //        entity.Set<IList<string>>("Coordinates", new List<string>());
+        //        dataStorage.SetEntity(entity);
+
+        //        trans.Commit();
+        //        return dataStorage;
+        //    }
+        //}
+        //public static void AddSphereCoordinates(Document doc, DataStorage dataStorage, XYZ coordinates)
+        //{
+        //    using (Transaction trans = new Transaction(doc, "Add Coordinates"))
+        //    {
+        //        trans.Start();
+
+        //        Schema schema = GetSchemaByName(dataStorage.Name);
+        //        if (schema != null)
+        //        {
+        //            Entity entity = dataStorage.GetEntity(schema);
+        //            IList<string> coordList = entity.Get<IList<string>>("Coordinates");
+        //            string coordString = $"{coordinates.X},{coordinates.Y},{coordinates.Z}";
+        //            coordList.Add(coordString);
+
+        //            entity.Set("Coordinates", coordList);
+        //            dataStorage.SetEntity(entity);
+        //        }
+
+        //        trans.Commit();
+        //    }
+        //}
+        //public static void CreateAndStoreSphereData(Document doc, XYZ coordinates, string levelName)
+        //{
+        //    string storageName = "Stations";
+        //    DataStorage dataStorage = GetOrCreateDataStorage(doc, storageName, levelName);
+        //    AddSphereCoordinates(doc, dataStorage, coordinates);
+        //}
     }
 }

@@ -15,11 +15,6 @@ using Document = Autodesk.Revit.DB.Document;
 using View = Autodesk.Revit.DB.View;
 using Line = Autodesk.Revit.DB.Line;
 using S = ScantraIO.Data;
-using NetTopologySuite.Algorithm;
-using System.Collections.ObjectModel;
-using Autodesk.Revit.DB.Visual;
-using Autodesk.Internal.Windows;
-
 
 namespace Revit.Green3DScan
 {
@@ -382,7 +377,6 @@ namespace Revit.Green3DScan
             TaskDialog.Show("Message", "Fertig");
             return Result.Succeeded;
         }
-
         private static List<D3.LineString> CurveLoops(Face face, Transform trans)
         {
             var rings = new List<D3.LineString>();
