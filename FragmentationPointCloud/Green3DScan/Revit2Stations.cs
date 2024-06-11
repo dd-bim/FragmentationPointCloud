@@ -238,22 +238,22 @@ namespace Revit.Green3DScan
                 }
             }
 
-            foreach (var item in stations)
-            {
-                Log.Information(item.xyz.ToString());
-                var x = new XYZ(item.x, item.y, item.z);
-                var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
-                Log.Information(xTrans.ToString());
-                stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
-            }
-            //for (int i = 0; i < 1; i++)
+            //foreach (var item in stations)
             //{
-            //    Log.Information(stations[i].xyz.ToString());
-            //    var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+            //    Log.Information(item.xyz.ToString());
+            //    var x = new XYZ(item.x, item.y, item.z);
             //    var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
             //    Log.Information(xTrans.ToString());
             //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
             //}
+            for (int i = 0; i < 1; i++)
+            {
+                Log.Information(stations[i].xyz.ToString());
+                var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+                var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
+                Log.Information(xTrans.ToString());
+                stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
+            }
             TaskDialog.Show("Message", rooms.Count.ToString() + " rooms");
 
             #endregion stations
@@ -391,7 +391,7 @@ namespace Revit.Green3DScan
 
             foreach (var item in stationsPBP)
             {
-                csv.WriteLine(item.x.ToString() + ";" + item.y.ToString() + ";" + item.z.ToString());
+                csv.WriteLine(item.x.ToString(Sys.InvariantCulture) + ";" + item.y.ToString(Sys.InvariantCulture) + ";" + item.z.ToString(Sys.InvariantCulture));
             }
 
             #endregion station to csv
@@ -437,8 +437,6 @@ namespace Revit.Green3DScan
                     vertices.Add(new D3.Vector(pntStart.X, pntStart.Y, pntStart.Z));
                 }
                 vertices.Add(vertices[0]);
-                // List umkehren
-                //vertices.Reverse();
                 var linestr = new D3.LineString(vertices);
                 rings.Add(linestr);
             }

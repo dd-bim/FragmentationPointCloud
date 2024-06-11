@@ -238,22 +238,22 @@ namespace Revit.Green3DScan
                 }
             }
 
-            foreach (var item in stations)
-            {
-                Log.Information(item.xyz.ToString());
-                var x = new XYZ(item.x, item.y, item.z);
-                var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
-                Log.Information(xTrans.ToString());
-                stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
-            }
-            //for (int i = 0; i < 1; i++)
+            //foreach (var item in stations)
             //{
-            //    Log.Information(stations[i].xyz.ToString());
-            //    var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+            //    Log.Information(item.xyz.ToString());
+            //    var x = new XYZ(item.x, item.y, item.z);
             //    var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
             //    Log.Information(xTrans.ToString());
             //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
             //}
+            for (int i = 0; i < 1; i++)
+            {
+                Log.Information(stations[i].xyz.ToString());
+                var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+                var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
+                Log.Information(xTrans.ToString());
+                stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
+            }
             TaskDialog.Show("Message", rooms.Count.ToString() + " rooms");
 
             #endregion stations
@@ -326,20 +326,20 @@ namespace Revit.Green3DScan
 
             #region color not visible faces     
 
-            ElementId[] matId = default;
+            //ElementId[] matId = default;
 
-            // add materials and save the ElementIds in a DataStorage
-            try
-            {
-                matId = Helper.AddMaterials(doc);
-            }
-            catch (Exception)
-            {
+            //// add materials and save the ElementIds in a DataStorage
+            //try
+            //{
+            //    matId = Helper.AddMaterials(doc);
+            //}
+            //catch (Exception)
+            //{
 
-                matId = Helper.ReadMaterialsDS(doc);
-            }
+            //    matId = Helper.ReadMaterialsDS(doc);
+            //}
 
-            Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
+            //Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
 
             #endregion  color not visible faces
 

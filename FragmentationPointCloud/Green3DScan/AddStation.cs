@@ -9,7 +9,7 @@ using Transform = Autodesk.Revit.DB.Transform;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
 using Line = Autodesk.Revit.DB.Line;
-using YamlDotNet.Core.Tokens;
+using Sys = System.Globalization.CultureInfo;
 
 namespace Revit.Green3DScan
 {
@@ -45,14 +45,16 @@ namespace Revit.Green3DScan
                .CreateLogger();
             Log.Information("start");
             Log.Information(set.BBox_Buffer.ToString());
+           
+            Transform trans = Helper.GetTransformation(doc, set, out var crs);
+
             #endregion setup
 
-            Transform trans = Helper.GetTransformation(doc, set, out var crs);
-            
             XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, set.HeightOfSphere_Meter)) * Constants.meter2Feet; 
 
             double radius = set.SphereDiameter_Meter/2 * Constants.meter2Feet;
 
+            #region read stations from csv
 
             var fodPfRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
             fodPfRevit.Title = "Select CSV file with stations from Revit!";
@@ -62,43 +64,14 @@ namespace Revit.Green3DScan
             }
             var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodPfRevit.GetSelectedModelPath());
 
-            string[] lines = null;
-            try
+            if (!ReadCsvStations(csvPathStations, out List<XYZ> oldStations))
             {
-                lines = File.ReadAllLines(csvPathStations);
+                TaskDialog.Show("Message", "Reading csv not successful!");
+                return Result.Failed;
             }
-            catch 
-            {
-                Log.Information("Bug read csv with stations");
-            }
+            #endregion read stations from csv
 
-            var stations = new List<XYZ>();
-            if (lines.Length > 1)
-            {
-                var errors = new List<string>();
-                
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    if (TryParseCsvLine(lines[i], out XYZ xyz, out string error))
-                    {
-                        stations.Add(xyz);
-                        continue;
-                    }
-                    errors.Add($"Line {i + 1} has error: {error}");
-                }
-
-                if (errors.Count > 0)
-                {
-                    foreach (var error in errors)
-                    {
-                        Log.Information(error);
-                    }
-                }
-            }
-            else
-            {
-                Log.Information("CSV file is empty or has only headers.");
-            }
+            #region create new stations
 
             List<XYZ> newStations = new List<XYZ>();
             try
@@ -158,18 +131,21 @@ namespace Revit.Green3DScan
                 Level currentLevel = doc.ActiveView.GenLevel;
                 string levelName = currentLevel.Name;
                 TaskDialog.Show("Message", newStations.Count.ToString() + " newStations");
+
+                #endregion create new stations
+
                 #region write stations to csv
 
-                using StreamWriter csv = File.CreateText(Path.Combine(csvPathStations, "Stations2.csv"));
+                using StreamWriter csv = File.CreateText(csvPathStations);
                 csv.WriteLine(CsvHeader);
 
-                foreach (var item in stations)
+                foreach (var item in oldStations)
                 {
-                    csv.WriteLine(item.X.ToString() + ";" + item.Y.ToString() + ";" + item.Z.ToString());
+                    csv.WriteLine(item.X.ToString(Sys.InvariantCulture) + ";" + item.Y.ToString(Sys.InvariantCulture) + ";" + item.Z.ToString(Sys.InvariantCulture));
                 }
                 foreach (var item in newStations)
                 {
-                    csv.WriteLine(item.X.ToString() + ";" + item.Y.ToString() + ";" + item.Z.ToString());
+                    csv.WriteLine(item.X.ToString(Sys.InvariantCulture) + ";" + item.Y.ToString(Sys.InvariantCulture) + ";" + item.Z.ToString(Sys.InvariantCulture));
                 }
                 csv.Close();
                 #endregion write stations to csv
@@ -184,38 +160,37 @@ namespace Revit.Green3DScan
 
             return Result.Succeeded;
         }
-        public static bool TryParseCsvLine(string line, out XYZ xyz, out string error)
+        private bool ReadCsvStations(string csvPathStations, out List<XYZ> listStations)
         {
-            xyz = null;
-            error = string.Empty;
-
-            var parts = line.Split(',');
-            if (parts.Length < 3)
+            List<XYZ> list = new List<XYZ>();
+            try
             {
-                error = "Not enough parts in the line.";
+                using (StreamReader reader = new StreamReader(csvPathStations))
+                {
+                    reader.ReadLine();
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        string[] columns = line.Split(';');
+
+                        if (columns.Length == 3)
+                        {
+                            list.Add(new XYZ(double.Parse(columns[0]), double.Parse(columns[1]), double.Parse(columns[2])));
+                        }
+                        else
+                        {
+                            TaskDialog.Show("Message", "Incorrect line: " + line);
+                        }
+                    }
+                }
+                listStations = list;
+                return true;
+            }
+            catch (Exception)
+            {
+                listStations = list;
                 return false;
             }
-
-            if (!double.TryParse(parts[0], out double x))
-            {
-                error = "Invalid X coordinate.";
-                return false;
-            }
-
-            if (!double.TryParse(parts[1], out double y))
-            {
-                error = "Invalid Y coordinate.";
-                return false;
-            }
-
-            if (!double.TryParse(parts[2], out double z))
-            {
-                error = "Invalid Z coordinate.";
-                return false;
-            }
-
-            xyz = new XYZ(x, y, z);
-            return true;
         }
     }
 }
