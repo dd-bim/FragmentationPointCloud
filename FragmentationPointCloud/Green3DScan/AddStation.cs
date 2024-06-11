@@ -9,6 +9,7 @@ using Transform = Autodesk.Revit.DB.Transform;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
 using Line = Autodesk.Revit.DB.Line;
+using YamlDotNet.Core.Tokens;
 
 namespace Revit.Green3DScan
 {
@@ -16,6 +17,7 @@ namespace Revit.Green3DScan
     public class AddStation : IExternalCommand
     {
         string path;
+        public const string CsvHeader = "ObjectGuid;ElementId;Rchtswert;Hochwert;Hoehe";
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
@@ -51,6 +53,54 @@ namespace Revit.Green3DScan
 
             double radius = set.SphereDiameter_Meter/2 * Constants.meter2Feet;
 
+
+            var fodPfRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
+            fodPfRevit.Title = "Select CSV file with stations from Revit!";
+            if (fodPfRevit.Show() == ItemSelectionDialogResult.Canceled)
+            {
+                return Result.Cancelled;
+            }
+            var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodPfRevit.GetSelectedModelPath());
+
+            string[] lines = null;
+            try
+            {
+                lines = File.ReadAllLines(csvPathStations);
+            }
+            catch 
+            {
+                Log.Information("Bug read csv with stations");
+            }
+
+            var stations = new List<XYZ>();
+            if (lines.Length > 1)
+            {
+                var errors = new List<string>();
+                
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    if (TryParseCsvLine(lines[i], out XYZ xyz, out string error))
+                    {
+                        stations.Add(xyz);
+                        continue;
+                    }
+                    errors.Add($"Line {i + 1} has error: {error}");
+                }
+
+                if (errors.Count > 0)
+                {
+                    foreach (var error in errors)
+                    {
+                        Log.Information(error);
+                    }
+                }
+            }
+            else
+            {
+                Log.Information("CSV file is empty or has only headers.");
+            }
+
+            List<XYZ> newStations = new List<XYZ>();
             try
             {
                 using (TransactionGroup tg = new TransactionGroup(doc, "Place Spheres"))
@@ -64,6 +114,8 @@ namespace Revit.Green3DScan
                         try
                         {
                             point = uidoc.Selection.PickPoint("Click to place a sphere or press ESC to finish");
+                            var x =  trans.OfPoint(point) * Constants.feet2Meter;
+                            newStations.Add(x);
                         }
                         catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                         {
@@ -100,15 +152,27 @@ namespace Revit.Green3DScan
                             tx.Commit();
                         }
                     }
-
                     tg.Assimilate(); // Commit the transaction group
                 }
 
                 Level currentLevel = doc.ActiveView.GenLevel;
                 string levelName = currentLevel.Name;
+                TaskDialog.Show("Message", newStations.Count.ToString() + " newStations");
+                #region write stations to csv
 
-                // Beispielkoordinate, wo die Kugel eingefügt wird
-                XYZ sphereCoordinate = new XYZ(10, 20, 30);
+                using StreamWriter csv = File.CreateText(Path.Combine(csvPathStations, "Stations2.csv"));
+                csv.WriteLine(CsvHeader);
+
+                foreach (var item in stations)
+                {
+                    csv.WriteLine(item.X.ToString() + ";" + item.Y.ToString() + ";" + item.Z.ToString());
+                }
+                foreach (var item in newStations)
+                {
+                    csv.WriteLine(item.X.ToString() + ";" + item.Y.ToString() + ";" + item.Z.ToString());
+                }
+                csv.Close();
+                #endregion write stations to csv
 
                 //Helper.CreateAndStoreSphereData(doc, sphereCoordinate, levelName);
             }
@@ -119,6 +183,39 @@ namespace Revit.Green3DScan
             }
 
             return Result.Succeeded;
+        }
+        public static bool TryParseCsvLine(string line, out XYZ xyz, out string error)
+        {
+            xyz = null;
+            error = string.Empty;
+
+            var parts = line.Split(',');
+            if (parts.Length < 3)
+            {
+                error = "Not enough parts in the line.";
+                return false;
+            }
+
+            if (!double.TryParse(parts[0], out double x))
+            {
+                error = "Invalid X coordinate.";
+                return false;
+            }
+
+            if (!double.TryParse(parts[1], out double y))
+            {
+                error = "Invalid Y coordinate.";
+                return false;
+            }
+
+            if (!double.TryParse(parts[2], out double z))
+            {
+                error = "Invalid Z coordinate.";
+                return false;
+            }
+
+            xyz = new XYZ(x, y, z);
+            return true;
         }
     }
 }

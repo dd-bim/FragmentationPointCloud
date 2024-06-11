@@ -21,7 +21,7 @@ using System.Drawing.Drawing2D;
 namespace Revit.Green3DScan
 {
     [Transaction(TransactionMode.Manual)]
-    public class Revit2Stations : IExternalCommand
+    public class Stations2NotVisibleFaces : IExternalCommand
     {
         string path;
         public const string CsvHeader = "ObjectGuid;ElementId;Rchtswert;Hochwert;Hoehe";
@@ -393,7 +393,7 @@ namespace Revit.Green3DScan
             {
                 csv.WriteLine(item.x.ToString() + ";" + item.y.ToString() + ";" + item.z.ToString());
             }
-
+            csv.Close();
             #endregion station to csv
 
             #region dataStorage

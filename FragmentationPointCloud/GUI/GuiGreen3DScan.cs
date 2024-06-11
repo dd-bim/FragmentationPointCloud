@@ -79,13 +79,17 @@ namespace Revit.GUI
             AddStation.ToolTip = "AddStation";
             AddStation.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
+            PushButton Stations2NotVisibleFaces = panel3.AddItem(new PushButtonData("13", "Stations2NotVisibleFaces", thisAssemblyPath, "Revit.Green3DScan.Stations2NotVisibleFaces")) as PushButton;
+            Stations2NotVisibleFaces.ToolTip = "Stations2NotVisibleFaces";
+            Stations2NotVisibleFaces.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+
             RibbonPanel panel4 = application.CreateRibbonPanel(tabName, "Tools");
 
-            PushButton pcd2E57 = panel4.AddItem(new PushButtonData("13", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as PushButton;
+            PushButton pcd2E57 = panel4.AddItem(new PushButtonData("14", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as PushButton;
             pcd2E57.ToolTip = "pcd2E57";
             pcd2E57.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            PushButton e572pcd = panel4.AddItem(new PushButtonData("14", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as PushButton;
+            PushButton e572pcd = panel4.AddItem(new PushButtonData("15", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as PushButton;
             e572pcd.ToolTip = "e572pcd";
             e572pcd.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
