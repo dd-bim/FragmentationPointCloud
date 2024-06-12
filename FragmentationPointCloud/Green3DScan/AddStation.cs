@@ -10,6 +10,7 @@ using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
 using Line = Autodesk.Revit.DB.Line;
 using Sys = System.Globalization.CultureInfo;
+using System.Globalization;
 
 namespace Revit.Green3DScan
 {
@@ -17,7 +18,7 @@ namespace Revit.Green3DScan
     public class AddStation : IExternalCommand
     {
         string path;
-        public const string CsvHeader = "ObjectGuid;ElementId;Rchtswert;Hochwert;Hoehe";
+        public const string CsvHeader = "ObjectGuid;ElementId;Rechtswert;Hochwert;Hoehe";
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
@@ -64,7 +65,7 @@ namespace Revit.Green3DScan
             }
             var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodPfRevit.GetSelectedModelPath());
 
-            if (!ReadCsvStations(csvPathStations, out List<XYZ> oldStations))
+            if (!Helper.ReadCsvStations(csvPathStations, out List<XYZ> oldStations))
             {
                 TaskDialog.Show("Message", "Reading csv not successful!");
                 return Result.Failed;
@@ -87,8 +88,8 @@ namespace Revit.Green3DScan
                         try
                         {
                             point = uidoc.Selection.PickPoint("Click to place a sphere or press ESC to finish");
-                            var x =  trans.OfPoint(point) * Constants.feet2Meter;
-                            newStations.Add(x);
+                            var pointPBP =  trans.OfPoint(point) * Constants.feet2Meter;
+                            newStations.Add(new XYZ(pointPBP.X, pointPBP.Y, set.HeightOfSphere_Meter));
                         }
                         catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                         {
@@ -159,38 +160,6 @@ namespace Revit.Green3DScan
             }
 
             return Result.Succeeded;
-        }
-        private bool ReadCsvStations(string csvPathStations, out List<XYZ> listStations)
-        {
-            List<XYZ> list = new List<XYZ>();
-            try
-            {
-                using (StreamReader reader = new StreamReader(csvPathStations))
-                {
-                    reader.ReadLine();
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        string[] columns = line.Split(';');
-
-                        if (columns.Length == 3)
-                        {
-                            list.Add(new XYZ(double.Parse(columns[0]), double.Parse(columns[1]), double.Parse(columns[2])));
-                        }
-                        else
-                        {
-                            TaskDialog.Show("Message", "Incorrect line: " + line);
-                        }
-                    }
-                }
-                listStations = list;
-                return true;
-            }
-            catch (Exception)
-            {
-                listStations = list;
-                return false;
-            }
         }
     }
 }

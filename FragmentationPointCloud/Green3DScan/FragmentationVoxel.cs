@@ -65,7 +65,7 @@ namespace Revit.Green3DScan
                 // CSV lesen
                 if (!ReadCsvBoxes(csvPathBBoxes, out List<Helper.OrientedBoundingBox> obboxes))
                 {
-                    TaskDialog.Show("Message", "eading csv not successful");
+                    TaskDialog.Show("Message", "Reading csv not successful");
                     return Result.Failed;
                 }
                 Log.Information("read csv successful");

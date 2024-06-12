@@ -238,22 +238,22 @@ namespace Revit.Green3DScan
                 }
             }
 
-            //foreach (var item in stations)
-            //{
-            //    Log.Information(item.xyz.ToString());
-            //    var x = new XYZ(item.x, item.y, item.z);
-            //    var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
-            //    Log.Information(xTrans.ToString());
-            //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
-            //}
-            for (int i = 0; i < 1; i++)
+            foreach (var item in stations)
             {
-                Log.Information(stations[i].xyz.ToString());
-                var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+                Log.Information(item.xyz.ToString());
+                var x = new XYZ(item.x, item.y, item.z);
                 var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
                 Log.Information(xTrans.ToString());
                 stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
             }
+            //for (int i = 0; i < 1; i++)
+            //{
+            //    Log.Information(stations[i].xyz.ToString());
+            //    var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+            //    var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
+            //    Log.Information(xTrans.ToString());
+            //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
+            //}
             TaskDialog.Show("Message", rooms.Count.ToString() + " rooms");
 
             #endregion stations
@@ -282,7 +282,7 @@ namespace Revit.Green3DScan
             // visible faces
             S.PlanarFace.WriteCsv(csvVisibleFaces, visibleFaces);
             S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
-            //S.PlanarFace.WriteObj(Path.Combine(path, "visible"), objPlanes, visibleFaces);
+            S.PlanarFace.WriteObj(Path.Combine(path, "visible"), referencePlanesRevit, visibleFaces);
 
             var notVisibleFacesId = new List<S.Id>();
             var notVisibleFaces = new List<S.PlanarFace>();
@@ -304,7 +304,7 @@ namespace Revit.Green3DScan
             }
             S.PlanarFace.WriteCsv(csvVisibleFaces, notVisibleFaces);
             S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
-            //S.PlanarFace.WriteObj(Path.Combine(path, "notVisible"), objPlanes, notVisibleFaces);
+            S.PlanarFace.WriteObj(Path.Combine(path, "notVisible"), referencePlanesRevit, notVisibleFaces);
 
             #endregion visible and not visible faces
 

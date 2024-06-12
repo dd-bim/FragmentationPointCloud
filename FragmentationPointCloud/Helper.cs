@@ -9,6 +9,7 @@ using Serilog;
 using S = ScantraIO.Data;
 using D3 = GeometryLib.Double.D3;
 using Autodesk.Revit.UI;
+using Sys= System.Globalization.CultureInfo;
 
 namespace Revit
 {
@@ -449,6 +450,39 @@ namespace Revit
             t.Commit();
 
             return colorArr;
+        }
+
+        public static bool ReadCsvStations(string csvPathStations, out List<XYZ> listStations)
+        {
+            List<XYZ> list = new List<XYZ>();
+            try
+            {
+                using (StreamReader reader = new StreamReader(csvPathStations))
+                {
+                    reader.ReadLine();
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        string[] columns = line.Split(';');
+
+                        if (columns.Length == 3)
+                        {
+                            list.Add(new XYZ(double.Parse(columns[0], Sys.InvariantCulture), double.Parse(columns[1], Sys.InvariantCulture), double.Parse(columns[2], Sys.InvariantCulture)));
+                        }
+                        else
+                        {
+                            TaskDialog.Show("Message", "Incorrect line: " + line);
+                        }
+                    }
+                }
+                listStations = list;
+                return true;
+            }
+            catch (Exception)
+            {
+                listStations = list;
+                return false;
+            }
         }
 
         //public static List<D3.Vector> ReadStationsDS(Document doc)
