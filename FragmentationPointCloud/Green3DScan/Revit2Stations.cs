@@ -187,7 +187,7 @@ namespace Revit.Green3DScan
                 refPlanesMap[plane.Id] = plane;
             }
 
-            TaskDialog.Show("Message", faces.Count.ToString() + " Faces wurden von Räumen geschrieben");
+            Log.Information(faces.Count.ToString() + " room faces");
 
             #endregion faces from rooms
 
@@ -224,7 +224,7 @@ namespace Revit.Green3DScan
                 }
             }
 
-            TaskDialog.Show("Message", doors.Count.ToString() + " doors");
+            Log.Information(doors.Count.ToString() + " doors");
 
             // collect rooms
             foreach (Element room in rooms)
@@ -254,11 +254,11 @@ namespace Revit.Green3DScan
             //    Log.Information(xTrans.ToString());
             //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
             //}
-            TaskDialog.Show("Message", rooms.Count.ToString() + " rooms");
+            Log.Information(rooms.Count.ToString() + " rooms");
 
             #endregion stations
 
-            TaskDialog.Show("Message", stations.Count.ToString() + " stations");
+            Log.Information(stations.Count.ToString() + " stations");
 
             #region visible and not visible faces
 
@@ -346,7 +346,7 @@ namespace Revit.Green3DScan
             #region sphere
 
             // create spheres with internal coordinates
-            for (int i = 0; i < stationsPBP.Count; i++)
+            for (int i = 0; i < stations.Count; i++)
             {
                 // sphere
                 List<Curve> profile = new List<Curve>();
@@ -419,7 +419,7 @@ namespace Revit.Green3DScan
 
             #endregion dataStorage
 
-            TaskDialog.Show("Message", "Fertig");
+            TaskDialog.Show("Message", "Successful");
             return Result.Succeeded;
         }
         private static List<D3.LineString> CurveLoops(Face face, Transform trans)

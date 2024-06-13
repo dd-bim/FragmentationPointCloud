@@ -1,22 +1,18 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
-using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
 using Serilog;
 using Transform = Autodesk.Revit.DB.Transform;
 using Sys = System.Globalization.CultureInfo;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
-using View = Autodesk.Revit.DB.View;
 using Line = Autodesk.Revit.DB.Line;
 using S = ScantraIO.Data;
 using Autodesk.Revit.DB.ExtensibleStorage;
-using System.Drawing.Drawing2D;
 
 namespace Revit.Green3DScan
 {
@@ -57,12 +53,9 @@ namespace Revit.Green3DScan
 
             #endregion setup
 
-            string csvVisibleFaces = Path.Combine(path, "Revit2StationsVisibleFaces.csv");
-            string csvVisibleFacesRef = Path.Combine(path, "Revit2StationsVisibleFacesRef.csv");
-
             #region select files
 
-            // Revit
+            // Faces
             var fodPfRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
             fodPfRevit.Title = "Select CSV file with BimFaces from Revit!";
             if (fodPfRevit.Show() == ItemSelectionDialogResult.Canceled)
@@ -79,6 +72,15 @@ namespace Revit.Green3DScan
             }
             var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
 
+            // Stations
+            var fodStations = new FileOpenDialog("CSV file (*.csv)|*.csv");
+            fodStations.Title = "Select CSV file with stations from Revit!";
+            if (fodStations.Show() == ItemSelectionDialogResult.Canceled)
+            {
+                return Result.Cancelled;
+            }
+            var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodStations.GetSelectedModelPath());
+
             #endregion select files
 
             #region read files
@@ -92,27 +94,19 @@ namespace Revit.Green3DScan
 
             var referencePlanesRevit = S.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
 
-            var fodStations = new FileOpenDialog("CSV file (*.csv)|*.csv");
-            fodStations.Title = "Select CSV file with stations from Revit!";
-            if (fodStations.Show() == ItemSelectionDialogResult.Canceled)
-            {
-                return Result.Cancelled;
-            }
-            var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodPfRevit.GetSelectedModelPath());
-
             if (!Helper.ReadCsvStations(csvPathStations, out List<XYZ> stations))
             {
                 TaskDialog.Show("Message", "Reading csv not successful!");
                 return Result.Failed;
             }
-
-            #endregion read files
             var listVector = new List<D3.Vector>();
             foreach (var item in stations)
             {
                 listVector.Add(new D3.Vector(item.X, item.Y, item.Z));
             }
-            TaskDialog.Show("Message", stations.Count.ToString() + " stations");
+            Log.Information(stations.Count.ToString() + " stations");
+
+            #endregion read files
 
             #region visible and not visible faces
 
@@ -205,17 +199,18 @@ namespace Revit.Green3DScan
                 // sphere
                 List<Curve> profile = new List<Curve>();
                 XYZ station = new XYZ(stations[i].X, stations[i].Y, stations[i].Z);
+                XYZ stationsInternal = trans.OfPoint(station) * Constants.meter2Feet;
                 double radius = set.SphereDiameter_Meter / 2 * Constants.meter2Feet;
-                XYZ profilePlus = station + new XYZ(0, radius, 0);
-                XYZ profileMinus = station - new XYZ(0, radius, 0);
+                XYZ profilePlus = stationsInternal + new XYZ(0, radius, 0);
+                XYZ profileMinus = stationsInternal - new XYZ(0, radius, 0);
 
                 profile.Add(Line.CreateBound(profilePlus, profileMinus));
-                profile.Add(Arc.Create(profileMinus, profilePlus, station + new XYZ(radius, 0, 0)));
+                profile.Add(Arc.Create(profileMinus, profilePlus, stationsInternal + new XYZ(radius, 0, 0)));
 
                 CurveLoop curveLoop = CurveLoop.Create(profile);
                 SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
 
-                Frame frame = new Frame(station, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
+                Frame frame = new Frame(stationsInternal, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
                 if (Frame.CanDefineRevitGeometry(frame) == true)
                 {
                     Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
@@ -232,7 +227,7 @@ namespace Revit.Green3DScan
             
             #endregion sphere
 
-            TaskDialog.Show("Message", "Fertig");
+            TaskDialog.Show("Message", "Successful");
             return Result.Succeeded;
         }
     }
