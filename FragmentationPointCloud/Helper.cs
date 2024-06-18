@@ -10,6 +10,7 @@ using S = ScantraIO.Data;
 using D3 = GeometryLib.Double.D3;
 using Autodesk.Revit.UI;
 using Sys= System.Globalization.CultureInfo;
+using Autodesk.Revit.DB.Structure;
 
 namespace Revit
 {
@@ -451,7 +452,6 @@ namespace Revit
 
             return colorArr;
         }
-
         public static bool ReadCsvStations(string csvPathStations, out List<XYZ> listStations)
         {
             List<XYZ> list = new List<XYZ>();
@@ -482,6 +482,90 @@ namespace Revit
             {
                 listStations = list;
                 return false;
+            }
+        }
+        public static void CreateSphereFamily(UIApplication uiapp, double radius, string familyPath)
+        {
+            TaskDialog.Show("Message", radius.ToString() + "radius");
+            Document familyDoc = uiapp.Application.NewFamilyDocument(@"C:\ProgramData\Autodesk\RVT 2023\Family Templates\English\Metric Generic Model.rft");
+
+            using (Transaction t = new Transaction(familyDoc, "Create Sphere"))
+            {
+                t.Start();
+
+                // Define the base point and radius
+                XYZ basePoint = XYZ.Zero;
+
+                // Create profile for the sphere
+                List<Curve> profile = new List<Curve>();
+                XYZ profilePlus = basePoint + new XYZ(0, radius, 0);
+                XYZ profileMinus = basePoint - new XYZ(0, radius, 0);
+
+                profile.Add(Line.CreateBound(profilePlus, profileMinus));
+                profile.Add(Arc.Create(profileMinus, profilePlus, basePoint + new XYZ(radius, 0, 0)));
+
+                CurveLoop curveLoop = CurveLoop.Create(profile);
+                SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
+
+                // Create the sphere geometry
+                Frame frame = new Frame(basePoint, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
+                if (Frame.CanDefineRevitGeometry(frame))
+                {
+                    Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
+
+                    // Create a DirectShape element in the family document
+                    DirectShape ds = DirectShape.CreateElement(familyDoc, new ElementId(BuiltInCategory.OST_GenericModel));
+                    ds.ApplicationId = "Application id";
+                    ds.ApplicationDataId = "Geometry object id";
+                    ds.SetShape(new GeometryObject[] { sphere });
+                }
+
+                t.Commit();
+            }
+
+            // Save the family file
+            familyDoc.SaveAs(familyPath);
+            familyDoc.Close();
+        }
+        public static void LoadAndPlaceSphereFamily(Document doc, string familyPath, List<D3.Vector> stations)
+        {
+            using (Transaction t = new Transaction(doc, "Load and Place Sphere Family"))
+            {
+                t.Start();
+
+                Family family;
+                if (!doc.LoadFamily(familyPath, out family))
+                {
+                    Log.Information("Error", "Failed to load family.");
+                    return;
+                }
+
+                FamilySymbol familySymbol = null;
+                foreach (ElementId id in family.GetFamilySymbolIds())
+                {
+                    familySymbol = doc.GetElement(id) as FamilySymbol;
+                    break;
+                }
+
+                if (familySymbol == null)
+                {
+                    Log.Information("Error", "No family symbol found.");
+                    return;
+                }
+
+                if (!familySymbol.IsActive)
+                {
+                    familySymbol.Activate();
+                    doc.Regenerate();
+                }
+
+                foreach (var station in stations)
+                {
+                    XYZ position = new XYZ(station.x, station.y, station.z);
+                    doc.Create.NewFamilyInstance(position, familySymbol, StructuralType.NonStructural);
+                }
+
+                t.Commit();
             }
         }
 

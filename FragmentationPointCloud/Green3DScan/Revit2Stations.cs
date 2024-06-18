@@ -26,7 +26,7 @@ namespace Revit.Green3DScan
     public class Revit2Stations : IExternalCommand
     {
         string path;
-        public const string CsvHeader = "ObjectGuid;ElementId;Rchtswert;Hochwert;Hoehe";
+        public const string CsvHeader = "ObjectGuid;ElementId;Rechtswert;Hochwert;Hoehe";
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
@@ -253,22 +253,22 @@ namespace Revit.Green3DScan
                 }
             }
 
-            //foreach (var item in stations)
-            //{
-            //    Log.Information(item.xyz.ToString());
-            //    var x = new XYZ(item.x, item.y, item.z);
-            //    var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
-            //    Log.Information(xTrans.ToString());
-            //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
-            //}
-            for (int i = 0; i < 1; i++)
+            foreach (var item in stations)
             {
-                Log.Information(stations[i].xyz.ToString());
-                var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+                Log.Information(item.xyz.ToString());
+                var x = new XYZ(item.x, item.y, item.z);
                 var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
                 Log.Information(xTrans.ToString());
                 stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
             }
+            //for (int i = 0; i < 1; i++)
+            //{
+            //    Log.Information(stations[i].xyz.ToString());
+            //    var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+            //    var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
+            //    Log.Information(xTrans.ToString());
+            //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
+            //}
             Log.Information(rooms.Count.ToString() + " rooms");
 
             #endregion stations
@@ -330,120 +330,51 @@ namespace Revit.Green3DScan
 
             #endregion visible and not visible faces
 
-            #region write pointcloud in XYZ
+            //#region write pointcloud in XYZ
 
-            List<string> lines = new List<string>();
-            for (int i = 0; i < stationsPBP.Count; i++)
-            {
-                foreach (S.Id id in visibleFacesIdArray[i])
-                {
-                    visibleFaceId.Add(id);
-                }
-                for (int j = 0; j < pointClouds[i].Length; j++)
-                {
-                    lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
-                }
-            }
-            File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
-            #endregion write pointcloud in XYZ
+            //List<string> lines = new List<string>();
+            //for (int i = 0; i < stationsPBP.Count; i++)
+            //{
+            //    foreach (S.Id id in visibleFacesIdArray[i])
+            //    {
+            //        visibleFaceId.Add(id);
+            //    }
+            //    for (int j = 0; j < pointClouds[i].Length; j++)
+            //    {
+            //        lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
+            //    }
+            //}
+            //File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
+            //#endregion write pointcloud in XYZ
 
-            #region color not visible faces     
+            //#region color not visible faces     
 
-            ElementId[] matId = default;
+            //ElementId[] matId = default;
 
-            // add materials and save the ElementIds in a DataStorage
-            try
-            {
-                matId = Helper.AddMaterials(doc);
-            }
-            catch (Exception)
-            {
+            //// add materials and save the ElementIds in a DataStorage
+            //try
+            //{
+            //    matId = Helper.AddMaterials(doc);
+            //}
+            //catch (Exception)
+            //{
 
-                matId = Helper.ReadMaterialsDS(doc);
-            }
+            //    matId = Helper.ReadMaterialsDS(doc);
+            //}
 
-            Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
-            Helper.Paint.ColourFace(doc, visibleFacesId, matId[5]);
+            //Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
+            //Helper.Paint.ColourFace(doc, visibleFacesId, matId[5]);
 
-            #endregion  color not visible faces
+            //#endregion  color not visible faces
 
             #region sphere
 
-            CreateSphereFamily(uiapp, set.SphereDiameter_Meter / 2, Path.Combine(path, "Sphere.rfa"));
+            if (!File.Exists(Path.Combine(path, "Sphere.rfa")))
+            {
+                Helper.CreateSphereFamily(uiapp, set.SphereDiameter_Meter / 2 * Constants.meter2Feet, Path.Combine(path, "Sphere.rfa"));
+            }
 
-            LoadAndPlaceSphereFamily(doc, Path.Combine(path, "Sphere.rfa"), stations);
-
-
-            // create spheres with internal coordinates
-            //for (int i = 0; i < 5; i++)
-            ////for (int i = 0; i < stations.Count; i++)
-            //{
-            //    // Station Position
-            //    XYZ station = new XYZ(stations[i].x, stations[i].y, stations[i].z);
-
-            //    // Sphere Parameters
-            //    double radius = set.SphereDiameter_Meter / 2 * Constants.meter2Feet;
-
-            //    // Profile creation
-            //    List<Curve> profile = new List<Curve>();
-            //    XYZ profilePlus = station + new XYZ(0, radius, 0);
-            //    XYZ profileMinus = station - new XYZ(0, radius, 0);
-
-            //    profile.Add(Line.CreateBound(profilePlus, profileMinus));
-            //    profile.Add(Arc.Create(profileMinus, profilePlus, station + new XYZ(radius, 0, 0)));
-
-            //    CurveLoop curveLoop = CurveLoop.Create(profile);
-            //    SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
-
-            //    // Frame creation
-            //    Frame frame = new Frame(station, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
-            //    if (Frame.CanDefineRevitGeometry(frame))
-            //    {
-            //        Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
-
-            //        using (Transaction t = new Transaction(doc, "Create sphere direct shape"))
-            //        {
-            //            t.Start();
-
-            //            // Create DirectShape and assign the sphere shape
-            //            DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-            //            ds.ApplicationId = "Application id";
-            //            ds.ApplicationDataId = "Geometry object id";
-            //            ds.SetShape(new GeometryObject[] { sphere });
-
-            //            t.Commit();
-            //        }
-            //    }
-            //}
-            //for (int i = 0; i < stations.Count; i++)
-            //{
-            //    // sphere
-            //    List<Curve> profile = new List<Curve>();
-            //    XYZ station = new XYZ(stations[i].x, stations[i].y, stations[i].z);
-            //    double radius = set.SphereDiameter_Meter / 2 * Constants.meter2Feet;
-            //    XYZ profilePlus = station + new XYZ(0, radius, 0);
-            //    XYZ profileMinus = station - new XYZ(0, radius, 0);
-
-            //    profile.Add(Line.CreateBound(profilePlus, profileMinus));
-            //    profile.Add(Arc.Create(profileMinus, profilePlus, station + new XYZ(radius, 0, 0)));
-
-            //    CurveLoop curveLoop = CurveLoop.Create(profile);
-            //    SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
-
-            //    Frame frame = new Frame(station, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
-            //    if (Frame.CanDefineRevitGeometry(frame) == true)
-            //    {
-            //        Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
-            //        using Transaction t = new Transaction(doc, "Create sphere direct shape");
-            //        t.Start();
-            //        // create direct shape and assign the sphere shape
-            //        DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-            //        ds.ApplicationId = "Application id";
-            //        ds.ApplicationDataId = "Geometry object id";
-            //        ds.SetShape(new GeometryObject[] { sphere });
-            //        t.Commit();
-            //    }
-            //}
+            Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(path, "Sphere.rfa"), stations);
 
             #endregion sphere
 
@@ -510,90 +441,6 @@ namespace Revit.Green3DScan
                 rings.Add(linestr);
             }
             return rings;
-        }
-
-        public void CreateSphereFamily(UIApplication uiapp, double radius, string familyPath)
-        {
-            Document familyDoc = uiapp.Application.NewFamilyDocument(@"C:\ProgramData\Autodesk\RVT 2023\Family Templates\English\Metric Generic Model.rft");
-
-            using (Transaction t = new Transaction(familyDoc, "Create Sphere"))
-            {
-                t.Start();
-
-                // Define the base point and radius
-                XYZ basePoint = XYZ.Zero;
-
-                // Create profile for the sphere
-                List<Curve> profile = new List<Curve>();
-                XYZ profilePlus = basePoint + new XYZ(0, radius, 0);
-                XYZ profileMinus = basePoint - new XYZ(0, radius, 0);
-
-                profile.Add(Line.CreateBound(profilePlus, profileMinus));
-                profile.Add(Arc.Create(profileMinus, profilePlus, basePoint + new XYZ(radius, 0, 0)));
-
-                CurveLoop curveLoop = CurveLoop.Create(profile);
-                SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
-
-                // Create the sphere geometry
-                Frame frame = new Frame(basePoint, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
-                if (Frame.CanDefineRevitGeometry(frame))
-                {
-                    Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
-
-                    // Create a DirectShape element in the family document
-                    DirectShape ds = DirectShape.CreateElement(familyDoc, new ElementId(BuiltInCategory.OST_GenericModel));
-                    ds.ApplicationId = "Application id";
-                    ds.ApplicationDataId = "Geometry object id";
-                    ds.SetShape(new GeometryObject[] { sphere });
-                }
-
-                t.Commit();
-            }
-
-            // Save the family file
-            familyDoc.SaveAs(familyPath);
-            familyDoc.Close();
-        }
-        private void LoadAndPlaceSphereFamily(Document doc, string familyPath, List<D3.Vector> stations)
-        {
-            using (Transaction t = new Transaction(doc, "Load and Place Sphere Family"))
-            {
-                t.Start();
-
-                Family family;
-                if (!doc.LoadFamily(familyPath, out family))
-                {
-                    TaskDialog.Show("Error", "Failed to load family.");
-                    return;
-                }
-
-                FamilySymbol familySymbol = null;
-                foreach (ElementId id in family.GetFamilySymbolIds())
-                {
-                    familySymbol = doc.GetElement(id) as FamilySymbol;
-                    break;
-                }
-
-                if (familySymbol == null)
-                {
-                    TaskDialog.Show("Error", "No family symbol found.");
-                    return;
-                }
-
-                if (!familySymbol.IsActive)
-                {
-                    familySymbol.Activate();
-                    doc.Regenerate();
-                }
-
-                foreach (var station in stations)
-                {
-                    XYZ position = new XYZ(station.x, station.y, station.z);
-                    doc.Create.NewFamilyInstance(position, familySymbol, StructuralType.NonStructural);
-                }
-
-                t.Commit();
-            }
         }
     }
 }
