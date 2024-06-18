@@ -16,7 +16,9 @@ using View = Autodesk.Revit.DB.View;
 using Line = Autodesk.Revit.DB.Line;
 using S = ScantraIO.Data;
 using Autodesk.Revit.DB.ExtensibleStorage;
-using System.Drawing.Drawing2D;
+using Autodesk.Revit.DB.Structure;
+
+
 
 namespace Revit.Green3DScan
 {
@@ -33,6 +35,7 @@ namespace Revit.Green3DScan
 
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
             Document doc = uidoc.Document;
+            UIApplication uiapp = commandData.Application;
             try
             {
                 path = Path.GetDirectoryName(doc.PathName);
@@ -200,6 +203,8 @@ namespace Revit.Green3DScan
             List<D3.Vector> stations = new List<D3.Vector>(); 
             List<D3.Vector> stationsPBP = new List<D3.Vector>();
 
+            List<ElementId> listDoors = new List<ElementId>();
+
             // collect doors
             FilteredElementCollector collDoors = new FilteredElementCollector(doc, activeView.Id);
             ICollection<Element> doors = collDoors.OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements();
@@ -213,7 +218,7 @@ namespace Revit.Green3DScan
 
                 if (loc is LocationCurve locationCurve)
                 {
-                    Log.Information("Wall, but no LocationPoint.");
+                    Log.Information("Door, but no LocationPoint.");
                 }   
                 else if (loc is LocationPoint locationPoint)
                 {
@@ -222,8 +227,14 @@ namespace Revit.Green3DScan
 
                     stations.Add(new D3.Vector(locationPoint.Point.X, locationPoint.Point.Y, heigth * Constants.meter2Feet));
                 }
+                else
+                {
+                    listDoors.Add(door.Id);
+                    Log.Information(door.Id.ToString());
+                    Log.Information("loc null");
+                }
             }
-
+            Log.Information(stations.Count.ToString() + " stations(doors)");
             Log.Information(doors.Count.ToString() + " doors");
 
             // collect rooms
@@ -236,24 +247,28 @@ namespace Revit.Green3DScan
 
                     stations.Add(new D3.Vector(locationPoint.Point.X, locationPoint.Point.Y, heigth * Constants.meter2Feet));
                 }
+                else
+                {
+                    Log.Information("room is no SpatialElement or LocationPoint ");
+                }
             }
 
-            foreach (var item in stations)
-            {
-                Log.Information(item.xyz.ToString());
-                var x = new XYZ(item.x, item.y, item.z);
-                var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
-                Log.Information(xTrans.ToString());
-                stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
-            }
-            //for (int i = 0; i < 1; i++)
+            //foreach (var item in stations)
             //{
-            //    Log.Information(stations[i].xyz.ToString());
-            //    var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+            //    Log.Information(item.xyz.ToString());
+            //    var x = new XYZ(item.x, item.y, item.z);
             //    var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
             //    Log.Information(xTrans.ToString());
             //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
             //}
+            for (int i = 0; i < 1; i++)
+            {
+                Log.Information(stations[i].xyz.ToString());
+                var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+                var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
+                Log.Information(xTrans.ToString());
+                stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
+            }
             Log.Information(rooms.Count.ToString() + " rooms");
 
             #endregion stations
@@ -262,7 +277,7 @@ namespace Revit.Green3DScan
 
             #region visible and not visible faces
 
-            var visibleFacesId = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds);
+            var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds);
             var visibleFaceId = new HashSet<S.Id>();
             var visibleFaces = new HashSet<S.PlanarFace>();
             var pFMap = new Dictionary<S.Id, S.PlanarFace>();
@@ -273,18 +288,21 @@ namespace Revit.Green3DScan
             for (int i = 0; i < stationsPBP.Count; i++)
             //for (int i = 0; i < stations.Count; i++)
             {
-                foreach (S.Id id in visibleFacesId[i])
+                foreach (S.Id id in visibleFacesIdArray[i])
                 {
                     visibleFaces.Add(pFMap[id]);
                     visibleFaceId.Add(id);
                 }
             }
+
+            //sichtbare Faces pro Standpunkt sind bekannt
             // visible faces
             S.PlanarFace.WriteCsv(csvVisibleFaces, visibleFaces);
             S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
             S.PlanarFace.WriteObj(Path.Combine(path, "visible"), referencePlanesRevit, visibleFaces);
 
             var notVisibleFacesId = new List<S.Id>();
+            var visibleFacesId = new List<S.Id>();
             var notVisibleFaces = new List<S.PlanarFace>();
 
             var facesIdList = new List<S.Id>();
@@ -301,6 +319,10 @@ namespace Revit.Green3DScan
                     notVisibleFacesId.Add(item);
                     notVisibleFaces.Add(facesMap[item]);
                 }
+                else
+                {
+                    visibleFacesId.Add(item);
+                }
             }
             S.PlanarFace.WriteCsv(csvVisibleFaces, notVisibleFaces);
             S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
@@ -309,10 +331,11 @@ namespace Revit.Green3DScan
             #endregion visible and not visible faces
 
             #region write pointcloud in XYZ
+
             List<string> lines = new List<string>();
             for (int i = 0; i < stationsPBP.Count; i++)
             {
-                foreach (S.Id id in visibleFacesId[i])
+                foreach (S.Id id in visibleFacesIdArray[i])
                 {
                     visibleFaceId.Add(id);
                 }
@@ -340,46 +363,92 @@ namespace Revit.Green3DScan
             }
 
             Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
+            Helper.Paint.ColourFace(doc, visibleFacesId, matId[5]);
 
             #endregion  color not visible faces
 
             #region sphere
 
+            CreateSphereFamily(uiapp, set.SphereDiameter_Meter / 2, Path.Combine(path, "Sphere.rfa"));
+
+            LoadAndPlaceSphereFamily(doc, Path.Combine(path, "Sphere.rfa"), stations);
+
+
             // create spheres with internal coordinates
-            for (int i = 0; i < stations.Count; i++)
-            {
-                // sphere
-                List<Curve> profile = new List<Curve>();
-                XYZ station = new XYZ(stations[i].x, stations[i].y, stations[i].z);
-                double radius = set.SphereDiameter_Meter / 2 * Constants.meter2Feet;
-                XYZ profilePlus = station + new XYZ(0, radius, 0);
-                XYZ profileMinus = station - new XYZ(0, radius, 0);
+            //for (int i = 0; i < 5; i++)
+            ////for (int i = 0; i < stations.Count; i++)
+            //{
+            //    // Station Position
+            //    XYZ station = new XYZ(stations[i].x, stations[i].y, stations[i].z);
 
-                profile.Add(Line.CreateBound(profilePlus, profileMinus));
-                profile.Add(Arc.Create(profileMinus, profilePlus, station + new XYZ(radius, 0, 0)));
+            //    // Sphere Parameters
+            //    double radius = set.SphereDiameter_Meter / 2 * Constants.meter2Feet;
 
-                CurveLoop curveLoop = CurveLoop.Create(profile);
-                SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
+            //    // Profile creation
+            //    List<Curve> profile = new List<Curve>();
+            //    XYZ profilePlus = station + new XYZ(0, radius, 0);
+            //    XYZ profileMinus = station - new XYZ(0, radius, 0);
 
-                Frame frame = new Frame(station, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
-                if (Frame.CanDefineRevitGeometry(frame) == true)
-                {
-                    Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
-                    using Transaction t = new Transaction(doc, "Create sphere direct shape");
-                    t.Start();
-                    // create direct shape and assign the sphere shape
-                    DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                    ds.ApplicationId = "Application id";
-                    ds.ApplicationDataId = "Geometry object id";
-                    ds.SetShape(new GeometryObject[] { sphere });
-                    t.Commit();
-                }
-            }
-            
+            //    profile.Add(Line.CreateBound(profilePlus, profileMinus));
+            //    profile.Add(Arc.Create(profileMinus, profilePlus, station + new XYZ(radius, 0, 0)));
+
+            //    CurveLoop curveLoop = CurveLoop.Create(profile);
+            //    SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
+
+            //    // Frame creation
+            //    Frame frame = new Frame(station, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
+            //    if (Frame.CanDefineRevitGeometry(frame))
+            //    {
+            //        Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
+
+            //        using (Transaction t = new Transaction(doc, "Create sphere direct shape"))
+            //        {
+            //            t.Start();
+
+            //            // Create DirectShape and assign the sphere shape
+            //            DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+            //            ds.ApplicationId = "Application id";
+            //            ds.ApplicationDataId = "Geometry object id";
+            //            ds.SetShape(new GeometryObject[] { sphere });
+
+            //            t.Commit();
+            //        }
+            //    }
+            //}
+            //for (int i = 0; i < stations.Count; i++)
+            //{
+            //    // sphere
+            //    List<Curve> profile = new List<Curve>();
+            //    XYZ station = new XYZ(stations[i].x, stations[i].y, stations[i].z);
+            //    double radius = set.SphereDiameter_Meter / 2 * Constants.meter2Feet;
+            //    XYZ profilePlus = station + new XYZ(0, radius, 0);
+            //    XYZ profileMinus = station - new XYZ(0, radius, 0);
+
+            //    profile.Add(Line.CreateBound(profilePlus, profileMinus));
+            //    profile.Add(Arc.Create(profileMinus, profilePlus, station + new XYZ(radius, 0, 0)));
+
+            //    CurveLoop curveLoop = CurveLoop.Create(profile);
+            //    SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
+
+            //    Frame frame = new Frame(station, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
+            //    if (Frame.CanDefineRevitGeometry(frame) == true)
+            //    {
+            //        Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
+            //        using Transaction t = new Transaction(doc, "Create sphere direct shape");
+            //        t.Start();
+            //        // create direct shape and assign the sphere shape
+            //        DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+            //        ds.ApplicationId = "Application id";
+            //        ds.ApplicationDataId = "Geometry object id";
+            //        ds.SetShape(new GeometryObject[] { sphere });
+            //        t.Commit();
+            //    }
+            //}
+
             #endregion sphere
 
             #region station to csv
-            
+
             string csvPath = Path.Combine(path, "07_Stations/");
 
             if (!Directory.Exists(csvPath))
@@ -441,6 +510,90 @@ namespace Revit.Green3DScan
                 rings.Add(linestr);
             }
             return rings;
+        }
+
+        public void CreateSphereFamily(UIApplication uiapp, double radius, string familyPath)
+        {
+            Document familyDoc = uiapp.Application.NewFamilyDocument(@"C:\ProgramData\Autodesk\RVT 2023\Family Templates\English\Metric Generic Model.rft");
+
+            using (Transaction t = new Transaction(familyDoc, "Create Sphere"))
+            {
+                t.Start();
+
+                // Define the base point and radius
+                XYZ basePoint = XYZ.Zero;
+
+                // Create profile for the sphere
+                List<Curve> profile = new List<Curve>();
+                XYZ profilePlus = basePoint + new XYZ(0, radius, 0);
+                XYZ profileMinus = basePoint - new XYZ(0, radius, 0);
+
+                profile.Add(Line.CreateBound(profilePlus, profileMinus));
+                profile.Add(Arc.Create(profileMinus, profilePlus, basePoint + new XYZ(radius, 0, 0)));
+
+                CurveLoop curveLoop = CurveLoop.Create(profile);
+                SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
+
+                // Create the sphere geometry
+                Frame frame = new Frame(basePoint, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
+                if (Frame.CanDefineRevitGeometry(frame))
+                {
+                    Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
+
+                    // Create a DirectShape element in the family document
+                    DirectShape ds = DirectShape.CreateElement(familyDoc, new ElementId(BuiltInCategory.OST_GenericModel));
+                    ds.ApplicationId = "Application id";
+                    ds.ApplicationDataId = "Geometry object id";
+                    ds.SetShape(new GeometryObject[] { sphere });
+                }
+
+                t.Commit();
+            }
+
+            // Save the family file
+            familyDoc.SaveAs(familyPath);
+            familyDoc.Close();
+        }
+        private void LoadAndPlaceSphereFamily(Document doc, string familyPath, List<D3.Vector> stations)
+        {
+            using (Transaction t = new Transaction(doc, "Load and Place Sphere Family"))
+            {
+                t.Start();
+
+                Family family;
+                if (!doc.LoadFamily(familyPath, out family))
+                {
+                    TaskDialog.Show("Error", "Failed to load family.");
+                    return;
+                }
+
+                FamilySymbol familySymbol = null;
+                foreach (ElementId id in family.GetFamilySymbolIds())
+                {
+                    familySymbol = doc.GetElement(id) as FamilySymbol;
+                    break;
+                }
+
+                if (familySymbol == null)
+                {
+                    TaskDialog.Show("Error", "No family symbol found.");
+                    return;
+                }
+
+                if (!familySymbol.IsActive)
+                {
+                    familySymbol.Activate();
+                    doc.Regenerate();
+                }
+
+                foreach (var station in stations)
+                {
+                    XYZ position = new XYZ(station.x, station.y, station.z);
+                    doc.Create.NewFamilyInstance(position, familySymbol, StructuralType.NonStructural);
+                }
+
+                t.Commit();
+            }
         }
     }
 }
