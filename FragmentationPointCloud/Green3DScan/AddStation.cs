@@ -14,6 +14,7 @@ using System.Globalization;
 using System.Windows.Interop;
 using D3 = GeometryLib.Double.D3;
 using Autodesk.Revit.DB.Structure;
+using System.Collections.ObjectModel;
 
 namespace Revit.Green3DScan
 {
@@ -105,7 +106,11 @@ namespace Revit.Green3DScan
                         {
                             Log.Information("Error Failed to load family.");
                         }
-                        
+                        //string familyName = "Sphere";
+                        //FilteredElementCollector collector = new FilteredElementCollector(doc);
+                        //IList<Element> families = collector.OfCategory(BuiltInCategory.OST_Families).WhereElementIsElementType().ToElements();
+                        //List<Element> filteredFamilies = families.Where(f => f.Name == familyName).ToList();
+
                         foreach (ElementId id in family.GetFamilySymbolIds())
                         {
                             familySymbol = doc.GetElement(id) as FamilySymbol;
@@ -253,7 +258,6 @@ namespace Revit.Green3DScan
                     return family;
                 }
             }
-
             return null;
         }
 
@@ -271,7 +275,6 @@ namespace Revit.Green3DScan
                     instances.Add(instance);
                 }
             }
-
             return instances;
         }
     }

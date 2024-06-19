@@ -89,7 +89,6 @@ namespace Revit
                 Max = max;
             }
         }
-
         public static bool Fragmentation2Pcd(string exeGreen3DPath, string command)
         {
             try
@@ -486,7 +485,6 @@ namespace Revit
         }
         public static void CreateSphereFamily(UIApplication uiapp, double radius, string familyPath)
         {
-            TaskDialog.Show("Message", radius.ToString() + "radius");
             Document familyDoc = uiapp.Application.NewFamilyDocument(@"C:\ProgramData\Autodesk\RVT 2023\Family Templates\English\Metric Generic Model.rft");
 
             using (Transaction t = new Transaction(familyDoc, "Create Sphere"))
@@ -519,10 +517,8 @@ namespace Revit
                     ds.ApplicationDataId = "Geometry object id";
                     ds.SetShape(new GeometryObject[] { sphere });
                 }
-
                 t.Commit();
             }
-
             // Save the family file
             familyDoc.SaveAs(familyPath);
             familyDoc.Close();
@@ -536,7 +532,7 @@ namespace Revit
                 Family family;
                 if (!doc.LoadFamily(familyPath, out family))
                 {
-                    Log.Information("Error", "Failed to load family.");
+                    Log.Information("Error: Failed to load family.");
                     return;
                 }
 
@@ -549,7 +545,7 @@ namespace Revit
 
                 if (familySymbol == null)
                 {
-                    Log.Information("Error", "No family symbol found.");
+                    Log.Information("Error: No family symbol found.");
                     return;
                 }
 

@@ -83,7 +83,7 @@ namespace Revit.Green3DScan
             var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
 
             #endregion select files
-
+            Log.Information("selecting files");
             #region read files
 
             var facesRevit = S.PlanarFace.ReadCsv(csvPathPfRevit, out var lineErrors1, out string error1);
@@ -96,7 +96,7 @@ namespace Revit.Green3DScan
             var referencePlanesRevit = S.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
 
             #endregion read files
-
+            Log.Information("reading files");
             #region faces from rooms
 
             //Faces
@@ -193,7 +193,7 @@ namespace Revit.Green3DScan
             Log.Information(faces.Count.ToString() + " room faces");
 
             #endregion faces from rooms
-
+            Log.Information("room faces");
             #region stations
 
             //----------------------------------
@@ -272,12 +272,13 @@ namespace Revit.Green3DScan
             Log.Information(rooms.Count.ToString() + " rooms");
 
             #endregion stations
-
             Log.Information(stations.Count.ToString() + " stations");
-
             #region visible and not visible faces
 
-            var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds);
+            var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test);
+            //Test 
+            Log.Information(test.ToString());
+            
             var visibleFaceId = new HashSet<S.Id>();
             var visibleFaces = new HashSet<S.PlanarFace>();
             var pFMap = new Dictionary<S.Id, S.PlanarFace>();
@@ -329,25 +330,25 @@ namespace Revit.Green3DScan
             S.PlanarFace.WriteObj(Path.Combine(path, "notVisible"), referencePlanesRevit, notVisibleFaces);
 
             #endregion visible and not visible faces
+            Log.Information("visible and not visible faces");
+            #region write pointcloud in XYZ
 
-            //#region write pointcloud in XYZ
-
-            //List<string> lines = new List<string>();
-            //for (int i = 0; i < stationsPBP.Count; i++)
-            //{
-            //    foreach (S.Id id in visibleFacesIdArray[i])
-            //    {
-            //        visibleFaceId.Add(id);
-            //    }
-            //    for (int j = 0; j < pointClouds[i].Length; j++)
-            //    {
-            //        lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
-            //    }
-            //}
-            //File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
-            //#endregion write pointcloud in XYZ
-
-            //#region color not visible faces     
+            List<string> lines = new List<string>();
+            for (int i = 0; i < stationsPBP.Count; i++)
+            {
+                foreach (S.Id id in visibleFacesIdArray[i])
+                {
+                    visibleFaceId.Add(id);
+                }
+                for (int j = 0; j < pointClouds[i].Length; j++)
+                {
+                    lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
+                }
+            }
+            File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
+            #endregion write pointcloud in XYZ
+            Log.Information("pointcloud");
+            #region color not visible faces     
 
             //ElementId[] matId = default;
 
@@ -365,7 +366,7 @@ namespace Revit.Green3DScan
             //Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
             //Helper.Paint.ColourFace(doc, visibleFacesId, matId[5]);
 
-            //#endregion  color not visible faces
+            #endregion  color not visible faces
 
             #region sphere
 
@@ -377,7 +378,7 @@ namespace Revit.Green3DScan
             Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(path, "Sphere.rfa"), stations);
 
             #endregion sphere
-
+            Log.Information("sphere");
             #region station to csv
 
             string csvPath = Path.Combine(path, "07_Stations/");
@@ -395,7 +396,7 @@ namespace Revit.Green3DScan
             }
 
             #endregion station to csv
-
+            Log.Information("station csv");
             #region dataStorage
             //var z = new List<XYZ>();
             //foreach (var item in stationsPBP)

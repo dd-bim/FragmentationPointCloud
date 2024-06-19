@@ -4,13 +4,15 @@ using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
 using D = Revit.Data;
 using S = ScantraIO.Data;
+using YamlDotNet.Core.Tokens;
 
 namespace Revit.Green3DScan
 {
     public static class Raycasting
     {
-        public static HashSet<S.Id>[] VisibleFaces(IReadOnlyCollection<S.PlanarFace> planarFaces, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, IReadOnlyList<D3.Vector> stations, SettingsJson set, out D3.Vector[][] pointClouds)
+        public static HashSet<S.Id>[] VisibleFaces(IReadOnlyCollection<S.PlanarFace> planarFaces, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, IReadOnlyList<D3.Vector> stations, SettingsJson set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> countPoints)
         {
+            countPoints = default;
             var pFMap = new Dictionary<S.Id, S.PlanarFace>();
             foreach (var pf in planarFaces)
             {
@@ -20,9 +22,11 @@ namespace Revit.Green3DScan
             pointClouds = new D3.Vector[vf.Length][];
             for (int i = 0; i < vf.Length; i++)
             {
-                vf[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud, set.StepsPerFullTurn);
+                vf[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud, out var counterPoints);
                 pointClouds[i] = pointCloud;
+                countPoints = counterPoints;
             }
+            
             return vf;
         }
 
@@ -78,9 +82,11 @@ namespace Revit.Green3DScan
             return !double.IsInfinity(minDistance);
         }
 
-        private static HashSet<S.Id> VisibleFaces(Dictionary<S.Id, S.PlanarFace> pfMap, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, D3.Vector station, SettingsJson set, out D3.Vector[] pointCloud, int stepsPerFullTurn)
+        private static HashSet<S.Id> VisibleFaces(Dictionary<S.Id, S.PlanarFace> pfMap, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, D3.Vector station, SettingsJson set, out D3.Vector[] pointCloud, out Dictionary<S.Id, int> countPoints)
         {
             var visibleFaces = new HashSet<S.Id>();
+            //var visibleFacesListPoints = new List<S.Id>();
+            Dictionary<S.Id, int> frequencyDict = new Dictionary<S.Id, int>();
             var points = new List<D3.Vector>();
 
             // create octants
@@ -136,14 +142,30 @@ namespace Revit.Green3DScan
                 {
                     if (GetMinDist(pfMap, refPlanes, octants, station, new D3.Direction(azimuth, inclination), set, out minId, out minPoint))
                     {
-                        visibleFaces.Add(minId);
-                        points.Add(minPoint);
+                        //new with angle and list --------
+                        var angle = Math.Acos(new D3.Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
+                        if (angle < 35 * Constants.gradToRad)
+                        {
+                            Math.Acos(new D3.Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
+                            visibleFaces.Add(minId);
+                            //if (frequencyDict.ContainsKey(minId))
+                            //{
+                            //    frequencyDict[minId]++;
+                            //}
+                            //else
+                            //{
+                            //    frequencyDict[minId] = 1;
+                            //}
+                            //points.Add(minPoint);
+                        }
+                        // end------------------
                     }
                     inclination = inclination.Add(step);
                 }
                 azimuth = azimuth.Add(step);
             }
             pointCloud = points.ToArray();
+            countPoints = frequencyDict;
             return visibleFaces;
         }
     }
