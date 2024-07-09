@@ -35,7 +35,11 @@ namespace Revit.GUI
                 { "FragmentationVoxelResulution_Meter", set.FragmentationVoxelResolution_Meter.ToString() },
                 { "StepsPerFullTurn", set.StepsPerFullTurn.ToString() },
                 { "SphereDiameter_Meter", set.SphereDiameter_Meter.ToString() },
-                { "HeightOfSphere_Meter", set.HeightOfSphere_Meter.ToString() }
+                { "HeightOfScanner_Meter", set.HeightOfScanner_Meter.ToString() },
+                { "Beta_Degree", set.Beta_Degree.ToString() },
+                { "MinDF_Meter", set.MinDF_Meter.ToString() },
+                { "MaxDF_Meter", set.MaxDF_Meter.ToString() },
+                { "MaxPlaneDist_Meter", set.MaxPlaneDist_Meter.ToString() }
             };
 
             var currentTabItem = new TabItem

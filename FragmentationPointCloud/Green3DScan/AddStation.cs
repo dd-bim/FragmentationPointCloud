@@ -56,7 +56,7 @@ namespace Revit.Green3DScan
 
             #endregion setup
 
-            XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, set.HeightOfSphere_Meter)) * Constants.meter2Feet; 
+            XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, set.HeightOfScanner_Meter)) * Constants.meter2Feet; 
 
             double radius = set.SphereDiameter_Meter/2 * Constants.meter2Feet;
 
@@ -139,7 +139,7 @@ namespace Revit.Green3DScan
                             point = uidoc.Selection.PickPoint("Click to place a sphere or press ESC to finish");
                             vector = new D3.Vector(point.X, point.Y, point.Z);
                             var pointPBP =  trans.OfPoint(point) * Constants.feet2Meter;
-                            newStations.Add(new XYZ(pointPBP.X, pointPBP.Y, set.HeightOfSphere_Meter));
+                            newStations.Add(new XYZ(pointPBP.X, pointPBP.Y, set.HeightOfScanner_Meter));
                         }
                         catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                         {

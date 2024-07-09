@@ -10,5 +10,9 @@
   "FragmentationVoxelResolution_Meter": 5,
   "StepsPerFullTurn": 36,
   "SphereDiameter_Meter": 0.15,
-  "HeightOfSphere_Meter":  1.0
+  "HeightOfScanner_Meter": 1.5,
+  "Beta_Degree": 35,
+  "MinDF_Meter": 0.3,
+  "MaxDF_Meter": 30.0,
+  "MaxPlaneDist_Meter": 0.1
 }

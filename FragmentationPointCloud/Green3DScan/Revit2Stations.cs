@@ -53,8 +53,7 @@ namespace Revit.Green3DScan
                .MinimumLevel.Debug()
                .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
                .CreateLogger();
-            Log.Information("start");
-            Log.Information(set.BBox_Buffer.ToString());
+            Log.Information("startXYZ");
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
@@ -209,7 +208,7 @@ namespace Revit.Green3DScan
             FilteredElementCollector collDoors = new FilteredElementCollector(doc, activeView.Id);
             ICollection<Element> doors = collDoors.OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements();
             
-            double heigth = set.HeightOfSphere_Meter;
+            double heigth = set.HeightOfScanner_Meter;
             //XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, heigth)) * Constants.meter2Feet;
 
             foreach (Element door in doors)
@@ -255,10 +254,8 @@ namespace Revit.Green3DScan
 
             foreach (var item in stations)
             {
-                Log.Information(item.xyz.ToString());
                 var x = new XYZ(item.x, item.y, item.z);
                 var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
-                Log.Information(xTrans.ToString());
                 stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
             }
             //for (int i = 0; i < 1; i++)
@@ -275,7 +272,9 @@ namespace Revit.Green3DScan
             Log.Information(stations.Count.ToString() + " stations");
             #region visible and not visible faces
 
+            // visible faces per station
             var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test);
+            
             //Test 
             Log.Information(test.ToString());
             
@@ -296,7 +295,6 @@ namespace Revit.Green3DScan
                 }
             }
 
-            //sichtbare Faces pro Standpunkt sind bekannt
             // visible faces
             S.PlanarFace.WriteCsv(csvVisibleFaces, visibleFaces);
             S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);

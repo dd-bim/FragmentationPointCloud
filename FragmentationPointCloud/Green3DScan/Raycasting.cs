@@ -5,6 +5,10 @@ using D3 = GeometryLib.Double.D3;
 using D = Revit.Data;
 using S = ScantraIO.Data;
 using YamlDotNet.Core.Tokens;
+using Serilog;
+using OpenCvSharp;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
 
 namespace Revit.Green3DScan
 {
@@ -60,7 +64,7 @@ namespace Revit.Green3DScan
                 // intersections
                 var p_ = (pfRefPlane.Position - station).Dot(pfRefPlane.Normal);
                 var distance = p_ / r_;
-                if (distance < 0 || distance > 30) //Parameter
+                if (distance < set.MinDF_Meter || distance > set.MaxDF_Meter)
                 {
                     continue;
                 }
@@ -127,26 +131,49 @@ namespace Revit.Green3DScan
             // faces at the poles
             if (GetMinDist(pfMap, refPlanes, octants, station, D3.Direction.UnitZ, set, out minId, out minPoint))
             {
-                visibleFaces.Add(minId);
-                points.Add(minPoint);
+                var angle = Math.Acos(new D3.Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
+                if (angle < set.Beta_Degree * Constants.gradToRad)
+                {
+                    visibleFaces.Add(minId);
+                    points.Add(minPoint);
+                }
+                else
+                {
+                    Log.Information("Angle1: " + angle * Constants.gradToRad);
+                }
             }
             if (GetMinDist(pfMap, refPlanes, octants, station, D3.Direction.NegUnitZ, set, out minId, out minPoint))
             {
-                visibleFaces.Add(minId);
-                points.Add(minPoint);
+                var angle = Math.Acos(new D3.Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
+                
+                if (angle < set.Beta_Degree * Constants.gradToRad)
+                {
+                    visibleFaces.Add(minId);
+                    points.Add(minPoint);
+                }
+                else
+                {
+                    Log.Information("Angle2: " + angle * Constants.gradToRad);
+                }
             }
+
+            var anglexx = set.Beta_Degree * Constants.gradToRad;
+            Log.Information("AngleXX: " + anglexx);
             for (var i = 0; i < set.StepsPerFullTurn; i++)
             {
                 inclination = step;
                 for (var j = 1; j < halfSteps; j++)
                 {
-                    if (GetMinDist(pfMap, refPlanes, octants, station, new D3.Direction(azimuth, inclination), set, out minId, out minPoint))
+                    var dir = new D3.Direction(azimuth, inclination);
+                    if (GetMinDist(pfMap, refPlanes, octants, station, dir, set, out minId, out minPoint))
                     {
                         //new with angle and list --------
-                        var angle = Math.Acos(new D3.Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
-                        if (angle < 35 * Constants.gradToRad)
+                        var angle = Math.PI - Math.Acos(dir.Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
+                        Log.Information("Angle_____: " + angle);
+                        Log.Information("Angle35___: " + anglexx);
+                        if (angle < anglexx)
                         {
-                            Math.Acos(new D3.Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
+                            Log.Information("Angle kleiner als: " + angle);
                             visibleFaces.Add(minId);
                             //if (frequencyDict.ContainsKey(minId))
                             //{
@@ -156,7 +183,11 @@ namespace Revit.Green3DScan
                             //{
                             //    frequencyDict[minId] = 1;
                             //}
-                            //points.Add(minPoint);
+                            points.Add(minPoint);
+                        }
+                        else 
+                        {
+                            Log.Information("Angle größer als: " + angle);
                         }
                         // end------------------
                     }

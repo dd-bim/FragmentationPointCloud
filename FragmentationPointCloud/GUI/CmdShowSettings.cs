@@ -71,7 +71,11 @@ namespace Revit.GUI
                         FragmentationVoxelResolution_Meter = double.Parse(j[8].AttributValue),
                         StepsPerFullTurn = int.Parse(j[9].AttributValue),
                         SphereDiameter_Meter = double.Parse(j[10].AttributValue),
-                        HeightOfSphere_Meter = double.Parse(j[11].AttributValue)
+                        HeightOfScanner_Meter = double.Parse(j[11].AttributValue),
+                        Beta_Degree = double.Parse(j[12].AttributValue),
+                        MinDF_Meter = double.Parse(j[13].AttributValue),
+                        MaxDF_Meter = double.Parse(j[14].AttributValue),
+                        MaxPlaneDist_Meter = double.Parse(j[15].AttributValue)
                     };
                     // overwrite updated json
                     SettingsJson.WriteSettingsJson(json, Constants.pathSettings);
