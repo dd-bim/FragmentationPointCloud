@@ -111,6 +111,13 @@ namespace Revit.Green3DScan
             #region visible and not visible faces
 
             var visibleFacesId = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test);
+
+            foreach (var item in test)
+            {
+                Log.Information(item.Key.ToString());
+                Log.Information(item.Value.ToString());
+            }
+            
             var visibleFaceId = new HashSet<S.Id>();
             var visibleFaces = new HashSet<S.PlanarFace>();
             var pFMap = new Dictionary<S.Id, S.PlanarFace>();

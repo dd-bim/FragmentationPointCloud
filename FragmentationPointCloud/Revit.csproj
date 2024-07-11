@@ -369,6 +369,7 @@
     <Compile Include="Green3DScan\LoadFragmentationVoxel.cs" />
     <Compile Include="Green3DScan\FragmentationBBoxComplete.cs" />
     <Compile Include="Green3DScan\Raycasting.cs" />
+    <Compile Include="Green3DScan\Raycasting_.cs" />
     <Compile Include="Green3DScan\AddStation.cs" />
     <Compile Include="Green3DScan\Stations2NotVisibleFaces.cs" />
     <Compile Include="Green3DScan\Revit2Stations.cs" />

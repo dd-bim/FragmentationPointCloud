@@ -8,13 +8,9 @@ using Serilog;
 using Transform = Autodesk.Revit.DB.Transform;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
-using Line = Autodesk.Revit.DB.Line;
 using Sys = System.Globalization.CultureInfo;
-using System.Globalization;
-using System.Windows.Interop;
 using D3 = GeometryLib.Double.D3;
 using Autodesk.Revit.DB.Structure;
-using System.Collections.ObjectModel;
 
 namespace Revit.Green3DScan
 {
@@ -47,18 +43,14 @@ namespace Revit.Green3DScan
             // logger
             Log.Logger = new LoggerConfiguration()
                .MinimumLevel.Debug()
-               .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
+               .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Minute)
                .CreateLogger();
-            Log.Information("start");
+            Log.Information("start AddStation");
             Log.Information(set.BBox_Buffer.ToString());
            
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
             #endregion setup
-
-            XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, set.HeightOfScanner_Meter)) * Constants.meter2Feet; 
-
-            double radius = set.SphereDiameter_Meter/2 * Constants.meter2Feet;
 
             #region read stations from csv
 
@@ -75,16 +67,15 @@ namespace Revit.Green3DScan
                 TaskDialog.Show("Message", "Reading csv not successful!");
                 return Result.Failed;
             }
+            
             #endregion read stations from csv
 
             #region sphere
 
-            if (!File.Exists(Path.Combine(path, "Sphere.rfa")))
+            if (!File.Exists(Path.Combine(path, "ScanStation.rfa")))
             {
-                Helper.CreateSphereFamily(uiapp, set.SphereDiameter_Meter / 2 * Constants.meter2Feet, Path.Combine(path, "Sphere.rfa"));
+                Helper.CreateSphereFamily(uiapp, set.SphereDiameter_Meter / 2 * Constants.meter2Feet, Path.Combine(path, "ScanStation.rfa"));
             }
-
-            TaskDialog.Show("Message"," läuft");
 
             #endregion sphere
 
@@ -93,23 +84,29 @@ namespace Revit.Green3DScan
             List<XYZ> newStations = new List<XYZ>();
             try
             {
-                using (TransactionGroup tg = new TransactionGroup(doc, "Place Spheres"))
+                using (TransactionGroup tg = new TransactionGroup(doc, "Place ScanStation"))
                 {
                     FamilySymbol familySymbol = null;
                     tg.Start();
-                    using (Transaction t = new Transaction(doc, "Load and Place Sphere Family"))
+                    using (Transaction t = new Transaction(doc, "Load and place ScanStation Family"))
                     {
                         t.Start();
                         Family family;
-                        //Wenn Familie vorhanden ist, nicht erneut versuchen zu laden
-                        if (!doc.LoadFamily("Sphere.rfa", out family))
+                        // load family, if not already present in the project
+                        if (!doc.LoadFamily(Path.Combine(path, "ScanStation.rfa"), out family))
                         {
-                            Log.Information("Error Failed to load family.");
+                            FilteredElementCollector collector = new FilteredElementCollector(doc);
+                            ICollection<Element> familyInstances = collector.OfClass(typeof(Family)).ToElements();
+                            foreach (Element element in familyInstances)
+                            {
+                                Family loadedFamily = element as Family;
+                                if (loadedFamily.Name == "ScanStation")
+                                {
+                                    family = loadedFamily;
+                                    break;
+                                }
+                            }
                         }
-                        //string familyName = "Sphere";
-                        //FilteredElementCollector collector = new FilteredElementCollector(doc);
-                        //IList<Element> families = collector.OfCategory(BuiltInCategory.OST_Families).WhereElementIsElementType().ToElements();
-                        //List<Element> filteredFamilies = families.Where(f => f.Name == familyName).ToList();
 
                         foreach (ElementId id in family.GetFamilySymbolIds())
                         {
@@ -118,7 +115,7 @@ namespace Revit.Green3DScan
                         }
                         if (familySymbol == null)
                         {
-                            Log.Information("Error No family symbol found.");
+                            Log.Information("Error, no family symbol found.");
                         }
 
                         if (!familySymbol.IsActive)
@@ -128,31 +125,29 @@ namespace Revit.Green3DScan
                         }
                         t.Commit();
                     }
-                    TaskDialog.Show("Message", " läuft");
                     while (true)
                     {
-                        // Step 1: User clicks to select a point
+                        // user clicks to select a point
                         XYZ point;
                         D3.Vector vector;
                         try
                         {
-                            point = uidoc.Selection.PickPoint("Click to place a sphere or press ESC to finish");
+                            point = uidoc.Selection.PickPoint("Click to place a ScanStation or press ESC to finish");
                             vector = new D3.Vector(point.X, point.Y, point.Z);
+                            vector = new D3.Vector(point.X, point.Y, set.HeightOfScanner_Meter * Constants.meter2Feet);
                             var pointPBP =  trans.OfPoint(point) * Constants.feet2Meter;
                             newStations.Add(new XYZ(pointPBP.X, pointPBP.Y, set.HeightOfScanner_Meter));
                         }
                         catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                         {
-                            break; // Exit the loop when ESC is pressed
+                            break; // exit the loop when ESC is pressed
                         }
                         var listWithPoint = new List<D3.Vector>
                         {
                             vector
                         };
-                        //Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(path, "Sphere.rfa"), listWithPoint);
 
-
-                        using (Transaction tx = new Transaction(doc, "Place Sphere"))
+                        using (Transaction tx = new Transaction(doc, "Place ScanStation"))
                         {
                             tx.Start();
 
@@ -161,49 +156,17 @@ namespace Revit.Green3DScan
 
                             tx.Commit();
                         }
-
-                        //using (Transaction tx = new Transaction(doc, "Place Sphere"))
-                        //{
-                        //    tx.Start();
-                            
-                        //    // Create a profile curve for the sphere (a semi-circle)
-                        //    List<Curve> profileCurves = new List<Curve>();
-                        //    XYZ center = new XYZ(point.X, point.Y, transformedHeight.Z);
-                        //    XYZ top = new XYZ(point.X, point.Y, transformedHeight.Z + radius);
-                        //    XYZ bottom = new XYZ(point.X, point.Y, transformedHeight.Z - radius);
-                        //    Arc arc = Arc.Create(top, bottom, center + new XYZ(radius, 0, 0));
-                        //    profileCurves.Add(Line.CreateBound(bottom, top));
-                        //    profileCurves.Add(arc);
-
-                        //    CurveLoop profile = CurveLoop.Create(profileCurves);
-
-                        //    // Axis of revolution (Y-axis through the center point)
-                        //    Line axis = Line.CreateBound(point, point + XYZ.BasisY);
-
-                        //    // Create a revolved solid using the profile and the axis
-                        //    Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(
-                        //        new Frame(point, XYZ.BasisX, XYZ.BasisY, XYZ.BasisZ),
-                        //        new CurveLoop[] { profile },0,2 * Math.PI);
-
-                        //    // Create a DirectShape element in Revit
-                        //    DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                        //    ds.SetShape(new GeometryObject[] { sphere });
-
-                        //    tx.Commit();
-                        //}
                     }
-                    tg.Assimilate(); // Commit the transaction group
+                    tg.Assimilate(); // commit the transaction group
                 }
 
                 Level currentLevel = doc.ActiveView.GenLevel;
                 string levelName = currentLevel.Name;
-                TaskDialog.Show("Message", newStations.Count.ToString() + " newStations");
+                TaskDialog.Show("Message", newStations.Count.ToString() + " new ScanStations");
 
                 #endregion create new stations
 
-                // new
-
-                CollectFamilyInstances(doc, "Sphere");
+                CollectFamilyInstances(doc, "ScanStation");
 
                 #region write stations to csv
 
@@ -221,14 +184,14 @@ namespace Revit.Green3DScan
                 csv.Close();
                 #endregion write stations to csv
 
-                //Helper.CreateAndStoreSphereData(doc, sphereCoordinate, levelName);
             }
             catch (Exception ex)
             {
                 message = ex.Message;
                 return Result.Failed;
             }
-
+            
+            Log.Information("end AddStation");
             return Result.Succeeded;
         }
         public void CollectFamilyInstances(Document doc, string familyName)
@@ -245,7 +208,6 @@ namespace Revit.Green3DScan
             List<FamilyInstance> familyInstances = GetFamilyInstances(doc, family.Id);
             TaskDialog.Show("Info", $"{familyInstances.Count} instances of family {familyName} found.");
         }
-
         private Family GetFamilyByName(Document doc, string familyName)
         {
             FilteredElementCollector collector = new FilteredElementCollector(doc);
@@ -260,7 +222,6 @@ namespace Revit.Green3DScan
             }
             return null;
         }
-
         private List<FamilyInstance> GetFamilyInstances(Document doc, ElementId familyId)
         {
             FilteredElementCollector collector = new FilteredElementCollector(doc);
