@@ -350,3 +350,4 @@ healthchecksdb
 *.xynctex.gz
 *.run.xml
 
+/FragmentationPointCloud/Green3DScan/Raycasting_.cs
