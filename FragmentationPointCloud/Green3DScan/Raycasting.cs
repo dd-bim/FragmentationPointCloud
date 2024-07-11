@@ -137,10 +137,6 @@ namespace Revit.Green3DScan
                     visibleFaces.Add(minId);
                     points.Add(minPoint);
                 }
-                //else
-                //{
-                //    Log.Information("Angle1: " + angle * Constants.gradToRad);
-                //}
             }
             if (GetMinDist(pfMap, refPlanes, octants, station, D3.Direction.NegUnitZ, set, out minId, out minPoint))
             {
@@ -157,8 +153,7 @@ namespace Revit.Green3DScan
                 }
             }
 
-            var anglexx = set.Beta_Degree * Constants.gradToRad;
-            //Log.Information("AngleXX: " + anglexx);
+            var beta = set.Beta_Degree * Constants.gradToRad;
             for (var i = 0; i < set.StepsPerFullTurn; i++)
             {
                 inclination = step;
@@ -167,29 +162,20 @@ namespace Revit.Green3DScan
                     var dir = new D3.Direction(azimuth, inclination);
                     if (GetMinDist(pfMap, refPlanes, octants, station, dir, set, out minId, out minPoint))
                     {
-                        //new with angle and list --------
                         var angle = Math.PI - Math.Acos(dir.Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
-                        //Log.Information("Angle_____: " + angle);
-                        //Log.Information("Angle35___: " + anglexx);
-                        if (angle < anglexx)
+                        if (angle < beta)
                         {
-                            //Log.Information("Angle kleiner als: " + angle);
                             visibleFaces.Add(minId);
-                            //if (frequencyDict.ContainsKey(minId))
-                            //{
-                            //    frequencyDict[minId]++;
-                            //}
-                            //else
-                            //{
-                            //    frequencyDict[minId] = 1;
-                            //}
+                            if (frequencyDict.ContainsKey(minId))
+                            {
+                                frequencyDict[minId]++;
+                            }
+                            else
+                            {
+                                frequencyDict[minId] = 1;
+                            }
                             points.Add(minPoint);
                         }
-                        //else 
-                        //{
-                        //    Log.Information("Angle größer als: " + angle);
-                        //}
-                        // end------------------
                     }
                     inclination = inclination.Add(step);
                 }

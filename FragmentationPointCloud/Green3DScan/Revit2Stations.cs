@@ -271,8 +271,13 @@ namespace Revit.Green3DScan
 
             // visible faces per station
             var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test);
-            
+
             //Test 
+            foreach (var item in test)
+            {
+                Log.Information(item.Key.ToString());
+                Log.Information(item.Value.ToString());
+            }
             Log.Information(test.ToString());
             
             var visibleFaceId = new HashSet<S.Id>();
