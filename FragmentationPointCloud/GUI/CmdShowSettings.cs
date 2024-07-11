@@ -70,6 +70,7 @@ namespace Revit.GUI
                         PathPointCloud = j[7].AttributValue,
                         FragmentationVoxelResolution_Meter = double.Parse(j[8].AttributValue),
                         StepsPerFullTurn = int.Parse(j[9].AttributValue),
+                        
                         SphereDiameter_Meter = double.Parse(j[10].AttributValue),
                         HeightOfScanner_Meter = double.Parse(j[11].AttributValue),
                         Beta_Degree = double.Parse(j[12].AttributValue),

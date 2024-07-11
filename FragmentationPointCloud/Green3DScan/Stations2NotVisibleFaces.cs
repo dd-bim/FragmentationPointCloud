@@ -198,12 +198,12 @@ namespace Revit.Green3DScan
 
             #endregion  color not visible faces
 
-            #region sphere
+            #region ScanStation
 
             // create spheres with internal coordinates
             for (int i = 0; i < stations.Count; i++)
             {
-                // sphere
+                // ScanStation
                 List<Curve> profile = new List<Curve>();
                 XYZ station = new XYZ(stations[i].X, stations[i].Y, stations[i].Z);
                 XYZ stationsInternal = trans.OfPoint(station) * Constants.meter2Feet;
@@ -231,8 +231,8 @@ namespace Revit.Green3DScan
                     t.Commit();
                 }
             }
-            
-            #endregion sphere
+
+            #endregion ScanStation
 
             TaskDialog.Show("Message", "Successful");
             return Result.Succeeded;

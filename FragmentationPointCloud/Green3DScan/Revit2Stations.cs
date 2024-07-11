@@ -13,12 +13,9 @@ using Sys = System.Globalization.CultureInfo;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
 using View = Autodesk.Revit.DB.View;
-using Line = Autodesk.Revit.DB.Line;
 using S = ScantraIO.Data;
 using Autodesk.Revit.DB.ExtensibleStorage;
 using Autodesk.Revit.DB.Structure;
-
-
 
 namespace Revit.Green3DScan
 {
@@ -53,7 +50,7 @@ namespace Revit.Green3DScan
                .MinimumLevel.Debug()
                .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
                .CreateLogger();
-            Log.Information("startXYZ");
+            Log.Information("start Revit2Station");
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
@@ -155,7 +152,7 @@ namespace Revit.Green3DScan
                     {
                         NTSWrapper.GeometryLib.ToPolygon2d(plane, rings, out D2.Polygon polygon, out D3.BBox bbox, out double maxPlaneDist);
                         var planarFaceIO = new S.PlanarFace(id, refPlane, bbox, polygon);
-                        if (!(maxPlaneDist <= 0.01)) //Parameter
+                        if (!(maxPlaneDist <= 0.01))
                         {
                             Log.Information("maxPlaneDist: " + maxPlaneDist);
                         }
@@ -208,7 +205,7 @@ namespace Revit.Green3DScan
             FilteredElementCollector collDoors = new FilteredElementCollector(doc, activeView.Id);
             ICollection<Element> doors = collDoors.OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements();
             
-            double heigth = set.HeightOfScanner_Meter;
+            double heigth = set.HeightOfScanner_Meter * Constants.meter2Feet;
             //XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, heigth)) * Constants.meter2Feet;
 
             foreach (Element door in doors)
@@ -224,7 +221,7 @@ namespace Revit.Green3DScan
                     //var doorPoint = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
                     //stations.Add(new D3.Vector(doorPoint.X, doorPoint.Y, transformedHeight.Z));
 
-                    stations.Add(new D3.Vector(locationPoint.Point.X, locationPoint.Point.Y, heigth * Constants.meter2Feet));
+                    stations.Add(new D3.Vector(locationPoint.Point.X, locationPoint.Point.Y, heigth));
                 }
                 else
                 {
@@ -244,7 +241,7 @@ namespace Revit.Green3DScan
                     //var roomPoint = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
                     //stations.Add(new D3.Vector(roomPoint.X, roomPoint.Y, transformedHeight.Z));
 
-                    stations.Add(new D3.Vector(locationPoint.Point.X, locationPoint.Point.Y, heigth * Constants.meter2Feet));
+                    stations.Add(new D3.Vector(locationPoint.Point.X, locationPoint.Point.Y, heigth));
                 }
                 else
                 {
@@ -366,17 +363,17 @@ namespace Revit.Green3DScan
 
             #endregion  color not visible faces
 
-            #region sphere
+            #region ScanStation
 
-            if (!File.Exists(Path.Combine(path, "Sphere.rfa")))
+            if (!File.Exists(Path.Combine(path, "ScanStation.rfa")))
             {
-                Helper.CreateSphereFamily(uiapp, set.SphereDiameter_Meter / 2 * Constants.meter2Feet, Path.Combine(path, "Sphere.rfa"));
+                Helper.CreateSphereFamily(uiapp, set.SphereDiameter_Meter / 2 * Constants.meter2Feet, Path.Combine(path, "ScanStation.rfa"));
             }
 
-            Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(path, "Sphere.rfa"), stations);
+            Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(path, "ScanStation.rfa"), stations);
 
-            #endregion sphere
-            Log.Information("sphere");
+            #endregion ScanStation
+            Log.Information("ScanStation");
             #region station to csv
 
             string csvPath = Path.Combine(path, "07_Stations/");
@@ -418,7 +415,8 @@ namespace Revit.Green3DScan
 
             #endregion dataStorage
 
-            TaskDialog.Show("Message", "Successful");
+            TaskDialog.Show("Message", stationsPBP.Count.ToString() + " ScanStations");
+            Log.Information("end Revit2Station");
             return Result.Succeeded;
         }
         private static List<D3.LineString> CurveLoops(Face face, Transform trans)

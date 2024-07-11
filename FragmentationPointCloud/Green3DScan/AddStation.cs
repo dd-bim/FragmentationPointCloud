@@ -52,36 +52,18 @@ namespace Revit.Green3DScan
 
             #endregion setup
 
-            #region read stations from csv
-
-            var fodPfRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
-            fodPfRevit.Title = "Select CSV file with stations from Revit!";
-            if (fodPfRevit.Show() == ItemSelectionDialogResult.Canceled)
-            {
-                return Result.Cancelled;
-            }
-            var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodPfRevit.GetSelectedModelPath());
-
-            if (!Helper.ReadCsvStations(csvPathStations, out List<XYZ> oldStations))
-            {
-                TaskDialog.Show("Message", "Reading csv not successful!");
-                return Result.Failed;
-            }
-            
-            #endregion read stations from csv
-
-            #region sphere
+            #region ScanStation
 
             if (!File.Exists(Path.Combine(path, "ScanStation.rfa")))
             {
                 Helper.CreateSphereFamily(uiapp, set.SphereDiameter_Meter / 2 * Constants.meter2Feet, Path.Combine(path, "ScanStation.rfa"));
             }
 
-            #endregion sphere
+            #endregion ScanStation
 
             #region create new stations
 
-            List<XYZ> newStations = new List<XYZ>();
+            //List<XYZ> newStations = new List<XYZ>();
             try
             {
                 using (TransactionGroup tg = new TransactionGroup(doc, "Place ScanStation"))
@@ -136,7 +118,6 @@ namespace Revit.Green3DScan
                             vector = new D3.Vector(point.X, point.Y, point.Z);
                             vector = new D3.Vector(point.X, point.Y, set.HeightOfScanner_Meter * Constants.meter2Feet);
                             var pointPBP =  trans.OfPoint(point) * Constants.feet2Meter;
-                            newStations.Add(new XYZ(pointPBP.X, pointPBP.Y, set.HeightOfScanner_Meter));
                         }
                         catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                         {
@@ -162,22 +143,25 @@ namespace Revit.Green3DScan
 
                 Level currentLevel = doc.ActiveView.GenLevel;
                 string levelName = currentLevel.Name;
-                TaskDialog.Show("Message", newStations.Count.ToString() + " new ScanStations");
 
                 #endregion create new stations
 
-                CollectFamilyInstances(doc, "ScanStation");
+                var allStations = CollectFamilyInstances(doc, trans, "ScanStation");
+                TaskDialog.Show("Message", allStations.Count.ToString() + " ScanStations");
 
                 #region write stations to csv
 
-                using StreamWriter csv = File.CreateText(csvPathStations);
+                string csvPath = Path.Combine(path, "07_Stations/");
+
+                if (!Directory.Exists(csvPath))
+                {
+                    Directory.CreateDirectory(csvPath);
+                }
+
+                using StreamWriter csv = File.CreateText(Path.Combine(csvPath, "Stations.csv"));
                 csv.WriteLine(CsvHeader);
 
-                foreach (var item in oldStations)
-                {
-                    csv.WriteLine(item.X.ToString(Sys.InvariantCulture) + ";" + item.Y.ToString(Sys.InvariantCulture) + ";" + item.Z.ToString(Sys.InvariantCulture));
-                }
-                foreach (var item in newStations)
+                foreach (var item in allStations)
                 {
                     csv.WriteLine(item.X.ToString(Sys.InvariantCulture) + ";" + item.Y.ToString(Sys.InvariantCulture) + ";" + item.Z.ToString(Sys.InvariantCulture));
                 }
@@ -194,19 +178,27 @@ namespace Revit.Green3DScan
             Log.Information("end AddStation");
             return Result.Succeeded;
         }
-        public void CollectFamilyInstances(Document doc, string familyName)
+        public List<XYZ> CollectFamilyInstances(Document doc, Transform trans, string familyName)
         {
+            var listStations = new List<XYZ>();
             // Step 1: Get the Family object by name
             Family family = GetFamilyByName(doc, familyName);
             if (family == null)
             {
-                TaskDialog.Show("Error", $"Family {familyName} not found.");
-                return;
+                TaskDialog.Show("Message", $"Family {familyName} not found.");
+                return default;
             }
 
             // Step 2: Get all instances of the Family
             List<FamilyInstance> familyInstances = GetFamilyInstances(doc, family.Id);
-            TaskDialog.Show("Info", $"{familyInstances.Count} instances of family {familyName} found.");
+            foreach (var item in familyInstances)
+            {
+                if (item.Location is LocationPoint locationPoint)
+                {
+                    listStations.Add(trans.OfPoint(locationPoint.Point) * Constants.feet2Meter);
+                }
+            }
+            return listStations;
         }
         private Family GetFamilyByName(Document doc, string familyName)
         {
