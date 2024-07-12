@@ -273,11 +273,14 @@ namespace Revit.Green3DScan
             var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test);
 
             //Test 
+            var y = 0;
             foreach (var item in test)
             {
                 Log.Information(item.Key.ToString());
                 Log.Information(item.Value.ToString());
+                y += item.Value;
             }
+            Log.Information(y.ToString());
             Log.Information(test.ToString());
             
             var visibleFaceId = new HashSet<S.Id>();
@@ -367,7 +370,7 @@ namespace Revit.Green3DScan
             //Helper.Paint.ColourFace(doc, visibleFacesId, matId[5]);
 
             #endregion  color not visible faces
-
+            Log.Information("coloring faces");
             #region ScanStation
 
             if (!File.Exists(Path.Combine(path, "ScanStation.rfa")))

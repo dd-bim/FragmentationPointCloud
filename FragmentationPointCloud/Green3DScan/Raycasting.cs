@@ -17,6 +17,7 @@ namespace Revit.Green3DScan
         public static HashSet<S.Id>[] VisibleFaces(IReadOnlyCollection<S.PlanarFace> planarFaces, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, IReadOnlyList<D3.Vector> stations, SettingsJson set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> countPoints)
         {
             countPoints = default;
+            Dictionary<S.Id, int> count = new Dictionary<S.Id, int>();
             var pFMap = new Dictionary<S.Id, S.PlanarFace>();
             foreach (var pf in planarFaces)
             {
@@ -26,11 +27,10 @@ namespace Revit.Green3DScan
             pointClouds = new D3.Vector[vf.Length][];
             for (int i = 0; i < vf.Length; i++)
             {
-                vf[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud, out var counterPoints);
+                vf[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, count, out var pointCloud, out count);
                 pointClouds[i] = pointCloud;
-                countPoints = counterPoints;
             }
-            
+            countPoints = count;
             return vf;
         }
 
@@ -86,11 +86,11 @@ namespace Revit.Green3DScan
             return !double.IsInfinity(minDistance);
         }
 
-        private static HashSet<S.Id> VisibleFaces(Dictionary<S.Id, S.PlanarFace> pfMap, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, D3.Vector station, SettingsJson set, out D3.Vector[] pointCloud, out Dictionary<S.Id, int> countPoints)
+        private static HashSet<S.Id> VisibleFaces(Dictionary<S.Id, S.PlanarFace> pfMap, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, D3.Vector station, SettingsJson set, Dictionary<S.Id, int> countPointsAll, out D3.Vector[] pointCloud, out Dictionary<S.Id, int> countPoints)
         {
             var visibleFaces = new HashSet<S.Id>();
             //var visibleFacesListPoints = new List<S.Id>();
-            Dictionary<S.Id, int> frequencyDict = new Dictionary<S.Id, int>();
+            Dictionary<S.Id, int> frequencyDict = countPointsAll;
             var points = new List<D3.Vector>();
 
             // create octants
@@ -125,6 +125,7 @@ namespace Revit.Green3DScan
             var azimuth = D2.Direction.UnitX;
             var inclination = D2.Direction.UnitX;
             var step = new D2.Direction(Math.PI / halfSteps);
+            var beta = set.Beta_Degree * Constants.gradToRad;
             S.Id minId;
             D3.Vector minPoint;
 
@@ -132,28 +133,38 @@ namespace Revit.Green3DScan
             if (GetMinDist(pfMap, refPlanes, octants, station, D3.Direction.UnitZ, set, out minId, out minPoint))
             {
                 var angle = Math.Acos(new D3.Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
-                if (angle < set.Beta_Degree * Constants.gradToRad)
+                if (angle < beta)
                 {
                     visibleFaces.Add(minId);
+                    if (frequencyDict.ContainsKey(minId))
+                    {
+                        frequencyDict[minId]++;
+                    }
+                    else
+                    {
+                        frequencyDict[minId] = 1;
+                    }
                     points.Add(minPoint);
                 }
             }
             if (GetMinDist(pfMap, refPlanes, octants, station, D3.Direction.NegUnitZ, set, out minId, out minPoint))
             {
                 var angle = Math.Acos(new D3.Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
-                
-                if (angle < set.Beta_Degree * Constants.gradToRad)
+                if (angle < beta)
                 {
                     visibleFaces.Add(minId);
+                    if (frequencyDict.ContainsKey(minId))
+                    {
+                        frequencyDict[minId]++;
+                    }
+                    else
+                    {
+                        frequencyDict[minId] = 1;
+                    }
                     points.Add(minPoint);
-                }
-                else
-                {
-                    Log.Information("Angle2: " + angle * Constants.gradToRad);
                 }
             }
 
-            var beta = set.Beta_Degree * Constants.gradToRad;
             for (var i = 0; i < set.StepsPerFullTurn; i++)
             {
                 inclination = step;
