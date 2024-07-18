@@ -422,7 +422,7 @@ namespace Revit.Green3DScan
             //}
 
             #endregion dataStorage
-            TaskDialog.Show("Message", stationsPBP.Count.ToString() + " ScanStations");
+            TaskDialog.Show("Message", stationsPBP.Count.ToString() + " ScanStations!");
             Log.Information("end Revit2Station");
             return Result.Succeeded;
         }

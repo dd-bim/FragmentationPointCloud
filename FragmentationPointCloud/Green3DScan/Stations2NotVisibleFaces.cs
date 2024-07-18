@@ -72,14 +72,14 @@ namespace Revit.Green3DScan
             }
             var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
 
-            // Stations
-            var fodStations = new FileOpenDialog("CSV file (*.csv)|*.csv");
-            fodStations.Title = "Select CSV file with stations from Revit!";
-            if (fodStations.Show() == ItemSelectionDialogResult.Canceled)
-            {
-                return Result.Cancelled;
-            }
-            var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodStations.GetSelectedModelPath());
+            //// Stations
+            //var fodStations = new FileOpenDialog("CSV file (*.csv)|*.csv");
+            //fodStations.Title = "Select CSV file with stations from Revit!";
+            //if (fodStations.Show() == ItemSelectionDialogResult.Canceled)
+            //{
+            //    return Result.Cancelled;
+            //}
+            //var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodStations.GetSelectedModelPath());
 
             #endregion select files
 
@@ -94,17 +94,36 @@ namespace Revit.Green3DScan
 
             var referencePlanesRevit = S.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
 
-            if (!Helper.ReadCsvStations(csvPathStations, out List<XYZ> stations))
+            #endregion read files
+
+            var allStations = CollectFamilyInstances(doc, trans, "ScanStation");
+            TaskDialog.Show("Message", allStations.Count.ToString() + " ScanStations");
+
+            #region write stations to csv
+
+            string csvPath = Path.Combine(path, "07_Stations/");
+
+            if (!Directory.Exists(csvPath))
             {
-                TaskDialog.Show("Message", "Reading csv not successful!");
-                return Result.Failed;
+                Directory.CreateDirectory(csvPath);
             }
+
+            using StreamWriter csv = File.CreateText(Path.Combine(csvPath, "Stations.csv"));
+            csv.WriteLine(CsvHeader);
+
+            foreach (var item in allStations)
+            {
+                csv.WriteLine(item.X.ToString(Sys.InvariantCulture) + ";" + item.Y.ToString(Sys.InvariantCulture) + ";" + item.Z.ToString(Sys.InvariantCulture));
+            }
+            csv.Close();
+
             var listVector = new List<D3.Vector>();
-            foreach (var item in stations)
+            foreach (var item in allStations)
             {
                 listVector.Add(new D3.Vector(item.X, item.Y, item.Z));
             }
-            Log.Information(stations.Count.ToString() + " stations");
+            Log.Information(allStations.Count.ToString() + " stations");
+
 
             #endregion read files
 
@@ -130,7 +149,7 @@ namespace Revit.Green3DScan
             {
                 pFMap[pf.Id] = pf;
             }
-            for (int i = 0; i < stations.Count; i++)
+            for (int i = 0; i < allStations.Count; i++)
             //for (int i = 0; i < stations.Count; i++)
             {
                 foreach (S.Id id in visibleFacesId[i])
@@ -170,7 +189,7 @@ namespace Revit.Green3DScan
 
             #region write pointcloud in XYZ
             List<string> lines = new List<string>();
-            for (int i = 0; i < stations.Count; i++)
+            for (int i = 0; i < allStations.Count; i++)
             {
                 foreach (S.Id id in visibleFacesId[i])
                 {
@@ -206,11 +225,11 @@ namespace Revit.Green3DScan
             #region ScanStation
 
             // create spheres with internal coordinates
-            for (int i = 0; i < stations.Count; i++)
+            for (int i = 0; i < allStations.Count; i++)
             {
                 // ScanStation
                 List<Curve> profile = new List<Curve>();
-                XYZ station = new XYZ(stations[i].X, stations[i].Y, stations[i].Z);
+                XYZ station = new XYZ(allStations[i].X, allStations[i].Y, allStations[i].Z);
                 XYZ stationsInternal = trans.OfPoint(station) * Constants.meter2Feet;
                 double radius = set.SphereDiameter_Meter / 2 * Constants.meter2Feet;
                 XYZ profilePlus = stationsInternal + new XYZ(0, radius, 0);
@@ -241,6 +260,58 @@ namespace Revit.Green3DScan
 
             TaskDialog.Show("Message", "Successful");
             return Result.Succeeded;
+        }
+        public List<XYZ> CollectFamilyInstances(Document doc, Transform trans, string familyName)
+        {
+            var listStations = new List<XYZ>();
+            // Step 1: Get the Family object by name
+            Family family = GetFamilyByName(doc, familyName);
+            if (family == null)
+            {
+                TaskDialog.Show("Message", $"Family {familyName} not found.");
+                return default;
+            }
+
+            // Step 2: Get all instances of the Family
+            List<FamilyInstance> familyInstances = GetFamilyInstances(doc, family.Id);
+            foreach (var item in familyInstances)
+            {
+                if (item.Location is LocationPoint locationPoint)
+                {
+                    listStations.Add(trans.OfPoint(locationPoint.Point) * Constants.feet2Meter);
+                }
+            }
+            return listStations;
+        }
+        private Family GetFamilyByName(Document doc, string familyName)
+        {
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            collector.OfClass(typeof(Family));
+
+            foreach (Family family in collector)
+            {
+                if (family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return family;
+                }
+            }
+            return null;
+        }
+        private List<FamilyInstance> GetFamilyInstances(Document doc, ElementId familyId)
+        {
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            collector.OfClass(typeof(FamilyInstance));
+
+            List<FamilyInstance> instances = new List<FamilyInstance>();
+
+            foreach (FamilyInstance instance in collector)
+            {
+                if (instance.Symbol.Family.Id == familyId)
+                {
+                    instances.Add(instance);
+                }
+            }
+            return instances;
         }
     }
 }
