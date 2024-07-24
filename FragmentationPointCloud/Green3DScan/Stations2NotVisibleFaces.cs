@@ -96,9 +96,6 @@ namespace Revit.Green3DScan
 
             #endregion read files
 
-            var allStations = CollectFamilyInstances(doc, trans, "ScanStation");
-            TaskDialog.Show("Message", allStations.Count.ToString() + " ScanStations");
-
             #region write stations to csv
 
             string csvPath = Path.Combine(path, "07_Stations/");
@@ -224,6 +221,8 @@ namespace Revit.Green3DScan
 
             #region ScanStation
 
+            var allStations = Helper.CollectFamilyInstances(doc, trans, "ScanStation");
+
             // create spheres with internal coordinates
             for (int i = 0; i < allStations.Count; i++)
             {
@@ -257,61 +256,8 @@ namespace Revit.Green3DScan
             }
 
             #endregion ScanStation
-
-            TaskDialog.Show("Message", "Successful");
+            TaskDialog.Show("Message", allStations.Count.ToString() + " ScanStations");
             return Result.Succeeded;
-        }
-        public List<XYZ> CollectFamilyInstances(Document doc, Transform trans, string familyName)
-        {
-            var listStations = new List<XYZ>();
-            // Step 1: Get the Family object by name
-            Family family = GetFamilyByName(doc, familyName);
-            if (family == null)
-            {
-                TaskDialog.Show("Message", $"Family {familyName} not found.");
-                return default;
-            }
-
-            // Step 2: Get all instances of the Family
-            List<FamilyInstance> familyInstances = GetFamilyInstances(doc, family.Id);
-            foreach (var item in familyInstances)
-            {
-                if (item.Location is LocationPoint locationPoint)
-                {
-                    listStations.Add(trans.OfPoint(locationPoint.Point) * Constants.feet2Meter);
-                }
-            }
-            return listStations;
-        }
-        private Family GetFamilyByName(Document doc, string familyName)
-        {
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            collector.OfClass(typeof(Family));
-
-            foreach (Family family in collector)
-            {
-                if (family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return family;
-                }
-            }
-            return null;
-        }
-        private List<FamilyInstance> GetFamilyInstances(Document doc, ElementId familyId)
-        {
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            collector.OfClass(typeof(FamilyInstance));
-
-            List<FamilyInstance> instances = new List<FamilyInstance>();
-
-            foreach (FamilyInstance instance in collector)
-            {
-                if (instance.Symbol.Family.Id == familyId)
-                {
-                    instances.Add(instance);
-                }
-            }
-            return instances;
         }
     }
 }

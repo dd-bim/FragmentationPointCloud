@@ -54,11 +54,11 @@ namespace Revit.Green3DScan
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
-            #endregion setup
-
             string csvVisibleFaces = Path.Combine(path, "Revit2StationsVisibleFaces.csv");
             string csvVisibleFacesRef = Path.Combine(path, "Revit2StationsVisibleFacesRef.csv");
 
+            #endregion setup
+            Log.Information("setup");
             #region select files
 
             // Revit
@@ -79,7 +79,7 @@ namespace Revit.Green3DScan
             var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
 
             #endregion select files
-            Log.Information("selecting files");
+            Log.Information("select files");
             #region read files
 
             var facesRevit = S.PlanarFace.ReadCsv(csvPathPfRevit, out var lineErrors1, out string error1);
@@ -92,13 +92,12 @@ namespace Revit.Green3DScan
             var referencePlanesRevit = S.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
 
             #endregion read files
-            Log.Information("reading files");
-            #region faces from rooms
+            Log.Information("read files");
+            #region room faces
 
-            //Faces
             View activeView = doc.ActiveView;
 
-            // Sammeln aller Räume in der aktiven Ansicht
+            // collect all rooms in active view
             FilteredElementCollector collRooms= new FilteredElementCollector(doc, activeView.Id);
             ICollection<Element> rooms = collRooms.OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().ToElements();
 
@@ -188,7 +187,7 @@ namespace Revit.Green3DScan
 
             Log.Information(faces.Count.ToString() + " room faces");
 
-            #endregion faces from rooms
+            #endregion room faces
             Log.Information("room faces");
             #region stations
 
@@ -206,7 +205,6 @@ namespace Revit.Green3DScan
             ICollection<Element> doors = collDoors.OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements();
             
             double heigth = set.HeightOfScanner_Meter * Constants.meter2Feet;
-            //XYZ transformedHeight = trans.Inverse.OfPoint(new XYZ(0, 0, heigth)) * Constants.meter2Feet;
 
             foreach (Element door in doors)
             {
@@ -218,9 +216,6 @@ namespace Revit.Green3DScan
                 }   
                 else if (loc is LocationPoint locationPoint)
                 {
-                    //var doorPoint = trans.OfPoint(locationPoint.Point) * Constants.feet2Meter;
-                    //stations.Add(new D3.Vector(doorPoint.X, doorPoint.Y, transformedHeight.Z));
-
                     stations.Add(new D3.Vector(locationPoint.Point.X, locationPoint.Point.Y, heigth));
                 }
                 else
@@ -350,7 +345,7 @@ namespace Revit.Green3DScan
             }
             File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
             #endregion write pointcloud in XYZ
-            Log.Information("pointcloud");
+            Log.Information("write pointcloud in XYZ");
             #region color not visible faces     
 
             //ElementId[] matId = default;
@@ -380,6 +375,23 @@ namespace Revit.Green3DScan
 
             Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(path, "ScanStation.rfa"), stations);
 
+            Family family;
+
+            if (!doc.LoadFamily(Path.Combine(path, "ScanStation.rfa"), out family))
+            {
+                FilteredElementCollector collector = new FilteredElementCollector(doc);
+                ICollection<Element> familyInstances = collector.OfClass(typeof(Family)).ToElements();
+                foreach (Element element in familyInstances)
+                {
+                    Family loadedFamily = element as Family;
+                    if (loadedFamily.Name == "ScanStation")
+                    {
+                        family = loadedFamily;
+                        break;
+                    }
+                }
+            }
+
             #endregion ScanStation
             Log.Information("ScanStation");
             #region station to csv
@@ -399,7 +411,7 @@ namespace Revit.Green3DScan
             }
 
             #endregion station to csv
-            Log.Information("station csv");
+            Log.Information("station to csv");
             #region dataStorage
             //var z = new List<XYZ>();
             //foreach (var item in stationsPBP)
@@ -422,7 +434,8 @@ namespace Revit.Green3DScan
             //}
 
             #endregion dataStorage
-            TaskDialog.Show("Message", stationsPBP.Count.ToString() + " ScanStations!");
+            var allStations = Helper.CollectFamilyInstances(doc, trans, "ScanStation");
+            TaskDialog.Show("Message", stationsPBP.Count.ToString() + " new ScanStations, total " + allStations.Count.ToString() + " ScanStations");
             Log.Information("end Revit2Station");
             return Result.Succeeded;
         }

@@ -11,6 +11,7 @@ using D3 = GeometryLib.Double.D3;
 using Autodesk.Revit.UI;
 using Sys= System.Globalization.CultureInfo;
 using Autodesk.Revit.DB.Structure;
+using System.Windows.Shapes;
 
 namespace Revit
 {
@@ -499,7 +500,7 @@ namespace Revit
                 XYZ profilePlus = basePoint + new XYZ(0, radius, 0);
                 XYZ profileMinus = basePoint - new XYZ(0, radius, 0);
 
-                profile.Add(Line.CreateBound(profilePlus, profileMinus));
+                profile.Add(Autodesk.Revit.DB.Line.CreateBound(profilePlus, profileMinus));
                 profile.Add(Arc.Create(profileMinus, profilePlus, basePoint + new XYZ(radius, 0, 0)));
 
                 CurveLoop curveLoop = CurveLoop.Create(profile);
@@ -528,25 +529,32 @@ namespace Revit
             using (Transaction t = new Transaction(doc, "Load and Place Sphere Family"))
             {
                 t.Start();
-
+                FamilySymbol familySymbol = null;
                 Family family;
                 if (!doc.LoadFamily(familyPath, out family))
                 {
-                    Log.Information("Error: Failed to load family.");
-                    return;
+                    FilteredElementCollector collector = new FilteredElementCollector(doc);
+                    ICollection<Element> familyInstances = collector.OfClass(typeof(Family)).ToElements();
+                    foreach (Element element in familyInstances)
+                    {
+                        Family loadedFamily = element as Family;
+                        if (loadedFamily.Name == "ScanStation")
+                        {
+                            family = loadedFamily;
+                            break;
+                        }
+                    }
                 }
 
-                FamilySymbol familySymbol = null;
                 foreach (ElementId id in family.GetFamilySymbolIds())
                 {
                     familySymbol = doc.GetElement(id) as FamilySymbol;
                     break;
                 }
-
+                
                 if (familySymbol == null)
                 {
-                    Log.Information("Error: No family symbol found.");
-                    return;
+                    Log.Information("Error, no family symbol found.");
                 }
 
                 if (!familySymbol.IsActive)
@@ -563,6 +571,59 @@ namespace Revit
 
                 t.Commit();
             }
+        }
+
+        public static List<XYZ> CollectFamilyInstances(Document doc, Transform trans, string familyName)
+        {
+            var listStations = new List<XYZ>();
+            // Step 1: Get the Family object by name
+            Family family = GetFamilyByName(doc, familyName);
+            if (family == null)
+            {
+                TaskDialog.Show("Message", $"Family {familyName} not found.");
+                return default;
+            }
+
+            // Step 2: Get all instances of the Family
+            List<FamilyInstance> familyInstances = GetFamilyInstances(doc, family.Id);
+            foreach (var item in familyInstances)
+            {
+                if (item.Location is LocationPoint locationPoint)
+                {
+                    listStations.Add(trans.OfPoint(locationPoint.Point) * Constants.feet2Meter);
+                }
+            }
+            return listStations;
+        }
+        private static Family GetFamilyByName(Document doc, string familyName)
+        {
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            collector.OfClass(typeof(Family));
+
+            foreach (Family family in collector)
+            {
+                if (family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return family;
+                }
+            }
+            return null;
+        }
+        private static List<FamilyInstance> GetFamilyInstances(Document doc, ElementId familyId)
+        {
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            collector.OfClass(typeof(FamilyInstance));
+
+            List<FamilyInstance> instances = new List<FamilyInstance>();
+
+            foreach (FamilyInstance instance in collector)
+            {
+                if (instance.Symbol.Family.Id == familyId)
+                {
+                    instances.Add(instance);
+                }
+            }
+            return instances;
         }
 
         //public static List<D3.Vector> ReadStationsDS(Document doc)

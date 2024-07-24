@@ -51,7 +51,7 @@ namespace Revit.Green3DScan
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
             #endregion setup
-
+            Log.Information("setup");
             #region ScanStation
 
             if (!File.Exists(Path.Combine(path, "ScanStation.rfa")))
@@ -60,10 +60,9 @@ namespace Revit.Green3DScan
             }
 
             #endregion ScanStation
-
+            Log.Information("ScanStation");
             #region create new stations
 
-            //List<XYZ> newStations = new List<XYZ>();
             try
             {
                 using (TransactionGroup tg = new TransactionGroup(doc, "Place ScanStation"))
@@ -144,10 +143,9 @@ namespace Revit.Green3DScan
                 Level currentLevel = doc.ActiveView.GenLevel;
                 string levelName = currentLevel.Name;
 
-                #endregion create new stations
-
-                var allStations = CollectFamilyInstances(doc, trans, "ScanStation");
+                var allStations = Helper.CollectFamilyInstances(doc, trans, "ScanStation");
                 TaskDialog.Show("Message", allStations.Count.ToString() + " ScanStations");
+                #endregion create new stations
 
                 #region write stations to csv
 
@@ -177,58 +175,6 @@ namespace Revit.Green3DScan
             
             Log.Information("end AddStation");
             return Result.Succeeded;
-        }
-        public List<XYZ> CollectFamilyInstances(Document doc, Transform trans, string familyName)
-        {
-            var listStations = new List<XYZ>();
-            // Step 1: Get the Family object by name
-            Family family = GetFamilyByName(doc, familyName);
-            if (family == null)
-            {
-                TaskDialog.Show("Message", $"Family {familyName} not found.");
-                return default;
-            }
-
-            // Step 2: Get all instances of the Family
-            List<FamilyInstance> familyInstances = GetFamilyInstances(doc, family.Id);
-            foreach (var item in familyInstances)
-            {
-                if (item.Location is LocationPoint locationPoint)
-                {
-                    listStations.Add(trans.OfPoint(locationPoint.Point) * Constants.feet2Meter);
-                }
-            }
-            return listStations;
-        }
-        private Family GetFamilyByName(Document doc, string familyName)
-        {
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            collector.OfClass(typeof(Family));
-
-            foreach (Family family in collector)
-            {
-                if (family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return family;
-                }
-            }
-            return null;
-        }
-        private List<FamilyInstance> GetFamilyInstances(Document doc, ElementId familyId)
-        {
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            collector.OfClass(typeof(FamilyInstance));
-
-            List<FamilyInstance> instances = new List<FamilyInstance>();
-
-            foreach (FamilyInstance instance in collector)
-            {
-                if (instance.Symbol.Family.Id == familyId)
-                {
-                    instances.Add(instance);
-                }
-            }
-            return instances;
         }
     }
 }
