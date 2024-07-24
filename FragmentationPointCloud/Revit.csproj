@@ -377,7 +377,7 @@
     <Compile Include="Green3DScan\LoadFragmentationIFC.cs" />
     <Compile Include="Green3DScan\LoadFragmentationBBox.cs" />
     <Compile Include="Green3DScan\OBBoxIFC.cs" />
-    <Compile Include="Green3DScan\RouteStations.cs" />
+    <Compile Include="Green3DScan\Revit2FaceObjects.cs" />
     <Compile Include="Green3DScan\RoutePgm2.cs" />
     <Compile Include="Green3DScan\RoutePgm.cs" />
     <Compile Include="Green3DScan\VisOBBoxIFC.cs" />

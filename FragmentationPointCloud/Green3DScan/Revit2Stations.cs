@@ -191,10 +191,6 @@ namespace Revit.Green3DScan
             Log.Information("room faces");
             #region stations
 
-            //----------------------------------
-            // Stations
-            //----------------------------------
-
             List<D3.Vector> stations = new List<D3.Vector>(); 
             List<D3.Vector> stationsPBP = new List<D3.Vector>();
 
@@ -250,14 +246,6 @@ namespace Revit.Green3DScan
                 var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
                 stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
             }
-            //for (int i = 0; i < 1; i++)
-            //{
-            //    Log.Information(stations[i].xyz.ToString());
-            //    var x = new XYZ(stations[i].x, stations[i].y, stations[i].z);
-            //    var xTrans = trans.OfPoint(x) * Constants.feet2Meter;
-            //    Log.Information(xTrans.ToString());
-            //    stationsPBP.Add(new D3.Vector(xTrans.X, xTrans.Y, xTrans.Z));
-            //}
             Log.Information(rooms.Count.ToString() + " rooms");
 
             #endregion stations
@@ -268,15 +256,17 @@ namespace Revit.Green3DScan
             var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test);
 
             //Test 
+
+            var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 1000;
+            Log.Information(pMin.ToString() + " pMin");
             var y = 0;
             foreach (var item in test)
             {
-                Log.Information(item.Key.ToString());
+                //Log.Information(item.Key.ToString());
                 Log.Information(item.Value.ToString());
                 y += item.Value;
             }
             Log.Information(y.ToString());
-            Log.Information(test.ToString());
             
             var visibleFaceId = new HashSet<S.Id>();
             var visibleFaces = new HashSet<S.PlanarFace>();
@@ -286,7 +276,6 @@ namespace Revit.Green3DScan
                 pFMap[pf.Id] = pf;
             }
             for (int i = 0; i < stationsPBP.Count; i++)
-            //for (int i = 0; i < stations.Count; i++)
             {
                 foreach (S.Id id in visibleFacesIdArray[i])
                 {

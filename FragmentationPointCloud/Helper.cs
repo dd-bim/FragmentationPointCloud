@@ -11,7 +11,6 @@ using D3 = GeometryLib.Double.D3;
 using Autodesk.Revit.UI;
 using Sys= System.Globalization.CultureInfo;
 using Autodesk.Revit.DB.Structure;
-using System.Windows.Shapes;
 
 namespace Revit
 {

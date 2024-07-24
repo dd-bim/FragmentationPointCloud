@@ -46,13 +46,13 @@ namespace Revit.Green3DScan
                .MinimumLevel.Debug()
                .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
                .CreateLogger();
-            Log.Information("start");
+            Log.Information("start Stations2NotVisibleFaces");
             Log.Information(set.BBox_Buffer.ToString());
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
             #endregion setup
-
+            Log.Information("setup");
             #region select files
 
             // Faces
@@ -82,7 +82,7 @@ namespace Revit.Green3DScan
             //var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodStations.GetSelectedModelPath());
 
             #endregion select files
-
+            Log.Information("select files");
             #region read files
 
             var facesRevit = S.PlanarFace.ReadCsv(csvPathPfRevit, out var lineErrors1, out string error1);
@@ -94,8 +94,10 @@ namespace Revit.Green3DScan
 
             var referencePlanesRevit = S.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
 
-            #endregion read files
+            var allStations = Helper.CollectFamilyInstances(doc, trans, "ScanStation");
 
+            #endregion read files
+            Log.Information("read files");
             #region write stations to csv
 
             string csvPath = Path.Combine(path, "07_Stations/");
@@ -123,7 +125,7 @@ namespace Revit.Green3DScan
 
 
             #endregion read files
-
+            Log.Information("write stations to csv");
             #region visible and not visible faces
 
             var visibleFacesId = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test);
@@ -183,7 +185,7 @@ namespace Revit.Green3DScan
             //S.PlanarFace.WriteObj(Path.Combine(path, "notVisible"), objPlanes, notVisibleFaces);
 
             #endregion visible and not visible faces
-
+            Log.Information("visible and not visible faces");
             #region write pointcloud in XYZ
             List<string> lines = new List<string>();
             for (int i = 0; i < allStations.Count; i++)
@@ -199,7 +201,7 @@ namespace Revit.Green3DScan
             }
             File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
             #endregion write pointcloud in XYZ
-
+            Log.Information("write pointcloud in XYZ");
             #region color not visible faces     
 
             ElementId[] matId = default;
@@ -218,10 +220,8 @@ namespace Revit.Green3DScan
             Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
 
             #endregion  color not visible faces
-
+            Log.Information("color not visible faces");
             #region ScanStation
-
-            var allStations = Helper.CollectFamilyInstances(doc, trans, "ScanStation");
 
             // create spheres with internal coordinates
             for (int i = 0; i < allStations.Count; i++)
@@ -257,6 +257,7 @@ namespace Revit.Green3DScan
 
             #endregion ScanStation
             TaskDialog.Show("Message", allStations.Count.ToString() + " ScanStations");
+            Log.Information("end Stations2NotVisibleFaces");
             return Result.Succeeded;
         }
     }

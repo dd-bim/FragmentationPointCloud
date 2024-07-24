@@ -14,7 +14,6 @@ namespace Revit.GUI
         {
             string thisAssemblyPath = Assembly.GetExecutingAssembly().Location;
 
-            // new Tab
             string tabName = "Green3DScan";
             application.CreateRibbonTab(tabName);
 
@@ -55,7 +54,7 @@ namespace Revit.GUI
             fragmentationIFC.ToolTip = "Use IFC to calculate the oriented bounding boxes and fragmented the point cloud.";
             fragmentationIFC.LargeImage = GetBitmapFromResx(ResourcePng.ifc);
 
-            RibbonPanel panel2 = application.CreateRibbonPanel(tabName, "Routing");
+            RibbonPanel panel2 = application.CreateRibbonPanel(tabName, "ScanStations and Routing");
 
             PushButton route = panel2.AddItem(new PushButtonData("8", "RoutePgm", thisAssemblyPath, "Revit.Green3DScan.RoutePgm")) as PushButton;
             route.ToolTip = "Export plan as Portable Grey Map.";
@@ -65,31 +64,30 @@ namespace Revit.GUI
             route2.ToolTip = "Export plan as Portable Grey Map.";
             route2.LargeImage = GetBitmapFromResx(ResourcePng.tool);
             
-            PushButton route3 = panel2.AddItem(new PushButtonData("10", "RouteStations", thisAssemblyPath, "Revit.Green3DScan.RouteStations")) as PushButton;
+            PushButton route3 = panel2.AddItem(new PushButtonData("10", "BIM2FaceObjects", thisAssemblyPath, "Revit.Green3DScan.Revit2FaceObjects")) as PushButton;
             route3.ToolTip = "Export coordinates of ScanStations.";
             route3.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "ScanStations");
 
-            PushButton stations = panel3.AddItem(new PushButtonData("11", "BIM2Stations", thisAssemblyPath, "Revit.Green3DScan.Revit2Stations")) as PushButton;
+            PushButton stations = panel2.AddItem(new PushButtonData("11", "BIM2Stations", thisAssemblyPath, "Revit.Green3DScan.Revit2Stations")) as PushButton;
             stations.ToolTip = "BIM2Stations";
             stations.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            PushButton AddStation = panel3.AddItem(new PushButtonData("12", "AddStation", thisAssemblyPath, "Revit.Green3DScan.AddStation")) as PushButton;
+            PushButton AddStation = panel2.AddItem(new PushButtonData("12", "AddStation", thisAssemblyPath, "Revit.Green3DScan.AddStation")) as PushButton;
             AddStation.ToolTip = "AddStation";
             AddStation.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            PushButton Stations2NotVisibleFaces = panel3.AddItem(new PushButtonData("13", "Stations2NotVisibleFaces", thisAssemblyPath, "Revit.Green3DScan.Stations2NotVisibleFaces")) as PushButton;
+            PushButton Stations2NotVisibleFaces = panel2.AddItem(new PushButtonData("13", "Stations2NotVisibleFaces", thisAssemblyPath, "Revit.Green3DScan.Stations2NotVisibleFaces")) as PushButton;
             Stations2NotVisibleFaces.ToolTip = "Stations2NotVisibleFaces";
             Stations2NotVisibleFaces.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            RibbonPanel panel4 = application.CreateRibbonPanel(tabName, "Tools");
+            RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "Tools");
 
-            PushButton pcd2E57 = panel4.AddItem(new PushButtonData("14", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as PushButton;
+            PushButton pcd2E57 = panel3.AddItem(new PushButtonData("14", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as PushButton;
             pcd2E57.ToolTip = "pcd2E57";
             pcd2E57.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            PushButton e572pcd = panel4.AddItem(new PushButtonData("15", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as PushButton;
+            PushButton e572pcd = panel3.AddItem(new PushButtonData("15", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as PushButton;
             e572pcd.ToolTip = "e572pcd";
             e572pcd.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
