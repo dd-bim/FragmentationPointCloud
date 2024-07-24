@@ -253,10 +253,9 @@ namespace Revit.Green3DScan
             #region visible and not visible faces
 
             // visible faces per station
-            var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test);
+            var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test, out HashSet<S.Id> hashPMin);
 
             //Test 
-
             var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 1000;
             Log.Information(pMin.ToString() + " pMin");
             var y = 0;

@@ -14,7 +14,7 @@ namespace Revit.Green3DScan
 {
     public static class Raycasting
     {
-        public static HashSet<S.Id>[] VisibleFaces(IReadOnlyCollection<S.PlanarFace> planarFaces, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, IReadOnlyList<D3.Vector> stations, SettingsJson set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> countPoints)
+        public static HashSet<S.Id>[] VisibleFaces(IReadOnlyCollection<S.PlanarFace> planarFaces, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, IReadOnlyList<D3.Vector> stations, SettingsJson set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> countPoints, out HashSet<S.Id> hashPMin)
         {
             countPoints = default;
             Dictionary<S.Id, int> count = new Dictionary<S.Id, int>();
@@ -23,6 +23,7 @@ namespace Revit.Green3DScan
             {
                 pFMap[pf.Id] = pf;
             }
+            var visibleWithPMin = new HashSet<S.Id>();
             var vf = new HashSet<S.Id>[stations.Count];
             pointClouds = new D3.Vector[vf.Length][];
             for (int i = 0; i < vf.Length; i++)
@@ -31,6 +32,18 @@ namespace Revit.Green3DScan
                 pointClouds[i] = pointCloud;
             }
             countPoints = count;
+            var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 3000;
+            //Test einbauen, ob gewisse mindestanzahl erreicht wurde
+            foreach (var pf in count)
+            {
+                if (pf.Value >= pMin)
+                {
+                    visibleWithPMin.Add(pf.Key);
+                    Log.Information(pf.Key.ToString());
+                    Log.Information(pf.Value.ToString());
+                }
+            }
+            hashPMin = visibleWithPMin;
             return vf;
         }
 

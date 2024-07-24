@@ -13,6 +13,7 @@ using Document = Autodesk.Revit.DB.Document;
 using Line = Autodesk.Revit.DB.Line;
 using S = ScantraIO.Data;
 using Autodesk.Revit.DB.ExtensibleStorage;
+using System.Linq;
 
 namespace Revit.Green3DScan
 {
@@ -128,18 +129,19 @@ namespace Revit.Green3DScan
             Log.Information("write stations to csv");
             #region visible and not visible faces
 
-            var visibleFacesId = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test);
+            var visibleFacesId = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test, out HashSet<S.Id> hashPMin);
 
             //Test 
+            var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 1000;
+            Log.Information(pMin.ToString() + " pMin");
             var y = 0;
             foreach (var item in test)
             {
-                Log.Information(item.Key.ToString());
-                Log.Information(item.Value.ToString());
+                //Log.Information(item.Key.ToString());
+                //Log.Information(item.Value.ToString());
                 y += item.Value;
             }
             Log.Information(y.ToString());
-            Log.Information(test.ToString());
 
             var visibleFaceId = new HashSet<S.Id>();
             var visibleFaces = new HashSet<S.PlanarFace>();
@@ -217,8 +219,8 @@ namespace Revit.Green3DScan
                 matId = Helper.ReadMaterialsDS(doc);
             }
 
-            Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
-
+            //Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
+            Helper.Paint.ColourFace(doc, hashPMin.ToList(), matId[5]);
             #endregion  color not visible faces
             Log.Information("color not visible faces");
             #region ScanStation
