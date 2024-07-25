@@ -21,11 +21,12 @@ namespace Revit
         public static readonly string pathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\SettingsGreen3DScan.json";
         public static readonly string readPathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\Green3DScan\SettingsGreen3DScan.json";
 
-        public static readonly string exeFragmentationBBox = @"C:\ProgramData\Autodesk\Revit\Addins\2023\SegmentationBBox.exe";
-        public static readonly string exeFragmentationVoxel = @"C:\ProgramData\Autodesk\Revit\Addins\2023\SegmentationVoxel.exe";
-        public static readonly string exeSearchVoxel = @"C:\ProgramData\Autodesk\Revit\Addins\2023\SearchVoxel.exe";
-        public static readonly string exeIfcBox = @"C:\ProgramData\Autodesk\Revit\Addins\2023\IFCFaceBoxExtractor.exe";
-        public static readonly string jsonIfcBox = @"C:\ProgramData\Autodesk\Revit\Addins\2023\basicList.json";
+        public static readonly string year = "2023";
+        public static readonly string exeFragmentationBBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\SegmentationBBox.exe";
+        public static readonly string exeFragmentationVoxel = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\SegmentationVoxel.exe";
+        public static readonly string exeSearchVoxel = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\SearchVoxel.exe";
+        public static readonly string exeIfcBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\IFCFaceBoxExtractor.exe";
+        public static readonly string jsonIfcBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\basicList.json";
 
         public static readonly string cloudComparePath = @"C:\Program Files\CloudCompare\CloudCompare.exe";
 
