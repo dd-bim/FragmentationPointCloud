@@ -58,11 +58,11 @@ namespace Revit.GUI
 
             PushButton route = panel2.AddItem(new PushButtonData("8", "RoutePgm", thisAssemblyPath, "Revit.Green3DScan.RoutePgm")) as PushButton;
             route.ToolTip = "Export plan as Portable Grey Map.";
-            route.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+            route.LargeImage = GetBitmapFromResx(ResourcePng.routePgm);
 
-            PushButton route2 = panel2.AddItem(new PushButtonData("9", "RoutePgmPicture", thisAssemblyPath, "Revit.Green3DScan.RoutePgm2")) as PushButton;
+            PushButton route2 = panel2.AddItem(new PushButtonData("9", "RoutePgmExport", thisAssemblyPath, "Revit.Green3DScan.RoutePgm2")) as PushButton;
             route2.ToolTip = "Export plan as Portable Grey Map.";
-            route2.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+            route2.LargeImage = GetBitmapFromResx(ResourcePng.routePgmExport);
             
             PushButton route3 = panel2.AddItem(new PushButtonData("10", "BIM2FaceObjects", thisAssemblyPath, "Revit.Green3DScan.Revit2FaceObjects")) as PushButton;
             route3.ToolTip = "Export coordinates of ScanStations.";

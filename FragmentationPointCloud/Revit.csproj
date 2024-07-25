@@ -415,8 +415,12 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Resources\bim2Face.png" />
     <Content Include="Resources\cloud.PNG" />
     <Content Include="Resources\ifc.PNG" />
+    <None Include="Resources\tool1.PNG" />
+    <Content Include="Resources\routePgm.png" />
+    <Content Include="Resources\routePgmExport.png" />
     <Content Include="Resources\set.PNG">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

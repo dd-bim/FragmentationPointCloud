@@ -63,6 +63,16 @@ namespace Revit {
         /// <summary>
         ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
         /// </summary>
+        public static System.Drawing.Bitmap bim2Face {
+            get {
+                object obj = ResourceManager.GetObject("bim2Face", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
+        /// </summary>
         public static System.Drawing.Bitmap cloud {
             get {
                 object obj = ResourceManager.GetObject("cloud", resourceCulture);
@@ -116,6 +126,26 @@ namespace Revit {
         public static System.Drawing.Bitmap oBBoxXY1 {
             get {
                 object obj = ResourceManager.GetObject("oBBoxXY1", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap routePgm {
+            get {
+                object obj = ResourceManager.GetObject("routePgm", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap routePgmExport {
+            get {
+                object obj = ResourceManager.GetObject("routePgmExport", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
