@@ -42,7 +42,7 @@ namespace Revit.GUI
             loadButton.AddPushButton<LoadFragmentationVoxel>("Voxel");
             loadButton.AddPushButton<LoadFragmentationIFC>("IFC");
 
-            PushButton oBBoxComplete = panel1.AddItem(new PushButtonData("6", "OBBox\ncomplete", thisAssemblyPath, "Revit.Green3DScan.FragmenattionBBoxComplete")) as PushButton;
+            PushButton oBBoxComplete = panel1.AddItem(new PushButtonData("6", "OBBox\ncomplete", thisAssemblyPath, "Revit.Green3DScan.FragmentationBBoxComplete")) as PushButton;
             oBBoxComplete.ToolTip = "Export the Boudingboxes and oriented Boundingboxes.";
             oBBoxComplete.LargeImage = GetBitmapFromResx(ResourcePng.oBBoxXY);
 

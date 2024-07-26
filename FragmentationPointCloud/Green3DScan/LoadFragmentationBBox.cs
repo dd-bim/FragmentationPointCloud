@@ -51,52 +51,73 @@ namespace Revit.Green3DScan
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
             Transform transInverse = trans.Inverse;
 
-            // select only building components
-            IList<Reference> pickedObjects = uidoc.Selection.PickObjects(ObjectType.Element, "Select components whose pointcloud to be input.");
-            foreach (Reference reference in pickedObjects)
+            try
             {
-                if (!GetGeometryElement(doc, reference, out GeometryElement geomElement, out string createStateId, out string demolishedStateId, out string objectId, out Category cat))
+                // select only building components
+                IList<Reference> pickedObjects = uidoc.Selection.PickObjects(ObjectType.Element, "Select components whose pointcloud to be input.");
+                foreach (Reference reference in pickedObjects)
                 {
-                    Log.Information("skipped building component");
-                    continue;
-                }
-                Element ele = doc.GetElement(reference.ElementId);
-
-                foreach (GeometryObject geomObj in geomElement)
-                {
-                    string guid = ele.UniqueId;
-
-                    try
+                    if (!GetGeometryElement(doc, reference, out GeometryElement geomElement, out string createStateId, out string demolishedStateId, out string objectId, out Category cat))
                     {
-                        var ifcGuid = Helper.ToIfcGuid(Helper.ToGuid(guid));
-                        string rcpFilePath = Path.Combine(path, "07_FragmentationBBox\\" + ifcGuid + ".rcp");
+                        Log.Information("skipped building component");
+                        continue;
+                    }
+                    Element ele = doc.GetElement(reference.ElementId);
 
-                        // load rcp into revit
-                        if (!LoadPointCloud(doc, rcpFilePath, transInverse))
+                    foreach (GeometryObject geomObj in geomElement)
+                    {
+                        string guid = ele.UniqueId;
+
+                        try
                         {
-                            TaskDialog.Show("Message", "File does not exist!");
+                            var ifcGuid = Helper.ToIfcGuid(Helper.ToGuid(guid));
+                            string rcpFilePath = Path.Combine(path, "07_FragmentationBBox\\" + ifcGuid + ".rcp");
+
+                            // load rcp into revit
+                            if (!LoadPointCloud(doc, rcpFilePath, transInverse))
+                            {
+                                TaskDialog.Show("Message", "File does not exist!");
+                            }
                         }
+                        #region catch
+                        catch (Except.OperationCanceledException)
+                        {
+                            TaskDialog.Show("Message", "Error 1: Command canceled.");
+                            return Result.Failed;
+                        }
+                        catch (Except.ForbiddenForDynamicUpdateException)
+                        {
+                            TaskDialog.Show("Message", "Error 2");
+                            return Result.Failed;
+                        }
+                        catch (Exception ex)
+                        {
+                            message += "Error message::" + ex.ToString();
+                            TaskDialog.Show("Message", message);
+                            return Result.Failed;
+                        }
+                        #endregion catch
                     }
-                    #region catch
-                    catch (Except.OperationCanceledException)
-                    {
-                        TaskDialog.Show("Message", "Error 1: Command canceled.");
-                        return Result.Failed;
-                    }
-                    catch (Except.ForbiddenForDynamicUpdateException)
-                    {
-                        TaskDialog.Show("Message", "Error 2");
-                        return Result.Failed;
-                    }
-                    catch (Exception ex)
-                    {
-                        message += "Error message::" + ex.ToString();
-                        TaskDialog.Show("Message", message);
-                        return Result.Failed;
-                    }
-                    #endregion catch
                 }
             }
+            #region catch
+            catch (Except.OperationCanceledException)
+            {
+                TaskDialog.Show("Message", "Error 1: Command canceled.");
+                return Result.Failed;
+            }
+            catch (Except.ForbiddenForDynamicUpdateException)
+            {
+                TaskDialog.Show("Message", "Error 2");
+                return Result.Failed;
+            }
+            catch (Exception ex)
+            {
+                message += "Error message::" + ex.ToString();
+                TaskDialog.Show("Message", message);
+                return Result.Failed;
+            }
+            #endregion catch
             TaskDialog.Show("Message", "Loading RCP successful!");
             return Result.Succeeded;
         }

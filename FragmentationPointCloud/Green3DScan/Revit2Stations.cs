@@ -61,6 +61,12 @@ namespace Revit.Green3DScan
             Log.Information("setup");
             #region select files
 
+            if (uidoc.ActiveView is View3D current3DView)
+            {
+                TaskDialog.Show("Message", "You must be in a 2D viewplan!");
+                return Result.Failed;
+            }
+
             // Revit
             var fodPfRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
             fodPfRevit.Title = "Select CSV file with BimFaces from Revit!";
