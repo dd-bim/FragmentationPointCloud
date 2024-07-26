@@ -66,20 +66,20 @@ namespace Revit.GUI
             
             PushButton route3 = panel2.AddItem(new PushButtonData("10", "BIM2FaceObjects", thisAssemblyPath, "Revit.Green3DScan.Revit2FaceObjects")) as PushButton;
             route3.ToolTip = "Export coordinates of ScanStations.";
-            route3.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+            route3.LargeImage = GetBitmapFromResx(ResourcePng.bim2Face);
 
 
             PushButton stations = panel2.AddItem(new PushButtonData("11", "BIM2Stations", thisAssemblyPath, "Revit.Green3DScan.Revit2Stations")) as PushButton;
             stations.ToolTip = "BIM2Stations";
-            stations.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+            stations.LargeImage = GetBitmapFromResx(ResourcePng.bim2Stations);
 
             PushButton AddStation = panel2.AddItem(new PushButtonData("12", "AddStation", thisAssemblyPath, "Revit.Green3DScan.AddStation")) as PushButton;
             AddStation.ToolTip = "AddStation";
-            AddStation.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+            AddStation.LargeImage = GetBitmapFromResx(ResourcePng.addStation);
 
             PushButton Stations2NotVisibleFaces = panel2.AddItem(new PushButtonData("13", "Stations2NotVisibleFaces", thisAssemblyPath, "Revit.Green3DScan.Stations2NotVisibleFaces")) as PushButton;
             Stations2NotVisibleFaces.ToolTip = "Stations2NotVisibleFaces";
-            Stations2NotVisibleFaces.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+            Stations2NotVisibleFaces.LargeImage = GetBitmapFromResx(ResourcePng.stations2NotVisibleFaces);
 
             RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "Tools");
 

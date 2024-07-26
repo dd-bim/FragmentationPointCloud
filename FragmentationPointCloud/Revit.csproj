@@ -415,9 +415,12 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Resources\addStation.png" />
     <Content Include="Resources\bim2Face.png" />
+    <Content Include="Resources\bim2Stations.png" />
     <Content Include="Resources\cloud.PNG" />
     <Content Include="Resources\ifc.PNG" />
+    <Content Include="Resources\stations2NotVisibleFaces.png" />
     <None Include="Resources\tool1.PNG" />
     <Content Include="Resources\routePgm.png" />
     <Content Include="Resources\routePgmExport.png" />
