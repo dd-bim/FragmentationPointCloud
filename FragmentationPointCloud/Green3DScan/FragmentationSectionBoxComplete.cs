@@ -60,6 +60,7 @@ namespace Revit.Green3DScan
             Transform transInverse = trans.Inverse;
 
             string sectionBoxPath = Path.Combine(path, "09_FragmentationSectionBox\\");
+            string rcpOutputPath = Path.Combine(path, "09_FragmentationSectionBox");
             if (!Directory.Exists(sectionBoxPath))
             {
                 Directory.CreateDirectory(sectionBoxPath);
@@ -115,7 +116,7 @@ namespace Revit.Green3DScan
                     rotationAngle += 360;
                 }
                 var rotationAngleRadians = rotationAngle * (Math.PI / 180.0);
-                    
+
                 directionX = trans.OfVector(new XYZ(Math.Cos(rotationAngleRadians), -Math.Sin(rotationAngleRadians), 0));
                 directionY = directionZ.CrossProduct(directionX);
 
@@ -132,7 +133,7 @@ namespace Revit.Green3DScan
                 
                 csv.Close();
                 
-                WriteOBBoxToOBJFile(oBBoxes, Path.Combine(path, sectionBoxName + ".obj"));
+                WriteOBBoxToOBJFile(oBBoxes, Path.Combine(sectionBoxPath, sectionBoxName + ".obj"));
 
                 // step 1: Fragmentation and saving of the small PCD
                 string exeGreen3DPath = Constants.exeFragmentationBBox;
@@ -152,7 +153,7 @@ namespace Revit.Green3DScan
                 }
 
                 // step 3: DeCap E57 --> RCP
-                if (!Helper.DeCap(path, sectionBoxName, Path.Combine(sectionBoxPath + sectionBoxName + ".e57")))
+                if (!Helper.DeCap(rcpOutputPath, sectionBoxName, Path.Combine(sectionBoxPath + sectionBoxName + ".e57")))
                 {
                     TaskDialog.Show("Message", "DeCap error");
                     return Result.Failed;

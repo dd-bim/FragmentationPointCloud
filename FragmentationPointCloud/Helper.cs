@@ -157,11 +157,11 @@ namespace Revit
                 inStream.WriteLine(Constants.lineDecap);
                 string outputPath = System.IO.Path.Combine(path, "07_FragmentationBBox");
 
-                if (File.Exists(System.IO.Path.Combine(outputPath, guid + ".rcp")))
+                if (File.Exists(System.IO.Path.Combine(path, guid + ".rcp")))
                 {
-                    File.Delete(System.IO.Path.Combine(outputPath, guid + ".rcp"));
+                    File.Delete(System.IO.Path.Combine(path, guid + ".rcp"));
                 }
-                inStream.WriteLine("{0}decap.exe{0} --importWithLicense {0}{1}{0} {0}{2}{0} {0}{3}{0}", '"', outputPath, guid, e57FilePath);
+                inStream.WriteLine("{0}decap.exe{0} --importWithLicense {0}{1}{0} {0}{2}{0} {0}{3}{0}", '"', path, guid, e57FilePath);
                 inStream.Close();
                 cmd.WaitForExit();
                 cmd.Close();

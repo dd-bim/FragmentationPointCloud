@@ -30,9 +30,9 @@ namespace Revit
 
         public static readonly string cloudComparePath = @"C:\Program Files\CloudCompare\CloudCompare.exe";
 
-        public static readonly string directory = "C:";
-        public static readonly string lineDecap = "cd C:\\Program Files\\Autodesk\\Autodesk ReCap";
-        //public static readonly string directory = "D:";
-        //public static readonly string lineDecap = "cd D:\\Programme_\\Autodesk ReCap";
+        //public static readonly string directory = "C:";
+        //public static readonly string lineDecap = "cd C:\\Program Files\\Autodesk\\Autodesk ReCap";
+        public static readonly string directory = "D:";
+        public static readonly string lineDecap = "cd D:\\Programme_\\Autodesk ReCap";
     }
 }
