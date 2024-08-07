@@ -1,4 +1,4 @@
-name: landBIM
+name: green3d
 channels:
   - conda-forge
   - defaults

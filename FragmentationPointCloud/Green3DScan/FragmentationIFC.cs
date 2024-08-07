@@ -49,6 +49,7 @@ namespace Revit.Green3DScan
             #endregion setup
 
             string ifcBoxPath = Path.Combine(path, "10_FragmentationIFC\\");
+            string rcpOutputPath = Path.Combine(path, "10_FragmentationIFC");
             if (!Directory.Exists(ifcBoxPath))
             {
                 Directory.CreateDirectory(ifcBoxPath);
@@ -103,8 +104,58 @@ namespace Revit.Green3DScan
                     TaskDialog.Show("Message", "Fragmentation not successful!");
                     return Result.Failed;
                 }
+                View view = uidoc.ActiveView;
+                try
+                {
+                    Transaction tx = new Transaction(doc, "Load RCP");
+                    tx.Start();
+                    view.ArePointCloudsHidden = false;
+                    tx.Commit();
+                }
+                catch (Exception)
+                {
+                    TaskDialog.Show("Message", "Error change setting ArePointCloudsHidden");
+                }
 
-                TaskDialog.Show("Message", "Entire process completed.");
+                foreach (Helper.OrientedBoundingBox obox in obboxes)
+                {
+                    try
+                    {
+                        // step 5: conversion PCD --> E57 
+                        if (!Helper.Pcd2e57(Path.Combine(ifcBoxPath, obox.ObjectGuid + ".pcd"), Path.Combine(ifcBoxPath, obox.ObjectGuid + ".e57")))
+                        {
+                            TaskDialog.Show("Message", "CloudCompare Fehler");
+                            return Result.Failed;
+                        }
+
+                        // step 6: conversion E57 --> RCP
+                        if (!Helper.DeCap(rcpOutputPath, obox.ObjectGuid, Path.Combine(ifcBoxPath, obox.ObjectGuid + ".e57")))
+                        {
+                            TaskDialog.Show("Message", "DeCap Fehler");
+                            return Result.Failed;
+                        }
+                    }
+                    #region catch
+                    catch (Except.OperationCanceledException)
+                    {
+                        TaskDialog.Show("Message", "Error 1: Command canceled.");
+                        return Result.Failed;
+                    }
+                    catch (Except.ForbiddenForDynamicUpdateException)
+                    {
+                        TaskDialog.Show("Message", "Error 2");
+                        return Result.Failed;
+                    }
+                    catch (Exception ex)
+                    {
+                        message += "Error message::" + ex.ToString();
+                        TaskDialog.Show("Message", message);
+                        return Result.Failed;
+                    }
+                    #endregion catch
+                }
+
+                TaskDialog.Show("Message", "IFC Fragmentation successful!");
                 return Result.Succeeded;
             }
             #region catch

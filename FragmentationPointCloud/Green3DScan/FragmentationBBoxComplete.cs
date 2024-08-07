@@ -59,16 +59,18 @@ namespace Revit.Green3DScan
             #endregion setup
 
             string pcdPathPointcloud = set.PathPointCloud;
-            string rcpFilePath = Path.Combine(path, "08_FragmentationBBoxComplete\\");
-            if (!Directory.Exists(rcpFilePath))
+            string bBoxPath = Path.Combine(path, "08_FragmentationBBoxComplete\\");
+            string rcpOutputPath = Path.Combine(path, "08_FragmentationBBoxComplete");
+
+            if (!Directory.Exists(bBoxPath))
             {
-                Directory.CreateDirectory(rcpFilePath);
+                Directory.CreateDirectory(bBoxPath);
             }
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
             Transform transInverse = trans.Inverse;
 
-            using StreamWriter csv = File.CreateText(Path.Combine(rcpFilePath, "BIM_BBoxes.csv"));
+            using StreamWriter csv = File.CreateText(Path.Combine(bBoxPath, "BIM_BBoxes.csv"));
             csv.WriteLine(CsvHeader);
             List<Helper.BoundingBox> bBoxes = new List<Helper.BoundingBox>();
             List<Helper.OrientedBoundingBox> oBBoxes = new List<Helper.OrientedBoundingBox>();
@@ -249,10 +251,10 @@ namespace Revit.Green3DScan
 
                 csv.Close();
 
-                WriteOBBoxToOBJFile(oBBoxes, System.IO.Path.Combine(rcpFilePath, "OBBoxes.obj"));
-                WriteBBoxToOBJFile(bBoxes, Path.Combine(rcpFilePath, "BBoxes.obj"));
+                WriteOBBoxToOBJFile(oBBoxes, System.IO.Path.Combine(bBoxPath, "OBBoxes.obj"));
+                WriteBBoxToOBJFile(bBoxes, Path.Combine(bBoxPath, "BBoxes.obj"));
 
-                string csvPathBBoxes = Path.Combine(rcpFilePath, "BIM_BBoxes.csv");
+                string csvPathBBoxes = Path.Combine(bBoxPath, "BIM_BBoxes.csv");
 
                 // CSV lesen
                 if (!ReadCsvBoxes(csvPathBBoxes, out List<Helper.OrientedBoundingBox> obboxes))
@@ -264,7 +266,7 @@ namespace Revit.Green3DScan
                 // step 2: fragmentation an save small pcd
                 string exeGreen3DPath = Constants.exeFragmentationBBox;
 
-                string command = $"{pcdPathPointcloud} {csvPathBBoxes} {rcpFilePath} {dateBimLastModified}";
+                string command = $"{pcdPathPointcloud} {csvPathBBoxes} {bBoxPath} {dateBimLastModified}";
                 if (!Helper.Fragmentation2Pcd(exeGreen3DPath, command))
                 {
                     TaskDialog.Show("Message", "Fragmentation error");
@@ -289,14 +291,14 @@ namespace Revit.Green3DScan
                     try
                     {
                         // step 3: conversion PCD --> E57 
-                        if (!Helper.Pcd2e57(Path.Combine(rcpFilePath, obox.ObjectGuid + ".pcd"), Path.Combine(rcpFilePath, obox.ObjectGuid + ".e57")))
+                        if (!Helper.Pcd2e57(Path.Combine(bBoxPath, obox.ObjectGuid + ".pcd"), Path.Combine(bBoxPath, obox.ObjectGuid + ".e57")))
                         {
                             TaskDialog.Show("Message", "CloudCompare Fehler");
                             return Result.Failed;
                         }
 
                         // step 4: conversion E57 --> RCP
-                        if (!Helper.DeCap(path, obox.ObjectGuid, Path.Combine(rcpFilePath, obox.ObjectGuid + ".e57")))
+                        if (!Helper.DeCap(rcpOutputPath, obox.ObjectGuid, Path.Combine(bBoxPath, obox.ObjectGuid + ".e57")))
                         {
                             TaskDialog.Show("Message", "DeCap Fehler");
                             return Result.Failed;

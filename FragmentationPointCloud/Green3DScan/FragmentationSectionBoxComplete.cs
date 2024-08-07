@@ -179,7 +179,7 @@ namespace Revit.Green3DScan
                     TaskDialog.Show("Message", "Error when setting the visibility of point clouds");
                 }
 
-                TaskDialog.Show("Message", "Entire process completed.");
+                TaskDialog.Show("Message", "SectionBox Fragmentation successful!");
                 return Result.Succeeded;
             }
             #region catch
@@ -281,7 +281,6 @@ namespace Revit.Green3DScan
                 indexOffset += 8;
             }
         }
-        
         private bool LoadPointCloud(Document doc, string path, Transform trans)
         {
             try
