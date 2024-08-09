@@ -45,7 +45,7 @@ namespace Revit.Green3DScan
                .MinimumLevel.Debug()
                .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
                .CreateLogger();
-            Log.Information("start");
+            Log.Information("start FragmentationVoxel");
             Log.Information(set.BBox_Buffer.ToString());
             #endregion setup
 
@@ -120,6 +120,7 @@ namespace Revit.Green3DScan
                 // Schritt 6: Suchen der Voxel Indices zu jeder BBox
                 string pathExeSearchVoxel = Constants.exeSearchVoxel;
                 string commandSearch = $"{pcdPathPointcloud} {csvPathBBoxes} {path} {set.FragmentationVoxelResolution_Meter.ToString(Sys.InvariantCulture)}";
+                Log.Information(commandSearch);
                 if (!SearchVoxel(pathExeSearchVoxel, commandSearch))
                 {
                     TaskDialog.Show("Message", "Fragmentation error");

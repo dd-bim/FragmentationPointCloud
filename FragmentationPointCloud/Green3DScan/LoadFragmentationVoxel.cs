@@ -45,7 +45,7 @@ namespace Revit.Green3DScan
                .MinimumLevel.Debug()
                .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
                .CreateLogger();
-            Log.Information("start");
+            Log.Information("start LoadFragmentationVoxel");
             Log.Information(set.BBox_Buffer.ToString());
             #endregion setup
 
@@ -54,7 +54,7 @@ namespace Revit.Green3DScan
 
             // indices
             FileOpenDialog fodBBox = new FileOpenDialog("CSV file (*.csv)|*.csv");
-            fodBBox.Title = "Select CSV file with indices from Voxel!";
+            fodBBox.Title = "Select BBox_Voxel_Indices!";
             if (fodBBox.Show() == ItemSelectionDialogResult.Canceled)
             {
                 return Result.Cancelled;
@@ -184,8 +184,7 @@ namespace Revit.Green3DScan
                     while ((line = reader.ReadLine()) != null)
                     {
                         string[] columns = line.Split(';');
-
-                        if (columns.Length == 1)
+                        if (columns.Length == 2)
                         {
                             string[] indices = columns[1].Split(','); 
                             dic.Add(columns[0], indices.ToList());
