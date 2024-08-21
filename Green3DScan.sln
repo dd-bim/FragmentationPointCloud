@@ -12,7 +12,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NTSWrapper", "NTSWrapper\NT
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GeometryLib", "GeometryLib\GeometryLib.csproj", "{8C39490B-2A77-40C8-9BF2-1A7D0C17A076}"
 EndProject
-Project("{B7DD6F7E-DEF8-4E67-B5B7-07EF123DB6F0}") = "Green3DScan_Installer_2023", "Installer\Green3DScan_Installer_2023.wixproj", "{E89CE16C-744F-4F78-AF03-6266F027F373}"
+Project("{B7DD6F7E-DEF8-4E67-B5B7-07EF123DB6F0}") = "Green3DScan_Installer_2024", "Installer\Green3DScan_Installer_2024.wixproj", "{E89CE16C-744F-4F78-AF03-6266F027F373}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Revit", "FragmentationPointCloud\Revit.csproj", "{4C926EC8-67B0-461B-8C00-C09C59300552}"
 EndProject

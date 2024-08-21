@@ -127,26 +127,26 @@ namespace Revit.Green3DScan
                     return Result.Failed;
                 }
 
-                //ReadCsvAllIndices(Path.Combine(rcpFilePath, "all_voxel_indices.csv"), out var allIndices);
-                ReadCsvAllIndices(Path.Combine(Path.GetDirectoryName(csvPathBBoxes), "Occupied_Voxel.csv"), out var occupiedVoxel);
+                ////ReadCsvAllIndices(Path.Combine(rcpFilePath, "all_voxel_indices.csv"), out var allIndices);
+                //ReadCsvAllIndices(Path.Combine(Path.GetDirectoryName(csvPathBBoxes), "Occupied_Voxel.csv"), out var occupiedVoxel);
             
-                //foreach (string index in allIndices)
-                foreach (string index in occupiedVoxel)
-                {
-                    // Schritt 4: Mit CloudCompare PCD --> E57 
-                    if (!Helper.Pcd2e57(Path.Combine(rcpFilePathVoxel, index + ".pcd"), Path.Combine(rcpFilePathVoxel, index + ".e57")))
-                    {
-                        TaskDialog.Show("Message", "CloudCompare error");
-                        return Result.Failed;
-                    }
+                ////foreach (string index in allIndices)
+                //foreach (string index in occupiedVoxel)
+                //{
+                //    // Schritt 4: Mit CloudCompare PCD --> E57 
+                //    if (!Helper.Pcd2e57(Path.Combine(rcpFilePathVoxel, index + ".pcd"), Path.Combine(rcpFilePathVoxel, index + ".e57")))
+                //    {
+                //        TaskDialog.Show("Message", "CloudCompare error");
+                //        return Result.Failed;
+                //    }
 
-                    // Schritt 5: Mit DeCap E57 --> RCP
-                    if (!Helper.DeCap(Path.Combine(path, "08_FragmentationVoxel"), index, Path.Combine(rcpFilePathVoxel, index + ".e57")))
-                    {
-                        TaskDialog.Show("Message", "DeCap error");
-                        return Result.Failed;
-                    }
-                }
+                //    // Schritt 5: Mit DeCap E57 --> RCP
+                //    if (!Helper.DeCap(Path.Combine(path, "08_FragmentationVoxel"), index, Path.Combine(rcpFilePathVoxel, index + ".e57")))
+                //    {
+                //        TaskDialog.Show("Message", "DeCap error");
+                //        return Result.Failed;
+                //    }
+                //}
             }
             #region catch
             catch (Except.OperationCanceledException)
