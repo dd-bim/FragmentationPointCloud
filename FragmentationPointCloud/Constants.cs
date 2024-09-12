@@ -21,7 +21,7 @@ namespace Revit
         public static readonly string pathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\SettingsGreen3DScan.json";
         public static readonly string readPathSettings = @"C:\ProgramData\Autodesk\Revit\Addins\2023\Green3DScan\SettingsGreen3DScan.json";
 
-        public static readonly string year = "2023";
+        public static readonly string year = "2024";
         public static readonly string exeFragmentationBBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\SegmentationBBox.exe";
         public static readonly string exeFragmentationVoxel = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\SegmentationVoxel.exe";
         public static readonly string exeSearchVoxel = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\SearchVoxel.exe";

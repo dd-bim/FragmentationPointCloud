@@ -7,7 +7,7 @@
 			<Component Id="CMP_RevitPluginAddin" Guid="{6771D8DA-7EBB-4AEA-A7F9-FB21094572E4}">
 				<File Id="FILE_RevitPluginAddin" Source="$(var.Revit.ProjectDir)Green3DScan.addin" KeyPath="yes"/>
 			</Component>
-			<Component Id="CMP_Settings" Guid="{3C0FE5EF-FBC4-48B2-A954-B3B703246BD9}">
+      <Component Id="CMP_Settings" Guid="{3C0FE5EF-FBC4-48B2-A954-B3B703246BD9}">
 				<File Id="FILE_Settings" Source="$(var.Revit.ProjectDir)SettingsGreen3DScan.json" KeyPath="yes"/>
 			</Component>
 			<!-- Adding Additional Executable Files -->
@@ -46,7 +46,7 @@
 			<Directory Id="AutodeskDir" Name="Autodesk">
 				<Directory Id="RevitDir" Name="Revit">
 					<Directory Id="AddinDir" Name="Addins">
-						<Directory Id="YearDir" Name="2023">
+						<Directory Id="YearDir" Name="2024">
 							<Directory Id="APPLICATIONFOLDER" Name="Green3DScan" ComponentGuidGenerationSeed="{81C56ECF-ED92-4211-9486-1165E7AD7A8E}">
 							</Directory>
 						</Directory>

@@ -1,4 +1,5 @@
 ﻿using BigMath;
+using Int128 = BigMath.Int128;
 using System;
 using System.Collections.Generic;
 using System.Linq;
