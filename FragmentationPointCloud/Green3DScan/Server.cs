@@ -64,7 +64,7 @@ namespace Revit.Green3DScan
             {
                 // step 1: select pcd
                 FileOpenDialog pcd = new FileOpenDialog("PCD file (*.pcd)|*.pcd");
-                pcd.Title = "Select IFC file!";
+                pcd.Title = "Select PCD file!";
                 if (pcd.Show() == ItemSelectionDialogResult.Canceled)
                 {
                     return Result.Cancelled;
@@ -73,7 +73,7 @@ namespace Revit.Green3DScan
 
                 // step 2: select csv
                 FileOpenDialog csv = new FileOpenDialog("CSV file (*.csv)|*.csv");
-                csv.Title = "Select IFC file!";
+                csv.Title = "Select CSV file!";
                 if (csv.Show() == ItemSelectionDialogResult.Canceled)
                 {
                     return Result.Cancelled;

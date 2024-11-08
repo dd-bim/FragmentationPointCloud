@@ -485,7 +485,7 @@ namespace Revit
         }
         public static void CreateSphereFamily(UIApplication uiapp, double radius, string familyPath)
         {
-            Document familyDoc = uiapp.Application.NewFamilyDocument(@"C:\ProgramData\Autodesk\RVT 2023\Family Templates\English\Metric Generic Model.rft");
+            Document familyDoc = uiapp.Application.NewFamilyDocument(@"C:\ProgramData\Autodesk\RVT 2024\Family Templates\English\Metric Generic Model.rft");
 
             using (Transaction t = new Transaction(familyDoc, "Create Sphere"))
             {
