@@ -118,12 +118,12 @@ namespace Revit
                 return false;
             }
         }
-        public static bool Pcd2e57(string pcdFilePath, string e57FilePath)
+        public static bool Pcd2e57(string pcdFilePath, string e57FilePath, SettingsJson set)
         {
             try
             {
                 Process cloudCompareProcess = new Process();
-                cloudCompareProcess.StartInfo.FileName = Constants.cloudComparePath;
+                cloudCompareProcess.StartInfo.FileName = set.PathCloudCompare;
                 cloudCompareProcess.StartInfo.Arguments = "-SILENT -O \"" + pcdFilePath + "\" -C_EXPORT_FMT E57 -SAVE_CLOUDS FILE \"" + e57FilePath + "\"";
                 cloudCompareProcess.Start();
                 cloudCompareProcess.WaitForExit();
@@ -485,7 +485,7 @@ namespace Revit
         }
         public static void CreateSphereFamily(UIApplication uiapp, double radius, string familyPath)
         {
-            Document familyDoc = uiapp.Application.NewFamilyDocument(@"C:\ProgramData\Autodesk\RVT 2024\Family Templates\English\Metric Generic Model.rft");
+            Document familyDoc = uiapp.Application.NewFamilyDocument($@"C:\ProgramData\Autodesk\RVT {Constants.year}\Family Templates\English\Metric Generic Model.rft");
 
             using (Transaction t = new Transaction(familyDoc, "Create Sphere"))
             {

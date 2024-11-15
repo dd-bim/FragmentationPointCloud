@@ -16,6 +16,9 @@ namespace Revit
         public double PgmImageResolution_Meter { get; set; }
         public string VerbosityLevel { get; set; }
         public string PathPointCloud { get; set; }
+        public string PathCloudCompare { get; set; }
+        public string PathDecap { get; set; }
+        public string ServerUuid { get; set; }
         public double FragmentationVoxelResolution_Meter { get; set; }
         public int StepsPerFullTurn { get; set; }
         public double SphereDiameter_Meter { get; set; }
@@ -24,6 +27,9 @@ namespace Revit
         public double MinDF_Meter { get; set; }
         public double MaxDF_Meter { get; set; }
         public double MaxPlaneDist_Meter { get; set; }
+        public double GridSpacing_Meter { get; set; }
+        public int GridColumns { get; set; }
+        public int GridRows { get; set; }
 
         /// <summary>
         /// deserialize json file

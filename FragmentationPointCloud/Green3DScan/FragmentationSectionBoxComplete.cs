@@ -146,7 +146,7 @@ namespace Revit.Green3DScan
                 }
 
                 // step 2: CloudCompare PCD --> E57 
-                if (!Helper.Pcd2e57(Path.Combine(sectionBoxPath, sectionBoxName + ".pcd"), Path.Combine(sectionBoxPath, sectionBoxName + ".e57")))
+                if (!Helper.Pcd2e57(Path.Combine(sectionBoxPath, sectionBoxName + ".pcd"), Path.Combine(sectionBoxPath, sectionBoxName + ".e57"), set))
                 {
                     TaskDialog.Show("Message", "CloudCompare error");
                     return Result.Failed;

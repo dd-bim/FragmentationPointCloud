@@ -32,6 +32,9 @@ namespace Revit.GUI
                 { "PgmImageResolution_Meter", set.PgmImageResolution_Meter.ToString() },
                 { "VerbosityLevel", set.VerbosityLevel },
                 { "PathPointCloud", set.PathPointCloud },
+                { "PathCloudCompare", set.PathCloudCompare },
+                { "PathDecap", set.PathDecap },
+                { "ServerUuid", set.ServerUuid },
                 { "FragmentationVoxelResulution_Meter", set.FragmentationVoxelResolution_Meter.ToString() },
                 { "StepsPerFullTurn", set.StepsPerFullTurn.ToString() },
                 { "SphereDiameter_Meter", set.SphereDiameter_Meter.ToString() },
@@ -39,7 +42,10 @@ namespace Revit.GUI
                 { "Beta_Degree", set.Beta_Degree.ToString() },
                 { "MinDF_Meter", set.MinDF_Meter.ToString() },
                 { "MaxDF_Meter", set.MaxDF_Meter.ToString() },
-                { "MaxPlaneDist_Meter", set.MaxPlaneDist_Meter.ToString() }
+                { "MaxPlaneDist_Meter", set.MaxPlaneDist_Meter.ToString() },
+                { "GridSpacing_Meter", set.GridSpacing_Meter.ToString() },
+                { "GridColumns", set.GridColumns.ToString() },
+                { "GridRows", set.GridRows.ToString() }
             };
 
             var currentTabItem = new TabItem

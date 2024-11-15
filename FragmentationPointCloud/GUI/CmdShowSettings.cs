@@ -68,15 +68,20 @@ namespace Revit.GUI
                         PgmImageResolution_Meter = double.Parse(j[5].AttributValue),
                         VerbosityLevel = j[6].AttributValue,
                         PathPointCloud = j[7].AttributValue,
-                        FragmentationVoxelResolution_Meter = double.Parse(j[8].AttributValue),
-                        StepsPerFullTurn = int.Parse(j[9].AttributValue),
-                        
-                        SphereDiameter_Meter = double.Parse(j[10].AttributValue),
-                        HeightOfScanner_Meter = double.Parse(j[11].AttributValue),
-                        Beta_Degree = double.Parse(j[12].AttributValue),
-                        MinDF_Meter = double.Parse(j[13].AttributValue),
-                        MaxDF_Meter = double.Parse(j[14].AttributValue),
-                        MaxPlaneDist_Meter = double.Parse(j[15].AttributValue)
+                        PathCloudCompare = j[8].AttributValue,
+                        PathDecap = j[9].AttributValue,
+                        ServerUuid = j[10].AttributValue,
+                        FragmentationVoxelResolution_Meter = double.Parse(j[11].AttributValue),
+                        StepsPerFullTurn = int.Parse(j[12].AttributValue),
+                        SphereDiameter_Meter = double.Parse(j[13].AttributValue),
+                        HeightOfScanner_Meter = double.Parse(j[14].AttributValue),
+                        Beta_Degree = double.Parse(j[15].AttributValue),
+                        MinDF_Meter = double.Parse(j[16].AttributValue),
+                        MaxDF_Meter = double.Parse(j[17].AttributValue),
+                        MaxPlaneDist_Meter = double.Parse(j[18].AttributValue),
+                        GridSpacing_Meter = double.Parse(j[19].AttributValue),
+                        GridColumns = int.Parse(j[20].AttributValue),
+                        GridRows = int.Parse(j[21].AttributValue)
                     };
                     // overwrite updated json
                     SettingsJson.WriteSettingsJson(json, Constants.pathSettings);

@@ -122,7 +122,7 @@ namespace Revit.Green3DScan
                     try
                     {
                         // step 5: conversion PCD --> E57 
-                        if (!Helper.Pcd2e57(Path.Combine(ifcBoxPath, obox.ObjectGuid + ".pcd"), Path.Combine(ifcBoxPath, obox.ObjectGuid + ".e57")))
+                        if (!Helper.Pcd2e57(Path.Combine(ifcBoxPath, obox.ObjectGuid + ".pcd"), Path.Combine(ifcBoxPath, obox.ObjectGuid + ".e57"), set))
                         {
                             TaskDialog.Show("Message", "CloudCompare Fehler");
                             return Result.Failed;

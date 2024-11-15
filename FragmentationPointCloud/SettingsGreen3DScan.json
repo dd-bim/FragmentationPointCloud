@@ -7,6 +7,9 @@
   "PgmImageResolution_Meter": 0.05,
   "VerbosityLevel": "ddd",
   "PathPointCloud": "ddd",
+  "PathCloudCompare": "ddd",
+  "PathDecap": "ddd",
+  "ServerUuid": "bdf9fba4-641a-4085-be10-b3f0201e5ada",
   "FragmentationVoxelResolution_Meter": 5,
   "StepsPerFullTurn": 36,
   "SphereDiameter_Meter": 0.15,
@@ -14,5 +17,8 @@
   "Beta_Degree": 35,
   "MinDF_Meter": 0.3,
   "MaxDF_Meter": 30.0,
-  "MaxPlaneDist_Meter": 0.1
+  "MaxPlaneDist_Meter": 0.1,
+  "GridSpacing_Meter": 2.5,
+  "GridColumns": 3,
+  "GridRows": 4
 }

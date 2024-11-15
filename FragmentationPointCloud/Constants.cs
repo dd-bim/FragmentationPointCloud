@@ -29,7 +29,7 @@ namespace Revit
         public static readonly string exeIfcBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\IFCFaceBoxExtractor.exe";
         public static readonly string jsonIfcBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\basicList.json";
 
-        public static readonly string cloudComparePath = @"C:\Program Files\CloudCompare\CloudCompare.exe";
+        //public static readonly string cloudComparePath = @"C:\Program Files\CloudCompare\CloudCompare.exe";
 
         public static readonly string directory = "C:";
         public static readonly string lineDecap = "cd C:\\Program Files\\Autodesk\\Autodesk ReCap";

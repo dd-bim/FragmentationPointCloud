@@ -32,7 +32,8 @@ namespace Revit.Green3DScan
                 pointClouds[i] = pointCloud;
             }
             countPoints = count;
-            var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 25000;
+            var pMin = 1;
+            //var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 25000;
             Log.Information(pMin.ToString() + " pMin");
             //Test einbauen, ob gewisse mindestanzahl erreicht wurde
             foreach (var pf in count)
@@ -40,12 +41,12 @@ namespace Revit.Green3DScan
                 if (pf.Value >= pMin)
                 {
                     visibleWithPMin.Add(pf.Key);
-                    Log.Information(pf.Key.ToString());
-                    Log.Information(pf.Value.ToString());
+                    //Log.Information(pf.Key.ToString());
+                    //Log.Information(pf.Value.ToString());
                 }
                 else
                 {
-                    Log.Information(pf.Value.ToString());
+                    //Log.Information(pf.Value.ToString());
                 }
             }
             hashPMin = visibleWithPMin;

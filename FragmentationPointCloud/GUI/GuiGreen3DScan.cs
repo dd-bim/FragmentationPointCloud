@@ -65,9 +65,8 @@ namespace Revit.GUI
             route2.LargeImage = GetBitmapFromResx(ResourcePng.routePgmExport);
             
             PushButton route3 = panel2.AddItem(new PushButtonData("10", "BIM2FaceObjects", thisAssemblyPath, "Revit.Green3DScan.Revit2FaceObjects")) as PushButton;
-            route3.ToolTip = "Export coordinates of ScanStations.";
+            route3.ToolTip = "Export faces from BIM.";
             route3.LargeImage = GetBitmapFromResx(ResourcePng.bim2Face);
-
 
             PushButton stations = panel2.AddItem(new PushButtonData("11", "BIM2Stations", thisAssemblyPath, "Revit.Green3DScan.Revit2Stations")) as PushButton;
             stations.ToolTip = "BIM2Stations";
@@ -81,9 +80,13 @@ namespace Revit.GUI
             Stations2NotVisibleFaces.ToolTip = "Stations2NotVisibleFaces";
             Stations2NotVisibleFaces.LargeImage = GetBitmapFromResx(ResourcePng.stations2NotVisibleFaces);
 
-            PushButton stationsPointClouds = panel2.AddItem(new PushButtonData("18", "stationsPointClouds", thisAssemblyPath, "Revit.Green3DScan.StationsRaster")) as PushButton;
+            PushButton stationsPointClouds = panel2.AddItem(new PushButtonData("18", "StationsPointClouds", thisAssemblyPath, "Revit.Green3DScan.StationsRaster")) as PushButton;
             stationsPointClouds.ToolTip = "stationsPointClouds";
-            stationsPointClouds.LargeImage = GetBitmapFromResx(ResourcePng.bim2Stations);
+            stationsPointClouds.LargeImage = GetBitmapFromResx(ResourcePng.stations2NotVisibleFaces);
+
+            PushButton raster = panel2.AddItem(new PushButtonData("19", "Grid", thisAssemblyPath, "Revit.Green3DScan.Raster")) as PushButton;
+            raster.ToolTip = "Grid";
+            raster.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
             RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "Server");
 

@@ -5,15 +5,51 @@ using Autodesk.Revit.UI;
 using Except = Autodesk.Revit.Exceptions;
 using System.Diagnostics;
 using Path = System.IO.Path;
+using Serilog;
+using System.IO;
 
 namespace Revit.Green3DScan
 {
     [Transaction(TransactionMode.Manual)]
     public class Pcd2E57 : IExternalCommand
     {
+        string path;
         #region Execute
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            #region setup
+            // settings json
+            SettingsJson set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
+
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            UIApplication uiapp = commandData.Application;
+            try
+            {
+                path = Path.GetDirectoryName(doc.PathName);
+                FileInfo fileInfo = new FileInfo(path);
+                var date = fileInfo.LastWriteTime;
+            }
+            catch (Exception)
+            {
+                TaskDialog.Show("Message", "The file has not been saved yet.");
+                return Result.Failed;
+            }
+
+            // logger
+            Log.Logger = new LoggerConfiguration()
+               .MinimumLevel.Debug()
+               .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
+               .CreateLogger();
+            Log.Information("start Revit2Station");
+
+            Transform trans = Helper.GetTransformation(doc, set, out var crs);
+
+            string csvVisibleFaces = Path.Combine(path, "Revit2StationsVisibleFaces.csv");
+            string csvVisibleFacesRef = Path.Combine(path, "Revit2StationsVisibleFacesRef.csv");
+
+            #endregion setup
+
             // path to pcd
             FileOpenDialog fod = new FileOpenDialog("PCD file (*.pcd)|*.pcd");
             fod.Title = "Select PCD!";
@@ -26,7 +62,7 @@ namespace Revit.Green3DScan
             string fileName = Path.GetFileNameWithoutExtension(pcdFilePath) + ".e57";
 
             // path to CloudCompare.exe
-            string cloudComparePath = Constants.cloudComparePath;
+            string cloudComparePath = set.PathCloudCompare;
 
             // path to E57
             string e57FilePath = Path.Combine(parentDirectory, fileName);
