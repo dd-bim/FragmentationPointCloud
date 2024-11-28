@@ -56,7 +56,7 @@ namespace Revit.Green3DScan
             {
                 Directory.CreateDirectory(routePath);
             }
-            string pathPng = Path.Combine(routePath, "RoutePNG.png");
+            string pathPng = Path.Combine(routePath, "RoutePNG2.png");
             string pathPgm = Path.Combine(routePath, "RoutePGM.pgm");
             string pathPgmWithoutExtension = Path.Combine(routePath, "RoutePNGwithoutExtension.pgm");
             string pathYaml = Path.Combine(routePath, "RoutePGM.yaml");
@@ -72,12 +72,12 @@ namespace Revit.Green3DScan
                     return Result.Failed;
                 }
 
-                Result resExportToPng = ExportToPng(doc, pathPng, pngWidthInMeter, set);
-                if (resExportToPng != Result.Succeeded)
-                {
-                    TaskDialog.Show("Message", "Creating png not successful!");
-                    return Result.Failed;
-                }
+                //Result resExportToPng = ExportToPng(doc, pathPng, pngWidthInMeter, set);
+                //if (resExportToPng != Result.Succeeded)
+                //{
+                //    TaskDialog.Show("Message", "Creating png not successful!");
+                //    return Result.Failed;
+                //}
 
                 // extension to square?
                 if (set.PgmImageExpansion_Px == 0)

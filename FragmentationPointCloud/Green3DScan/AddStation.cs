@@ -47,7 +47,7 @@ namespace Revit.Green3DScan
                .CreateLogger();
             Log.Information("start AddStation");
             Log.Information(set.BBox_Buffer.ToString());
-           
+
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
 
             #endregion setup
@@ -116,7 +116,7 @@ namespace Revit.Green3DScan
                             point = uidoc.Selection.PickPoint("Click to place a ScanStation or press ESC to finish");
                             vector = new D3.Vector(point.X, point.Y, point.Z);
                             vector = new D3.Vector(point.X, point.Y, set.HeightOfScanner_Meter * Constants.meter2Feet);
-                            var pointPBP =  trans.OfPoint(point) * Constants.feet2Meter;
+                            var pointPBP = trans.OfPoint(point) * Constants.feet2Meter;
                         }
                         catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                         {
@@ -172,7 +172,7 @@ namespace Revit.Green3DScan
                 message = ex.Message;
                 return Result.Failed;
             }
-            
+
             Log.Information("end AddStation");
             return Result.Succeeded;
         }

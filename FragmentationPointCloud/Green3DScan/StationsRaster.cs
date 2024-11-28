@@ -129,73 +129,19 @@ namespace Revit.Green3DScan
             }
             #endregion stations
             Log.Information(allStations.Count.ToString() + " stations");
-            #region visible and not visible faces
 
             // visible faces per station
             var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test, out HashSet<S.Id> hashPMin);
 
+            //var pointClouds = CreatePointcloud.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set);
+
             Log.Information("visible faces finish");
-            //Test 
-            //var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 1000;
-            //var y = 0;
-            //foreach (var item in test)
-            //{
-            //    y += item.Value;
-            //}
 
-            var visibleFaceId = new HashSet<S.Id>();
-            var visibleFaces = new HashSet<S.PlanarFace>();
-            var pFMap = new Dictionary<S.Id, S.PlanarFace>();
-            foreach (var pf in facesRevit)
-            {
-                pFMap[pf.Id] = pf;
-            }
-            for (int i = 0; i < listVector.Count; i++)
-            {
-                foreach (S.Id id in visibleFacesIdArray[i])
-                {
-                    visibleFaces.Add(pFMap[id]);
-                    visibleFaceId.Add(id);
-                }
-            }
-
-            // visible faces
-            var notVisibleFacesId = new List<S.Id>();
-            var visibleFacesId = new List<S.Id>();
-            var notVisibleFaces = new List<S.PlanarFace>();
-
-            var facesIdList = new List<S.Id>();
-            foreach (var item in facesMap)
-            {
-                facesIdList.Add(item.Key);
-            }
-
-            // not visible faces
-            foreach (var item in facesIdList)
-            {
-                if (!visibleFaceId.Contains(item))
-                {
-                    notVisibleFacesId.Add(item);
-                    notVisibleFaces.Add(facesMap[item]);
-                }
-                else
-                {
-                    visibleFacesId.Add(item);
-                }
-            }
-
-            #endregion visible and not visible faces
-            Log.Information("visible and not visible faces");
             #region write pointcloud in XYZ
 
             for (int i = 0; i < listVector.Count; i++)
             {
                 List<string> lines = new List<string>();
-
-                foreach (S.Id id in visibleFacesIdArray[i])
-                {
-                    visibleFaceId.Add(id);
-                }
 
                 // Sammle die Punkte der aktuellen Station
                 for (int j = 0; j < pointClouds[i].Length; j++)

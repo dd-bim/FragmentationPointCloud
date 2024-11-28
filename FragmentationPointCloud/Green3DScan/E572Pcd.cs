@@ -14,6 +14,8 @@ namespace Revit.Green3DScan
         #region Execute
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            SettingsJson set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
+
             // path to e57
             FileOpenDialog fod = new FileOpenDialog("E57 file (*.e57)|*.e57");
             fod.Title = "Select E57!";
@@ -25,16 +27,13 @@ namespace Revit.Green3DScan
             string parentDirectory = Path.GetDirectoryName(e57FilePath);
             string fileName = Path.GetFileNameWithoutExtension(e57FilePath) + ".pcd";
 
-            // path to CloudCompare.exe
-            string cloudComparePath = @"C:\Program Files\CloudCompare\CloudCompare.exe";
-
             // path to PCD
             string pcdFilePath = Path.Combine(parentDirectory, fileName);
    
             Process cloudCompareProcess = new Process();
 
             // Configure the process object with the required arguments
-            cloudCompareProcess.StartInfo.FileName = cloudComparePath;
+            cloudCompareProcess.StartInfo.FileName = set.PathCloudCompare;
             cloudCompareProcess.StartInfo.Arguments = "-O \"" + e57FilePath + "\" -C_EXPORT_FMT PCD -SAVE_CLOUDS FILE \"" + pcdFilePath + "\"";
 
             cloudCompareProcess.Start();

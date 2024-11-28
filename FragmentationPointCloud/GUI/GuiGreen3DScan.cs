@@ -88,6 +88,10 @@ namespace Revit.GUI
             raster.ToolTip = "Grid";
             raster.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
+            PushButton loadStations = panel2.AddItem(new PushButtonData("20", "LoadStations", thisAssemblyPath, "Revit.Green3DScan.LoadStations")) as PushButton;
+            loadStations.ToolTip = "loadStations";
+            loadStations.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+
             RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "Server");
 
             PushButton server = panel3.AddItem(new PushButtonData("14", "Server", thisAssemblyPath, "Revit.Green3DScan.Server")) as PushButton;
