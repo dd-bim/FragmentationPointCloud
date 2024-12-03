@@ -348,27 +348,29 @@
     <Compile Include="Data\Id.cs" />
     <Compile Include="Data\Octant.cs" />
     <Compile Include="Green3DScan\E572Pcd.cs" />
-    <Compile Include="Green3DScan\LoadStations.cs" />
-    <Compile Include="Green3DScan\Raster.cs" />
-    <Compile Include="Green3DScan\StationsRaster.cs" />
+    <Compile Include="Green3DScan\Fragmentation\FragmentationBBox.cs" />
+    <Compile Include="Green3DScan\Fragmentation\FragmentationBBoxComplete.cs" />
+    <Compile Include="Green3DScan\Fragmentation\FragmentationIFC.cs" />
+    <Compile Include="Green3DScan\Fragmentation\FragmentationSectionBoxComplete.cs" />
+    <Compile Include="Green3DScan\Fragmentation\FragmentationVoxel.cs" />
+    <Compile Include="Green3DScan\Fragmentation\LoadFragmentationBBox.cs" />
+    <Compile Include="Green3DScan\Fragmentation\LoadFragmentationIFC.cs" />
+    <Compile Include="Green3DScan\Fragmentation\LoadFragmentationVoxel.cs" />
+    <Compile Include="Green3DScan\Fragmentation\OBBoxIFC.cs" />
+    <Compile Include="Green3DScan\Fragmentation\Revit2OBBox.cs" />
+    <Compile Include="Green3DScan\Fragmentation\VisOBBoxIFC.cs" />
+    <Compile Include="Green3DScan\Routing\RoutePgm.cs" />
+    <Compile Include="Green3DScan\Routing\RoutePgm2.cs" />
+    <Compile Include="Green3DScan\SimulatePointcloud\AddStation.cs" />
+    <Compile Include="Green3DScan\SimulatePointcloud\LoadStations.cs" />
+    <Compile Include="Green3DScan\SimulatePointcloud\Raster.cs" />
+    <Compile Include="Green3DScan\SimulatePointcloud\Revit2Stations.cs" />
+    <Compile Include="Green3DScan\SimulatePointcloud\Stations2NotVisibleFaces.cs" />
+    <Compile Include="Green3DScan\SimulatePointcloud\Stations2Pointclouds.cs" />
     <Compile Include="Green3DScan\Server.cs" />
-    <Compile Include="Green3DScan\FragmentationIFC.cs" />
-    <Compile Include="Green3DScan\LoadFragmentationVoxel.cs" />
-    <Compile Include="Green3DScan\FragmentationBBoxComplete.cs" />
     <Compile Include="Green3DScan\Raycasting.cs" />
-    <Compile Include="Green3DScan\AddStation.cs" />
-    <Compile Include="Green3DScan\Stations2NotVisibleFaces.cs" />
-    <Compile Include="Green3DScan\Revit2Stations.cs" />
     <Compile Include="Green3DScan\SelectPointcloud.cs" />
-    <Compile Include="Green3DScan\FragmentationVoxel.cs" />
-    <Compile Include="Green3DScan\LoadFragmentationIFC.cs" />
-    <Compile Include="Green3DScan\LoadFragmentationBBox.cs" />
-    <Compile Include="Green3DScan\OBBoxIFC.cs" />
     <Compile Include="Green3DScan\Revit2FaceObjects.cs" />
-    <Compile Include="Green3DScan\RoutePgm2.cs" />
-    <Compile Include="Green3DScan\RoutePgm.cs" />
-    <Compile Include="Green3DScan\VisOBBoxIFC.cs" />
-    <Compile Include="Green3DScan\FragmentationBBox.cs" />
     <Compile Include="GUI\CmdIfc2Ccv.cs" />
     <Compile Include="GUI\CmdShowSettings.cs" />
     <Compile Include="GUI\GuiGreen3DScan.cs" />
@@ -377,8 +379,6 @@
     </Compile>
     <Compile Include="Helper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Green3DScan\Revit2OBBox.cs" />
-    <Compile Include="Green3DScan\FragmentationSectionBoxComplete.cs" />
     <Compile Include="ResourcePng.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>

@@ -23,6 +23,7 @@ namespace Revit
         public int StepsPerFullTurn { get; set; }
         public double SphereDiameter_Meter { get; set; }
         public double HeightOfScanner_Meter { get; set; }
+        public double NoiceOfScanner_Meter { get; set; }
         public double Beta_Degree { get; set; }
         public double MinDF_Meter { get; set; }
         public double MaxDF_Meter { get; set; }

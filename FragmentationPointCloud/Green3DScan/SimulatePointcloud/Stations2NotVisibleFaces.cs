@@ -73,15 +73,6 @@ namespace Revit.Green3DScan
             }
             var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
 
-            //// Stations
-            //var fodStations = new FileOpenDialog("CSV file (*.csv)|*.csv");
-            //fodStations.Title = "Select CSV file with stations from Revit!";
-            //if (fodStations.Show() == ItemSelectionDialogResult.Canceled)
-            //{
-            //    return Result.Cancelled;
-            //}
-            //var csvPathStations = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodStations.GetSelectedModelPath());
-
             #endregion select files
             Log.Information("select files");
             #region read files
@@ -95,7 +86,7 @@ namespace Revit.Green3DScan
 
             var referencePlanesRevit = S.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
 
-            var allStations = Helper.CollectFamilyInstances(doc, trans, "ScanStation");
+            var stations = Helper.CollectFamilyInstances(doc, trans, "ScanStation");
 
             #endregion read files
             Log.Information("read files");
@@ -111,19 +102,18 @@ namespace Revit.Green3DScan
             using StreamWriter csv = File.CreateText(Path.Combine(csvPath, "Stations.csv"));
             csv.WriteLine(CsvHeader);
 
-            foreach (var item in allStations)
+            foreach (var item in stations)
             {
                 csv.WriteLine(item.X.ToString(Sys.InvariantCulture) + ";" + item.Y.ToString(Sys.InvariantCulture) + ";" + item.Z.ToString(Sys.InvariantCulture));
             }
             csv.Close();
 
             var listVector = new List<D3.Vector>();
-            foreach (var item in allStations)
+            foreach (var item in stations)
             {
                 listVector.Add(new D3.Vector(item.X, item.Y, item.Z));
             }
-            Log.Information(allStations.Count.ToString() + " stations");
-
+            Log.Information(stations.Count.ToString() + " stations");
 
             #endregion read files
             Log.Information("write stations to csv");
@@ -143,27 +133,28 @@ namespace Revit.Green3DScan
 
             var visibleFaceId = new HashSet<S.Id>();
             var visibleFaces = new HashSet<S.PlanarFace>();
+            var visibleRefPlanes = new HashSet<S.ReferencePlane>();
             var pFMap = new Dictionary<S.Id, S.PlanarFace>();
             foreach (var pf in facesRevit)
             {
                 pFMap[pf.Id] = pf;
             }
-            for (int i = 0; i < allStations.Count; i++)
-            //for (int i = 0; i < stations.Count; i++)
+            for (int i = 0; i < stations.Count; i++)
             {
                 foreach (S.Id id in visibleFacesId[i])
                 {
                     visibleFaces.Add(pFMap[id]);
+                    visibleRefPlanes.Add(referencePlanesRevit[pFMap[id].ReferencePlaneId]);
                     visibleFaceId.Add(id);
                 }
             }
             // visible faces
-            //S.PlanarFace.WriteCsv(csvVisibleFaces, visibleFaces);
-            //S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
-            //S.PlanarFace.WriteObj(Path.Combine(path, "visible"), objPlanes, visibleFaces);
+            S.PlanarFace.WriteCsv(Path.Combine(path, "VisibleFaces.csv"), visibleFaces);
+            S.ReferencePlane.WriteCsv(Path.Combine(path, "VisibleRefPlanes.csv"), visibleRefPlanes);
 
             var notVisibleFacesId = new List<S.Id>();
             var notVisibleFaces = new List<S.PlanarFace>();
+            var notvisibleRefPlanes = new HashSet<S.ReferencePlane>();
 
             var facesIdList = new List<S.Id>();
             foreach (var item in facesMap)
@@ -177,31 +168,16 @@ namespace Revit.Green3DScan
                 if (!visibleFaceId.Contains(item))
                 {
                     notVisibleFacesId.Add(item);
+                    notvisibleRefPlanes.Add(referencePlanesRevit[facesMap[item].ReferencePlaneId]);
                     notVisibleFaces.Add(facesMap[item]);
                 }
             }
-            //S.PlanarFace.WriteCsv(csvVisibleFaces, notVisibleFaces);
-            //S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
-            //S.PlanarFace.WriteObj(Path.Combine(path, "notVisible"), objPlanes, notVisibleFaces);
+            S.PlanarFace.WriteCsv(Path.Combine(path, "NotVisibleFaces.csv"), notVisibleFaces);
+            S.ReferencePlane.WriteCsv(Path.Combine(path, "NotVisibleRefPlanes.csv"), notvisibleRefPlanes);
 
             #endregion visible and not visible faces
             Log.Information("visible and not visible faces");
-            #region write pointcloud in XYZ
-            List<string> lines = new List<string>();
-            for (int i = 0; i < allStations.Count; i++)
-            {
-                foreach (S.Id id in visibleFacesId[i])
-                {
-                    visibleFaceId.Add(id);
-                }
-                for (int j = 0; j < pointClouds[i].Length; j++)
-                {
-                    lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
-                }
-            }
-            File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
-            #endregion write pointcloud in XYZ
-            Log.Information("write pointcloud in XYZ");
+            
             #region color not visible faces     
 
             ElementId[] matId = default;
@@ -221,42 +197,8 @@ namespace Revit.Green3DScan
             Helper.Paint.ColourFace(doc, hashPMin.ToList(), matId[5]);
             #endregion  color not visible faces
             Log.Information("color not visible faces");
-            #region ScanStation
 
-            // create spheres with internal coordinates
-            for (int i = 0; i < allStations.Count; i++)
-            {
-                // ScanStation
-                List<Curve> profile = new List<Curve>();
-                XYZ station = new XYZ(allStations[i].X, allStations[i].Y, allStations[i].Z);
-                XYZ stationsInternal = trans.OfPoint(station) * Constants.meter2Feet;
-                double radius = set.SphereDiameter_Meter / 2 * Constants.meter2Feet;
-                XYZ profilePlus = stationsInternal + new XYZ(0, radius, 0);
-                XYZ profileMinus = stationsInternal - new XYZ(0, radius, 0);
-
-                profile.Add(Line.CreateBound(profilePlus, profileMinus));
-                profile.Add(Arc.Create(profileMinus, profilePlus, stationsInternal + new XYZ(radius, 0, 0)));
-
-                CurveLoop curveLoop = CurveLoop.Create(profile);
-                SolidOptions options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
-
-                Frame frame = new Frame(stationsInternal, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
-                if (Frame.CanDefineRevitGeometry(frame) == true)
-                {
-                    Solid sphere = GeometryCreationUtilities.CreateRevolvedGeometry(frame, new CurveLoop[] { curveLoop }, 0, 2 * Math.PI, options);
-                    using Transaction t = new Transaction(doc, "Create sphere direct shape");
-                    t.Start();
-                    // create direct shape and assign the sphere shape
-                    DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                    ds.ApplicationId = "Application id";
-                    ds.ApplicationDataId = "Geometry object id";
-                    ds.SetShape(new GeometryObject[] { sphere });
-                    t.Commit();
-                }
-            }
-
-            #endregion ScanStation
-            TaskDialog.Show("Message", allStations.Count.ToString() + " ScanStations");
+            TaskDialog.Show("Message", "finish");
             Log.Information("end Stations2NotVisibleFaces");
             return Result.Succeeded;
         }

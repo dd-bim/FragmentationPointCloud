@@ -381,7 +381,9 @@ namespace Revit.Green3DScan
             string fileName = Path.GetFileNameWithoutExtension(pathYaml);
             try
             {
-                var wert = $"[{bottomLeft.X.ToString(Sys.InvariantCulture)}, {bottomLeft.Y.ToString(Sys.InvariantCulture)}, 0.000000]";
+                string wert = $"[{bottomLeft.X.ToString(Sys.InvariantCulture)}, {bottomLeft.Y.ToString(Sys.InvariantCulture)}, 0.000000]";
+                TaskDialog.Show("Message", wert);
+
                 var yamlData = new Dictionary<string, object>
                 {
                     { "image", fileName + ".pgm" },

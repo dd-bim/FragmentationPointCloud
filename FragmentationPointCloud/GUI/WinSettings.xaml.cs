@@ -39,6 +39,7 @@ namespace Revit.GUI
                 { "StepsPerFullTurn", set.StepsPerFullTurn.ToString() },
                 { "SphereDiameter_Meter", set.SphereDiameter_Meter.ToString() },
                 { "HeightOfScanner_Meter", set.HeightOfScanner_Meter.ToString() },
+                { "NoiceOfScanner_Meter", set.NoiceOfScanner_Meter.ToString() },
                 { "Beta_Degree", set.Beta_Degree.ToString() },
                 { "MinDF_Meter", set.MinDF_Meter.ToString() },
                 { "MaxDF_Meter", set.MaxDF_Meter.ToString() },

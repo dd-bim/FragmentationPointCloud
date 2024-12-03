@@ -75,13 +75,14 @@ namespace Revit.GUI
                         StepsPerFullTurn = int.Parse(j[12].AttributValue),
                         SphereDiameter_Meter = double.Parse(j[13].AttributValue),
                         HeightOfScanner_Meter = double.Parse(j[14].AttributValue),
-                        Beta_Degree = double.Parse(j[15].AttributValue),
-                        MinDF_Meter = double.Parse(j[16].AttributValue),
-                        MaxDF_Meter = double.Parse(j[17].AttributValue),
-                        MaxPlaneDist_Meter = double.Parse(j[18].AttributValue),
-                        GridSpacing_Meter = double.Parse(j[19].AttributValue),
-                        GridColumns = int.Parse(j[20].AttributValue),
-                        GridRows = int.Parse(j[21].AttributValue)
+                        NoiceOfScanner_Meter = double.Parse(j[15].AttributValue),
+                        Beta_Degree = double.Parse(j[16].AttributValue),
+                        MinDF_Meter = double.Parse(j[17].AttributValue),
+                        MaxDF_Meter = double.Parse(j[18].AttributValue),
+                        MaxPlaneDist_Meter = double.Parse(j[19].AttributValue),
+                        GridSpacing_Meter = double.Parse(j[20].AttributValue),
+                        GridColumns = int.Parse(j[21].AttributValue),
+                        GridRows = int.Parse(j[22].AttributValue)
                     };
                     // overwrite updated json
                     SettingsJson.WriteSettingsJson(json, Constants.pathSettings);

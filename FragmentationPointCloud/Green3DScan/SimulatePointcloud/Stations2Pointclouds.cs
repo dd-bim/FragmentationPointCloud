@@ -1,28 +1,23 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
-using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
 using Serilog;
 using Transform = Autodesk.Revit.DB.Transform;
 using Sys = System.Globalization.CultureInfo;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
-using View = Autodesk.Revit.DB.View;
 using S = ScantraIO.Data;
-using Autodesk.Revit.DB.ExtensibleStorage;
-using Autodesk.Revit.DB.Structure;
 using System.Diagnostics;
 using System.Globalization;
 
 namespace Revit.Green3DScan
 {
     [Transaction(TransactionMode.Manual)]
-    public class StationsRaster : IExternalCommand
+    public class Stations2Pointclouds : IExternalCommand
     {
         string path;
         public const string CsvHeader = "Rechtswert;Hochwert;Hoehe";
@@ -131,9 +126,9 @@ namespace Revit.Green3DScan
             Log.Information(allStations.Count.ToString() + " stations");
 
             // visible faces per station
-            var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test, out HashSet<S.Id> hashPMin);
+            //var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test, out HashSet<S.Id> hashPMin);
 
-            //var pointClouds = CreatePointcloud.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set);
+            var pointClouds = CreatePointcloud.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set);
 
             Log.Information("visible faces finish");
 
@@ -159,7 +154,8 @@ namespace Revit.Green3DScan
 
                 double tx = -listVector[i].x;
                 double ty = -listVector[i].y;
-                double tz = -set.HeightOfScanner_Meter;
+                double tz = -listVector[i].z;
+                //double tz = -set.HeightOfScanner_Meter;
 
                 // Erstelle die Transformationsmatrix als Liste von Strings
                 var transformationLines = new string[]

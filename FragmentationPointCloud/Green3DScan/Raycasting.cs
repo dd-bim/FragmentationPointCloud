@@ -4,11 +4,8 @@ using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
 using D = Revit.Data;
 using S = ScantraIO.Data;
-using YamlDotNet.Core.Tokens;
 using Serilog;
-using OpenCvSharp;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Structure;
+using System.Threading.Tasks;
 
 namespace Revit.Green3DScan
 {
@@ -35,7 +32,7 @@ namespace Revit.Green3DScan
             var pMin = 1;
             //var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 25000;
             Log.Information(pMin.ToString() + " pMin");
-            //Test einbauen, ob gewisse mindestanzahl erreicht wurde
+            //Test, ob gewisse mindestanzahl erreicht wurde
             foreach (var pf in count)
             {
                 if (pf.Value >= pMin)
@@ -231,12 +228,21 @@ namespace Revit.Green3DScan
             var visibleWithPMin = new HashSet<S.Id>();
             var vf = new HashSet<S.Id>[stations.Count];
             pointClouds = new D3.Vector[vf.Length][];
-            for (int i = 0; i < vf.Length; i++)
+
+            var visibleFacesPerStation = new HashSet<S.Id>[stations.Count];
+
+            Parallel.For(0, stations.Count, i =>
             {
-                vf[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud);
+                visibleFacesPerStation[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud);
                 pointClouds[i] = pointCloud;
-            }
-            
+            });
+
+            //for (int i = 0; i < vf.Length; i++)
+            //{
+            //    vf[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud);
+            //    pointClouds[i] = pointCloud;
+            //}
+
             return pointClouds;
         }
 
@@ -246,6 +252,17 @@ namespace Revit.Green3DScan
             octant |= vector.y < 0 ? D.Octant.YNeg : D.Octant.YPlus;
             octant |= vector.z < 0 ? D.Octant.ZNeg : D.Octant.ZPlus;
             return octant;
+        }
+
+        // Normally distributed random number for noise of the distance measurement
+        private static Random random = new Random();
+        
+        public static double GenerateNormalDistribution(double mean, double stdDev)
+        {
+            double u1 = 1.0 - random.NextDouble();
+            double u2 = 1.0 - random.NextDouble();
+            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2); // Box-Muller-Transformation
+            return mean + stdDev * randStdNormal;
         }
 
         private static bool GetMinDist(Dictionary<S.Id, S.PlanarFace> pFMap, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, Dictionary<D.Octant, HashSet<S.Id>> octants, D3.Vector station, D3.Direction direction, SettingsJson set, out S.Id minId, out D3.Vector minPoint)
@@ -261,7 +278,7 @@ namespace Revit.Green3DScan
                 var pfRefPlane = refPlanes[pFMap[id].ReferencePlaneId].Plane;
                 var r_ = direction.Dot(pfRefPlane.Normal);
 
-                //filtering by direction
+                // filtering by direction
                 if (r_ > -GeometryLib.Double.Constants.TRIGTOL) // in Revit the normal is defined out of solid
                 {
                     continue;
@@ -270,13 +287,13 @@ namespace Revit.Green3DScan
                 // intersections
                 var p_ = (pfRefPlane.Position - station).Dot(pfRefPlane.Normal);
                 var distance = p_ / r_;
-                if (distance < set.MinDF_Meter || distance > set.MaxDF_Meter)
+                // no minimum measuring distance
+                if (distance > set.MaxDF_Meter)
                 {
                     continue;
                 }
                 if (distance < minDistance)
                 {
-                    //Rauschen einfügen
                     var s = station + distance * direction;
                     // point in collection?
                     var ntsPolygon = NTSWrapper.GeometryLib.ToNTSPolygon(pFMap[id].Polygon);
@@ -284,7 +301,8 @@ namespace Revit.Green3DScan
                     var point = new NetTopologySuite.Geometries.Point(pfRefPlane.ToPlaneSystem(s).x, pfRefPlane.ToPlaneSystem(s).y);
                     if (prepPolygon.Contains(point))
                     {
-                        minPoint = s;
+                        // insert noise
+                        minPoint = station + (distance + GenerateNormalDistribution(0, set.NoiceOfScanner_Meter)) * direction;
                         minDistance = distance;
                         minId = id;
                     }

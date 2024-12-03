@@ -80,7 +80,7 @@ namespace Revit.GUI
             Stations2NotVisibleFaces.ToolTip = "Stations2NotVisibleFaces";
             Stations2NotVisibleFaces.LargeImage = GetBitmapFromResx(ResourcePng.stations2NotVisibleFaces);
 
-            PushButton stationsPointClouds = panel2.AddItem(new PushButtonData("18", "StationsPointClouds", thisAssemblyPath, "Revit.Green3DScan.StationsRaster")) as PushButton;
+            PushButton stationsPointClouds = panel2.AddItem(new PushButtonData("18", "StationsPointClouds", thisAssemblyPath, "Revit.Green3DScan.Stations2Pointclouds")) as PushButton;
             stationsPointClouds.ToolTip = "stationsPointClouds";
             stationsPointClouds.LargeImage = GetBitmapFromResx(ResourcePng.stations2NotVisibleFaces);
 
