@@ -1,17 +1,16 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using Serilog;
 using Except = Autodesk.Revit.Exceptions;
 using Sys = System.Globalization.CultureInfo;
-using Serilog;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using Line = Autodesk.Revit.DB.Line;
-using System.Linq;
-using System.Drawing.Drawing2D;
 
 namespace Revit.Green3DScan
 {
@@ -73,7 +72,6 @@ namespace Revit.Green3DScan
             View currentView = doc.ActiveView;
 
             // get all levels
-
             FilteredElementCollector planCollector = new FilteredElementCollector(doc);
             IList<ViewPlan> floorPlans = planCollector
                 .OfClass(typeof(ViewPlan))
@@ -82,96 +80,6 @@ namespace Revit.Green3DScan
                 .Where(vp => vp.ViewType == ViewType.FloorPlan)
                 .ToList();
 
-            //foreach (ViewPlan plan in floorPlans)
-            //{
-            //    var X = plan.LevelId;
-            //    Log.Information($"{X}");
-            //}
-            //try
-            //{
-            //    // Erstellen Sie eine Liste von Level-IDs, die mit Grundrissansichten verknüpft sind
-            //    HashSet<ElementId> levelIdsWithFloorPlans = new HashSet<ElementId>(
-            //        floorPlans.Select(vp => vp.GenLevel.Id));
-
-            //    // Sammeln Sie alle Levels im Dokument
-            //    FilteredElementCollector levelCollector = new FilteredElementCollector(doc);
-            //    IList<Level> allLevels = levelCollector
-            //        .OfClass(typeof(Level))
-            //        .Cast<Level>()
-            //        .ToList();
-
-            //    // Filtern Sie die Levels nach denen, die eine Grundrissansicht haben
-            //    IList<Level> basicLevels = allLevels
-            //        .Where(level => levelIdsWithFloorPlans.Contains(level.Id))
-            //        .ToList();
-
-            //    string output = "Gefundene grundlegende Ebenen mit Grundrissansicht unter 'Grundrisse':\n";
-            //    foreach (Level level in basicLevels)
-            //    {
-                    
-            //        output += $"Name: {level.Name}, Höhe: {level.Elevation}\n";
-            //    }
-                
-            //    TaskDialog.Show("Grundlegende Ebenen mit Grundrissansicht", output);
-
-            //    Dictionary<string, BoundingBoxXYZ> levelBoundingBoxes = new Dictionary<string, BoundingBoxXYZ>();
-
-            //    // level bbox
-            //    using StreamWriter csvLevels = File.CreateText(Path.Combine(csvPath, "BIM_Levels_BBoxes.csv"));
-            //    csvLevels.WriteLine(CsvHeader);
-            //    foreach (Level level in basicLevels)
-            //    {
-            //        BoundingBoxXYZ combinedBoundingBox = null;
-            //        FilteredElementCollector elementCollector = new FilteredElementCollector(doc);
-            //        IList<Element> elementsOnLevel = elementCollector.WhereElementIsNotElementType().ToElements();
-
-            //        foreach (Element element in elementsOnLevel)
-            //        {
-            //            // Check whether the element has a level and whether it is the current level
-            //            Parameter levelParam = element.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
-            //            if (levelParam != null && levelParam.AsElementId() == level.Id)
-            //            {
-            //                BoundingBoxXYZ boundingBox = element.get_BoundingBox(null);
-            //                if (boundingBox != null)
-            //                {
-            //                    if (combinedBoundingBox == null)
-            //                    {
-            //                        combinedBoundingBox = boundingBox;
-            //                    }
-            //                    else
-            //                    {
-            //                        combinedBoundingBox = CombineBoundingBoxes(combinedBoundingBox, boundingBox);
-            //                    }
-            //                }
-            //            }
-            //        }
-
-            //        if (combinedBoundingBox != null)
-            //        {
-            //            levelBoundingBoxes[level.Name] = combinedBoundingBox;
-            //        }
-            //    }
-            //    List<BoundingBox> bBoxesLevel = new List<BoundingBox>();
-            //    foreach (var level in levelBoundingBoxes)
-            //    {
-            //    bBoxesLevel.Add(new BoundingBox(level.Value.Min, level.Value.Max));
-            //    csvLevels.WriteLine("False" + ";" + 0 + "|" + 0 + ";" + 0 + ";" + level.Key + ";"
-            //                    + Math.Round(level.Value.Min.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(level.Value.Min.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(level.Value.Min.Z, 4).ToString(Sys.InvariantCulture) + ";"
-            //                    + Math.Round(level.Value.Max.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(level.Value.Max.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(level.Value.Max.Z, 4).ToString(Sys.InvariantCulture) + ";"
-            //                    + 0 + ";" + 0 + ";" + 0 + ";"
-            //                    + 0 + ";" + 0 + ";" + 0 + ";"
-            //                    + 0 + ";" + 0 + ";" + 0 + ";"
-            //                    + 0 + ";" + 0 + ";" + 0 + ";"
-            //                    + 0 + ";" + 0 + ";" + 0);
-            
-            //    }
-
-            //    WriteBBoxToOBJFile(bBoxesLevel, Path.Combine(csvPath, "BBoxesLevels.obj"));
-            //}
-            //catch (Exception)
-            //{
-            //    TaskDialog.Show("Message", "Error 1: Command canceled.");
-            //}
             using StreamWriter csv = File.CreateText(Path.Combine(csvPath, "BIM_BBoxes.csv"));
             csv.WriteLine(CsvHeader);
             List<BoundingBox> bBoxes = new List<BoundingBox>();
@@ -249,7 +157,7 @@ namespace Revit.Green3DScan
                                 oriented = true;
                                 Element ele = doc.GetElement(reference.ElementId);
                                 elementId = reference.ElementId.ToString();
-                                stateId = ele.CreatedPhaseId.IntegerValue.ToString();
+                                stateId = ele.CreatedPhaseId.ToString();
                                 objectGuid = ele.UniqueId.ToString();
 
                                 oBBoxes.Add(new Helper.OrientedBoundingBox(oriented, stateId, objectGuid, elementId, center3D, directionX, directionY, new XYZ(0, 0, 1), halfLength, halfWidth, halfHeight));
@@ -305,7 +213,7 @@ namespace Revit.Green3DScan
                                 oriented = true;
                                 Element ele = doc.GetElement(reference.ElementId);
                                 elementId = reference.ElementId.ToString();
-                                stateId = ele.CreatedPhaseId.IntegerValue.ToString();
+                                stateId = ele.CreatedPhaseId.ToString();
                                 objectGuid = ele.UniqueId.ToString();
                                 oBBoxes.Add(new Helper.OrientedBoundingBox(oriented, stateId,objectGuid,elementId,center3D, directionX, directionY, new XYZ(0, 0, 1), halfLength, halfWidth, halfHeight));
 
@@ -524,19 +432,6 @@ namespace Revit.Green3DScan
             eleId = reference.ElementId;
             return true;
         }
-        private BoundingBoxXYZ CombineBoundingBoxes(BoundingBoxXYZ box1, BoundingBoxXYZ box2)
-        {
-            XYZ min = new XYZ(
-                Math.Min(box1.Min.X, box2.Min.X),
-                Math.Min(box1.Min.Y, box2.Min.Y),
-                Math.Min(box1.Min.Z, box2.Min.Z));
 
-            XYZ max = new XYZ(
-                Math.Max(box1.Max.X, box2.Max.X),
-                Math.Max(box1.Max.Y, box2.Max.Y),
-                Math.Max(box1.Max.Z, box2.Max.Z));
-
-            return new BoundingBoxXYZ { Min = min, Max = max };
-        }
     }
 }

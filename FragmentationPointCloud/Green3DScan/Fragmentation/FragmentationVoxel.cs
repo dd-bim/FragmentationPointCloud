@@ -62,7 +62,7 @@ namespace Revit.Green3DScan
                 }
                 string csvPathBBoxes = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodBBox.GetSelectedModelPath());
 
-                // CSV lesen
+                // read CSV
                 if (!ReadCsvBoxes(csvPathBBoxes, out List<Helper.OrientedBoundingBox> obboxes))
                 {
                     TaskDialog.Show("Message", "Reading csv not successful");
@@ -117,7 +117,7 @@ namespace Revit.Green3DScan
                     return Result.Failed;
                 }
 
-                // Schritt 6: Suchen der Voxel Indices zu jeder BBox
+                // step 6: Searching for the voxel indices for each bounding box
                 string pathExeSearchVoxel = Constants.exeSearchVoxel;
                 string commandSearch = $"{pcdPathPointcloud} {csvPathBBoxes} {path} {set.FragmentationVoxelResolution_Meter.ToString(Sys.InvariantCulture)}";
                 Log.Information(commandSearch);

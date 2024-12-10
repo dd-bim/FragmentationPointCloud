@@ -4,12 +4,11 @@ using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using D3 = GeometryLib.Double.D3;
 using Serilog;
+using D3 = GeometryLib.Double.D3;
 using Transform = Autodesk.Revit.DB.Transform;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
-
 
 namespace Revit.Green3DScan
 {
@@ -17,7 +16,7 @@ namespace Revit.Green3DScan
     public class Raster : IExternalCommand
     {
         string path;
-        public const string CsvHeader = "Rechtswert;Hochwert;Hoehe";
+        public const string CsvHeader = "East;North;Elevation";
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
@@ -75,7 +74,7 @@ namespace Revit.Green3DScan
 
             var gridSpacing = set.GridSpacing_Meter * Constants.meter2Feet;
             
-            // Berechung der Rasterpunkte
+            // calculation of grid
             // columns
             for (int i = 0; i < set.GridColumns; i++)
             {
@@ -93,7 +92,7 @@ namespace Revit.Green3DScan
             Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(path, "ScanStation.rfa"), stations);
 
             #endregion stations
-            TaskDialog.Show("Message", "Erstellung des Rasters fertig");
+            TaskDialog.Show("Message", "Creation of the grid completed!");
             return Result.Succeeded;
         }
     }

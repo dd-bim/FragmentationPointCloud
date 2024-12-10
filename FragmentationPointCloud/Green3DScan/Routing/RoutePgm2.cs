@@ -6,12 +6,13 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Except = Autodesk.Revit.Exceptions;
+using Serilog;
+using YamlDotNet.Serialization;
+using OpenCvSharp;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using Document = Autodesk.Revit.DB.Document;
-using Serilog;
-using OpenCvSharp;
 using Sys = System.Globalization.CultureInfo;
-using YamlDotNet.Serialization;
+
 
 namespace Revit.Green3DScan
 {
@@ -56,7 +57,7 @@ namespace Revit.Green3DScan
             {
                 Directory.CreateDirectory(routePath);
             }
-            string pathPng = Path.Combine(routePath, "RoutePNG2.png");
+            string pathPng = Path.Combine(routePath, "RoutePNG.png");
             string pathPgm = Path.Combine(routePath, "RoutePGM.pgm");
             string pathPgmWithoutExtension = Path.Combine(routePath, "RoutePNGwithoutExtension.pgm");
             string pathYaml = Path.Combine(routePath, "RoutePGM.yaml");
@@ -72,12 +73,12 @@ namespace Revit.Green3DScan
                     return Result.Failed;
                 }
 
-                //Result resExportToPng = ExportToPng(doc, pathPng, pngWidthInMeter, set);
-                //if (resExportToPng != Result.Succeeded)
-                //{
-                //    TaskDialog.Show("Message", "Creating png not successful!");
-                //    return Result.Failed;
-                //}
+                Result resExportToPng = ExportToPng(doc, pathPng, pngWidthInMeter, set);
+                if (resExportToPng != Result.Succeeded)
+                {
+                    TaskDialog.Show("Message", "Creating png not successful!");
+                    return Result.Failed;
+                }
 
                 // extension to square?
                 if (set.PgmImageExpansion_Px == 0)

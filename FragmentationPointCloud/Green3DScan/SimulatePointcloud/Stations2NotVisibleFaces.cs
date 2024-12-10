@@ -1,19 +1,17 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using D3 = GeometryLib.Double.D3;
 using Serilog;
+using D3 = GeometryLib.Double.D3;
+using S = ScantraIO.Data;
 using Transform = Autodesk.Revit.DB.Transform;
 using Sys = System.Globalization.CultureInfo;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
-using Line = Autodesk.Revit.DB.Line;
-using S = ScantraIO.Data;
-using Autodesk.Revit.DB.ExtensibleStorage;
-using System.Linq;
 
 namespace Revit.Green3DScan
 {
@@ -21,7 +19,7 @@ namespace Revit.Green3DScan
     public class Stations2NotVisibleFaces : IExternalCommand
     {
         string path;
-        public const string CsvHeader = "ObjectGuid;ElementId;Rechtswert;Hochwert;Hoehe";
+        public const string CsvHeader = "ObjectGuid;ElementId;East;North;Elevation";
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
@@ -177,7 +175,6 @@ namespace Revit.Green3DScan
 
             #endregion visible and not visible faces
             Log.Information("visible and not visible faces");
-            
             #region color not visible faces     
 
             ElementId[] matId = default;
@@ -197,7 +194,6 @@ namespace Revit.Green3DScan
             Helper.Paint.ColourFace(doc, hashPMin.ToList(), matId[5]);
             #endregion  color not visible faces
             Log.Information("color not visible faces");
-
             TaskDialog.Show("Message", "finish");
             Log.Information("end Stations2NotVisibleFaces");
             return Result.Succeeded;

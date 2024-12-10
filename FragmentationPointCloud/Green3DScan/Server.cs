@@ -6,7 +6,6 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Except = Autodesk.Revit.Exceptions;
-
 using Serilog;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 

@@ -113,6 +113,16 @@ namespace Revit {
         /// <summary>
         ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
         /// </summary>
+        public static System.Drawing.Bitmap grid {
+            get {
+                object obj = ResourceManager.GetObject("grid", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
+        /// </summary>
         public static System.Drawing.Bitmap ifc {
             get {
                 object obj = ResourceManager.GetObject("ifc", resourceCulture);
@@ -126,6 +136,16 @@ namespace Revit {
         public static System.Drawing.Bitmap loadFragmentation {
             get {
                 object obj = ResourceManager.GetObject("loadFragmentation", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap loadStations {
+            get {
+                object obj = ResourceManager.GetObject("loadStations", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -173,6 +193,16 @@ namespace Revit {
         /// <summary>
         ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
         /// </summary>
+        public static System.Drawing.Bitmap server {
+            get {
+                object obj = ResourceManager.GetObject("server", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
+        /// </summary>
         public static System.Drawing.Bitmap set {
             get {
                 object obj = ResourceManager.GetObject("set", resourceCulture);
@@ -186,6 +216,16 @@ namespace Revit {
         public static System.Drawing.Bitmap stations2NotVisibleFaces {
             get {
                 object obj = ResourceManager.GetObject("stations2NotVisibleFaces", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Ressource vom Typ System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap stations2PointClouds {
+            get {
+                object obj = ResourceManager.GetObject("stations2PointClouds", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

@@ -1,18 +1,18 @@
 ﻿using System;
 using System.IO;
+using System.Diagnostics;
+using System.Globalization;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using D3 = GeometryLib.Double.D3;
 using Serilog;
+using D3 = GeometryLib.Double.D3;
+using S = ScantraIO.Data;
 using Transform = Autodesk.Revit.DB.Transform;
 using Sys = System.Globalization.CultureInfo;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
-using S = ScantraIO.Data;
-using System.Diagnostics;
-using System.Globalization;
 
 namespace Revit.Green3DScan
 {
@@ -20,7 +20,7 @@ namespace Revit.Green3DScan
     public class Stations2Pointclouds : IExternalCommand
     {
         string path;
-        public const string CsvHeader = "Rechtswert;Hochwert;Hoehe";
+        public const string CsvHeader = "East;North;Elevation";
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
@@ -124,16 +124,8 @@ namespace Revit.Green3DScan
             }
             #endregion stations
             Log.Information(allStations.Count.ToString() + " stations");
-
-            // visible faces per station
-            //var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test, out HashSet<S.Id> hashPMin);
-
-            var pointClouds = CreatePointcloud.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set);
-
-            Log.Information("visible faces finish");
-
             #region write pointcloud in XYZ
-
+            var pointClouds = CreatePointcloud.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set);
             for (int i = 0; i < listVector.Count; i++)
             {
                 List<string> lines = new List<string>();
@@ -185,8 +177,7 @@ namespace Revit.Green3DScan
 
             #endregion write pointcloud in XYZ
             Log.Information("write pointcloud in XYZ");
-            
-            TaskDialog.Show("Message", "fertig");
+            TaskDialog.Show("Message", "finish");
             return Result.Succeeded;
         }
     }

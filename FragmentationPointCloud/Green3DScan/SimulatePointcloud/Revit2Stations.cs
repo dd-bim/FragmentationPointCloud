@@ -5,17 +5,15 @@ using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Serilog;
 using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
-using Serilog;
+using S = ScantraIO.Data;
 using Transform = Autodesk.Revit.DB.Transform;
 using Sys = System.Globalization.CultureInfo;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
 using View = Autodesk.Revit.DB.View;
-using S = ScantraIO.Data;
-using Autodesk.Revit.DB.ExtensibleStorage;
-using Autodesk.Revit.DB.Structure;
 
 namespace Revit.Green3DScan
 {
@@ -23,7 +21,7 @@ namespace Revit.Green3DScan
     public class Revit2Stations : IExternalCommand
     {
         string path;
-        public const string CsvHeader = "ObjectGuid;ElementId;Rechtswert;Hochwert;Hoehe";
+        public const string CsvHeader = "ObjectGuid;ElementId;East;North;Elevation";
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup

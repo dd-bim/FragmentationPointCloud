@@ -1,15 +1,16 @@
 ﻿using System;
 using System.IO;
+using System.Globalization;
+using System.Diagnostics;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Except = Autodesk.Revit.Exceptions;
-using Sys = System.Globalization.CultureInfo;
 using Serilog;
+using Sys = System.Globalization.CultureInfo;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-using System.Globalization;
-using System.Diagnostics;
+
 
 namespace Revit.Green3DScan
 {
@@ -90,7 +91,6 @@ namespace Revit.Green3DScan
                 string output = process.StandardOutput.ReadToEnd();
                 process.WaitForExit();
 
-
                 //WriteOBBoxToOBJFile(obboxes, Path.Combine(path, "OBBoxesIFC.obj"));
                 return Result.Succeeded;
             }
@@ -141,44 +141,7 @@ namespace Revit.Green3DScan
                 HalfHeight = halfHeight;
             }
         }
-        private bool ReadCsvBoxes(string csvPathBBoxes, out List<OrientedBoundingBox> listOBBox)
-        {
-            List<OrientedBoundingBox> list = new List<OrientedBoundingBox>();
-            try
-            {
-                using (StreamReader reader = new StreamReader(csvPathBBoxes))
-                {
-                    reader.ReadLine();
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        string[] columns = line.Split(';');
-
-                        // Überprüfen, ob die Anzahl der Spalten korrekt ist --> IFC 23 Spalten!!
-                        if (columns.Length == 23)
-                        {
-                            list.Add(new OrientedBoundingBox(columns[0], columns[1], "0",
-                                new XYZ(double.Parse(columns[8], CultureInfo.InvariantCulture), double.Parse(columns[9], CultureInfo.InvariantCulture), double.Parse(columns[10], CultureInfo.InvariantCulture)),
-                                new XYZ(double.Parse(columns[11], CultureInfo.InvariantCulture), double.Parse(columns[12], CultureInfo.InvariantCulture), double.Parse(columns[13], CultureInfo.InvariantCulture)),
-                                new XYZ(double.Parse(columns[14], CultureInfo.InvariantCulture), double.Parse(columns[15], CultureInfo.InvariantCulture), double.Parse(columns[16], CultureInfo.InvariantCulture)),
-                                new XYZ(double.Parse(columns[17], CultureInfo.InvariantCulture), double.Parse(columns[18], CultureInfo.InvariantCulture), double.Parse(columns[19], CultureInfo.InvariantCulture)),
-                                double.Parse(columns[20], CultureInfo.InvariantCulture), double.Parse(columns[21], CultureInfo.InvariantCulture), double.Parse(columns[22], CultureInfo.InvariantCulture)));
-                        }
-                        else
-                        {
-                            TaskDialog.Show("Message", "Lesen der CSV fehlerhaft " + line + " " + columns.Length);
-                        }
-                    }
-                }
-                listOBBox = list;
-                return true;
-            }
-            catch (Exception)
-            {
-                listOBBox = list;
-                return false;
-            }
-        }
+        
         public void WriteOBBoxToOBJFile(List<OrientedBoundingBox> oboxes, string filePath)
         {
             using StreamWriter objFile = new StreamWriter(filePath);

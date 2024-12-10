@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Threading.Tasks;
 using System.Collections.Generic;
+using Serilog;
 using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
 using D = Revit.Data;
 using S = ScantraIO.Data;
-using Serilog;
-using System.Threading.Tasks;
 
 namespace Revit.Green3DScan
 {
@@ -32,7 +32,7 @@ namespace Revit.Green3DScan
             var pMin = 1;
             //var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 25000;
             Log.Information(pMin.ToString() + " pMin");
-            //Test, ob gewisse mindestanzahl erreicht wurde
+            // Test if a minimum number has been reached
             foreach (var pf in count)
             {
                 if (pf.Value >= pMin)
@@ -236,12 +236,6 @@ namespace Revit.Green3DScan
                 visibleFacesPerStation[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud);
                 pointClouds[i] = pointCloud;
             });
-
-            //for (int i = 0; i < vf.Length; i++)
-            //{
-            //    vf[i] = VisibleFaces(pFMap, refPlanes, stations[i], set, out var pointCloud);
-            //    pointClouds[i] = pointCloud;
-            //}
 
             return pointClouds;
         }

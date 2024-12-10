@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Diagnostics;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -8,7 +7,6 @@ using Autodesk.Revit.UI;
 using Except = Autodesk.Revit.Exceptions;
 using Serilog;
 using Path = System.IO.Path;
-using D3 = GeometryLib.Double.D3;
 
 
 namespace Revit.Green3DScan

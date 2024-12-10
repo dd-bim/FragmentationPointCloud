@@ -4,7 +4,6 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
 using Serilog;
 
-
 namespace Revit.GUI
 {
     [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]

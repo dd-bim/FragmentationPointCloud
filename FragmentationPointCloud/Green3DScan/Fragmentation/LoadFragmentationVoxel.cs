@@ -151,8 +151,8 @@ namespace Revit.Green3DScan
                 return false;
             }
             // stateId and objectId
-            createStateId = ele.CreatedPhaseId.IntegerValue.ToString();
-            demolishedStateId = ele.DemolishedPhaseId.IntegerValue.ToString();
+            createStateId = ele.CreatedPhaseId.ToString();
+            demolishedStateId = ele.DemolishedPhaseId.ToString();
             objectId = ele.UniqueId;
             return true;
         }

@@ -1,12 +1,12 @@
 ﻿using System;
+using System.IO;
+using System.Diagnostics;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Except = Autodesk.Revit.Exceptions;
-using System.Diagnostics;
-using Path = System.IO.Path;
 using Serilog;
-using System.IO;
+using Path = System.IO.Path;
 
 namespace Revit.Green3DScan
 {

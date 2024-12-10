@@ -1,14 +1,14 @@
 ﻿using System;
 using System.IO;
+using System.Globalization;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Except = Autodesk.Revit.Exceptions;
-using Sys = System.Globalization.CultureInfo;
 using Serilog;
+using Sys = System.Globalization.CultureInfo;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-using System.Globalization;
 
 namespace Revit.Green3DScan
 {
@@ -59,10 +59,10 @@ namespace Revit.Green3DScan
                 }
                 string csvPathBBoxes = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodBBox.GetSelectedModelPath());
 
-                // CSV lesen
+                // read CSV
                 if (!ReadCsvBoxes(csvPathBBoxes, out List<OrientedBoundingBox> obboxes))
                 {
-                    TaskDialog.Show("Message", "Lesen der CSV fehlerhaft");
+                    TaskDialog.Show("Message", "Reading csv not successful");
                 }
                 TaskDialog.Show("Message", obboxes.Count + " OBBoxes were exported.");
 
@@ -129,7 +129,7 @@ namespace Revit.Green3DScan
                     {
                         string[] columns = line.Split(';');
 
-                        // Überprüfen, ob die Anzahl der Spalten korrekt ist --> IFC 23 Spalten!!
+                        // Check if the number of columns is correct --> IFC requires 23 columns!!
                         if (columns.Length == 23)
                         {
                             list.Add(new OrientedBoundingBox(columns[0], columns[1], "0",
@@ -141,7 +141,7 @@ namespace Revit.Green3DScan
                         }
                         else
                         {
-                            TaskDialog.Show("Message", "Lesen der CSV fehlerhaft " + line + " " + columns.Length);
+                            TaskDialog.Show("Message", "Reading csv not successful " + line + " " + columns.Length);
                         }
                     }
                 }

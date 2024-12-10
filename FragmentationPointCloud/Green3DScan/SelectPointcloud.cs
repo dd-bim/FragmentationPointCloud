@@ -1,10 +1,10 @@
-﻿using Autodesk.Revit.Attributes;
+﻿using System;
+using System.IO;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Serilog;
 using Path = System.IO.Path;
-using System.IO;
-using System;
 
 namespace Revit.Green3DScan
 {

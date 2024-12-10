@@ -6,12 +6,11 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using Except = Autodesk.Revit.Exceptions;
+using Serilog;
 using S = ScantraIO.Data;
 using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
 using static GeometryLib.Double.Constants;
-
-using Serilog;
 using Document = Autodesk.Revit.DB.Document;
 
 namespace Revit.Green3DScan

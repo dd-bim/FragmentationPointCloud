@@ -1,16 +1,16 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
-using Autodesk.Revit.Attributes;
-using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
+using Autodesk.Revit.Attributes;
 using Serilog;
+using D3 = GeometryLib.Double.D3;
 using Transform = Autodesk.Revit.DB.Transform;
 using Path = System.IO.Path;
 using Document = Autodesk.Revit.DB.Document;
 using Sys = System.Globalization.CultureInfo;
-using D3 = GeometryLib.Double.D3;
-using Autodesk.Revit.DB.Structure;
 
 namespace Revit.Green3DScan
 {
@@ -18,7 +18,7 @@ namespace Revit.Green3DScan
     public class AddStation : IExternalCommand
     {
         string path;
-        public const string CsvHeader = "ObjectGuid;ElementId;Rechtswert;Hochwert;Hoehe";
+        public const string CsvHeader = "East;North;Elevation";
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup

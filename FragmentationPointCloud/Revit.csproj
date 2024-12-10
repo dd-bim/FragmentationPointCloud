@@ -407,8 +407,12 @@
     <Content Include="Resources\bim2Face.png" />
     <Content Include="Resources\bim2Stations.png" />
     <Content Include="Resources\cloud.PNG" />
+    <Content Include="Resources\grid.png" />
     <Content Include="Resources\ifc.PNG" />
+    <Content Include="Resources\loadStations.png" />
+    <Content Include="Resources\server.png" />
     <Content Include="Resources\stations2NotVisibleFaces.png" />
+    <Content Include="Resources\stations2PointClouds.png" />
     <None Include="Resources\tool1.PNG" />
     <Content Include="Resources\routePgm.png" />
     <Content Include="Resources\routePgmExport.png" />
