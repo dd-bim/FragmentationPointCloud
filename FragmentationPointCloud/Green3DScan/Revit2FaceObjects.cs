@@ -45,11 +45,16 @@ namespace Revit.Green3DScan
             }
 
             // logger
+            string logsPath = Path.Combine(path, "00_Logs/");
+            if (!Directory.Exists(logsPath))
+            {
+                Directory.CreateDirectory(logsPath);
+            }
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
-                .CreateLogger();
-            Log.Information("start Stations2NotVisibleFaces");
+               .MinimumLevel.Debug()
+               .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
+               .CreateLogger();
+            Log.Information("start Revit2FaceObjects");
             Log.Information(set.BBox_Buffer.ToString());
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);

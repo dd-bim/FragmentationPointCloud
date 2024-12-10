@@ -37,11 +37,16 @@ namespace Revit.Green3DScan
             }
 
             // logger
+            string logsPath = Path.Combine(path, "00_Logs/");
+            if (!Directory.Exists(logsPath))
+            {
+                Directory.CreateDirectory(logsPath);
+            }
             Log.Logger = new LoggerConfiguration()
                .MinimumLevel.Debug()
-               .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
+               .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
                .CreateLogger();
-            Log.Information("start Revit2Station");
+            Log.Information("start Pcd2E57");
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);
 

@@ -32,11 +32,16 @@ namespace Revit.GUI
             }
 
             // logger
+            string logsPath = Path.Combine(path, "00_Logs/");
+            if (!Directory.Exists(logsPath))
+            {
+                Directory.CreateDirectory(logsPath);
+            }
             Log.Logger = new LoggerConfiguration()
                .MinimumLevel.Debug()
-               .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
+               .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
                .CreateLogger();
-            Log.Information("start");
+            Log.Information("start CmdShowSettings");
             #endregion setup
             // settings json
             try

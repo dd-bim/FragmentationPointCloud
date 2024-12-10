@@ -360,7 +360,7 @@
     <Compile Include="Green3DScan\Fragmentation\Revit2OBBox.cs" />
     <Compile Include="Green3DScan\Fragmentation\VisOBBoxIFC.cs" />
     <Compile Include="Green3DScan\Routing\RoutePgm.cs" />
-    <Compile Include="Green3DScan\Routing\RoutePgm2.cs" />
+    <Compile Include="Green3DScan\Routing\RoutePgmExport.cs" />
     <Compile Include="Green3DScan\SimulatePointcloud\AddStation.cs" />
     <Compile Include="Green3DScan\SimulatePointcloud\LoadStations.cs" />
     <Compile Include="Green3DScan\SimulatePointcloud\Raster.cs" />

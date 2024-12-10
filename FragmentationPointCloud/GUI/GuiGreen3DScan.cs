@@ -59,7 +59,7 @@ namespace Revit.GUI
             route.ToolTip = "Export plan as Portable Grey Map.";
             route.LargeImage = GetBitmapFromResx(ResourcePng.routePgm);
 
-            PushButton route2 = panel2.AddItem(new PushButtonData("10", "RoutePgmExport", thisAssemblyPath, "Revit.Green3DScan.RoutePgm2")) as PushButton;
+            PushButton route2 = panel2.AddItem(new PushButtonData("10", "RoutePgmExport", thisAssemblyPath, "Revit.Green3DScan.RoutePgmExport")) as PushButton;
             route2.ToolTip = "Export plan as Portable Grey Map.";
             route2.LargeImage = GetBitmapFromResx(ResourcePng.routePgmExport);
 

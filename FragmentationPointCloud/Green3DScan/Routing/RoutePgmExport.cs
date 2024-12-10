@@ -13,11 +13,10 @@ using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using Document = Autodesk.Revit.DB.Document;
 using Sys = System.Globalization.CultureInfo;
 
-
 namespace Revit.Green3DScan
 {
     [Transaction(TransactionMode.Manual)]
-    public class RoutePgm2 : IExternalCommand
+    public class RoutePgmExport : IExternalCommand
     {
         #region Execute
         string path;
@@ -44,11 +43,16 @@ namespace Revit.Green3DScan
             }
 
             // logger
+            string logsPath = Path.Combine(path, "00_Logs/");
+            if (!Directory.Exists(logsPath))
+            {
+                Directory.CreateDirectory(logsPath);
+            }
             Log.Logger = new LoggerConfiguration()
                .MinimumLevel.Debug()
-               .WriteTo.File(Path.Combine(path, "LogFile_"), rollingInterval: RollingInterval.Day)
+               .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
                .CreateLogger();
-            Log.Information("start");
+            Log.Information("start routePgm2");
             Log.Information(set.BBox_Buffer.ToString());
             #endregion setup
 
