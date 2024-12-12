@@ -135,7 +135,7 @@ namespace Revit.Green3DScan
             {
                 List<string> lines = new List<string>();
 
-                // Sammle die Punkte der aktuellen Station
+                // collect points of the current station
                 for (int j = 0; j < pointClouds[i].Length; j++)
                 {
                     lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " "
@@ -143,18 +143,16 @@ namespace Revit.Green3DScan
                             + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
                 }
 
-                // Datei für die aktuelle Station erstellen und Punkte speichern
+                // create file for the current station and save points
                 string xyzPath = Path.Combine(csvPath, $"Station_{i}.xyz");
                 File.WriteAllLines(xyzPath, lines);
 
-                //Umwandlung in cloudcompare
-
+                // conversion with cloudcompare
                 double tx = -listVector[i].x;
                 double ty = -listVector[i].y;
                 double tz = -listVector[i].z;
-                //double tz = -set.HeightOfScanner_Meter;
 
-                // Erstelle die Transformationsmatrix als Liste von Strings
+                // create the transformation matrix for station-centered point cloud
                 var transformationLines = new string[]
                 {
                     "1 0 0 " + tx.ToString(CultureInfo.InvariantCulture),
@@ -163,12 +161,12 @@ namespace Revit.Green3DScan
                     "0 0 0 1"
                 };
 
-                // Pfad zur Transformationsdatei
+                // path to transformation file
                 string transformationFilePath = Path.Combine(csvPath, "transformation.txt");
 
                 File.WriteAllLines(transformationFilePath, transformationLines);
 
-                // Pfad zur Ausgabedatei
+                // path to E57
                 string outputPointCloud = Path.Combine(csvPath, $"Station_{i}.e57");
 
                 Process cloudCompareProcess = new Process();

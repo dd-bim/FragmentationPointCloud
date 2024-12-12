@@ -49,7 +49,7 @@ namespace Revit.Green3DScan
                .MinimumLevel.Debug()
                .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
                .CreateLogger();
-            Log.Information("start");
+            Log.Information("start FragmentationIFC");
             Log.Information(set.BBox_Buffer.ToString());
             #endregion setup
 

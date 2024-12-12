@@ -50,7 +50,7 @@ namespace Revit.Green3DScan
                .MinimumLevel.Debug()
                .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
                .CreateLogger();
-            Log.Information("start Stations2NotVisibleFaces");
+            Log.Information("start LoadStations");
             Log.Information(set.BBox_Buffer.ToString());
 
             Transform trans = Helper.GetTransformation(doc, set, out var crs);

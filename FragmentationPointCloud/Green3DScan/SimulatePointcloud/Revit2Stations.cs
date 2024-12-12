@@ -62,7 +62,6 @@ namespace Revit.Green3DScan
 
             #endregion setup
             Log.Information("setup");
-            #region select files
 
             if (uidoc.ActiveView is View3D current3DView)
             {
@@ -70,38 +69,6 @@ namespace Revit.Green3DScan
                 return Result.Failed;
             }
 
-            // Revit
-            var fodPfRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
-            fodPfRevit.Title = "Select CSV file with BimFaces from Revit!";
-            if (fodPfRevit.Show() == ItemSelectionDialogResult.Canceled)
-            {
-                return Result.Cancelled;
-            }
-            var csvPathPfRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodPfRevit.GetSelectedModelPath());
-
-            var fodRpRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
-            fodRpRevit.Title = "Select CSV file with BimFacesPlanes fromRevit!";
-            if (fodRpRevit.Show() == ItemSelectionDialogResult.Canceled)
-            {
-                return Result.Cancelled;
-            }
-            var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
-
-            #endregion select files
-            Log.Information("select files");
-            #region read files
-
-            var facesRevit = S.PlanarFace.ReadCsv(csvPathPfRevit, out var lineErrors1, out string error1);
-            var facesMap = new Dictionary<S.Id, S.PlanarFace>();
-            foreach (var pf in facesRevit)
-            {
-                facesMap[pf.Id] = pf;
-            }
-
-            var referencePlanesRevit = S.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
-
-            #endregion read files
-            Log.Information("read files");
             #region room faces
 
             View activeView = doc.ActiveView;
@@ -125,7 +92,7 @@ namespace Revit.Green3DScan
                 var calcResult = calculator.CalculateSpatialElementGeometry(room);
 
                 var geomSolid = calcResult.GetGeometry();
-                string stateId = room.CreatedPhaseId.IntegerValue.ToString();
+                string stateId = room.CreatedPhaseId.ToString();
                 
 
                 foreach (Face geomFace in geomSolid.Faces)
@@ -259,110 +226,6 @@ namespace Revit.Green3DScan
 
             #endregion stations
             Log.Information(stations.Count.ToString() + " stations");
-            #region visible and not visible faces
-
-            // visible faces per station
-            var visibleFacesIdArray = Raycasting.VisibleFaces(facesRevit, referencePlanesRevit, stationsPBP, set, out D3.Vector[][] pointClouds, out Dictionary<S.Id, int> test, out HashSet<S.Id> hashPMin);
-
-            //Test 
-            var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 1000;
-            Log.Information(pMin.ToString() + " pMin");
-            var y = 0;
-            foreach (var item in test)
-            {
-                //Log.Information(item.Key.ToString());
-                Log.Information(item.Value.ToString());
-                y += item.Value;
-            }
-            Log.Information(y.ToString());
-            
-            var visibleFaceId = new HashSet<S.Id>();
-            var visibleFaces = new HashSet<S.PlanarFace>();
-            var pFMap = new Dictionary<S.Id, S.PlanarFace>();
-            foreach (var pf in facesRevit)
-            {
-                pFMap[pf.Id] = pf;
-            }
-            for (int i = 0; i < stationsPBP.Count; i++)
-            {
-                foreach (S.Id id in visibleFacesIdArray[i])
-                {
-                    visibleFaces.Add(pFMap[id]);
-                    visibleFaceId.Add(id);
-                }
-            }
-
-            // visible faces
-            S.PlanarFace.WriteCsv(csvVisibleFaces, visibleFaces);
-            S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
-            S.PlanarFace.WriteObj(Path.Combine(path, "visible"), referencePlanesRevit, visibleFaces);
-
-            var notVisibleFacesId = new List<S.Id>();
-            var visibleFacesId = new List<S.Id>();
-            var notVisibleFaces = new List<S.PlanarFace>();
-
-            var facesIdList = new List<S.Id>();
-            foreach (var item in facesMap)
-            {
-                facesIdList.Add(item.Key);
-            }
-
-            // not visible faces
-            foreach (var item in facesIdList)
-            {
-                if (!visibleFaceId.Contains(item))
-                {
-                    notVisibleFacesId.Add(item);
-                    notVisibleFaces.Add(facesMap[item]);
-                }
-                else
-                {
-                    visibleFacesId.Add(item);
-                }
-            }
-            S.PlanarFace.WriteCsv(csvVisibleFaces, notVisibleFaces);
-            S.ReferencePlane.WriteCsv(csvVisibleFacesRef, refPlanes);
-            S.PlanarFace.WriteObj(Path.Combine(path, "notVisible"), referencePlanesRevit, notVisibleFaces);
-
-            #endregion visible and not visible faces
-            Log.Information("visible and not visible faces");
-            #region write pointcloud in XYZ
-
-            List<string> lines = new List<string>();
-            for (int i = 0; i < stationsPBP.Count; i++)
-            {
-                foreach (S.Id id in visibleFacesIdArray[i])
-                {
-                    visibleFaceId.Add(id);
-                }
-                for (int j = 0; j < pointClouds[i].Length; j++)
-                {
-                    lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " " + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
-                }
-            }
-            File.WriteAllLines(Path.Combine(path, "simulatedPointcloud.txt"), lines);
-            #endregion write pointcloud in XYZ
-            Log.Information("write pointcloud in XYZ");
-            #region color not visible faces     
-
-            //ElementId[] matId = default;
-
-            //// add materials and save the ElementIds in a DataStorage
-            //try
-            //{
-            //    matId = Helper.AddMaterials(doc);
-            //}
-            //catch (Exception)
-            //{
-
-            //    matId = Helper.ReadMaterialsDS(doc);
-            //}
-
-            //Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
-            //Helper.Paint.ColourFace(doc, visibleFacesId, matId[5]);
-
-            #endregion  color not visible faces
-            Log.Information("coloring faces");
             #region ScanStation
 
             if (!File.Exists(Path.Combine(path, "ScanStation.rfa")))
@@ -373,7 +236,6 @@ namespace Revit.Green3DScan
             Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(path, "ScanStation.rfa"), stations);
 
             Family family;
-
             if (!doc.LoadFamily(Path.Combine(path, "ScanStation.rfa"), out family))
             {
                 FilteredElementCollector collector = new FilteredElementCollector(doc);
@@ -409,28 +271,6 @@ namespace Revit.Green3DScan
 
             #endregion station to csv
             Log.Information("station to csv");
-            #region dataStorage
-            //var z = new List<XYZ>();
-            //foreach (var item in stationsPBP)
-            //{
-            //   z.Add(new XYZ(item.x, item.y, item.z));
-            //}   
-            ////IList<XYZ> stationsDS = new List<XYZ>();
-
-            //// add stations to DataStorage
-            //try
-            //{
-            //    TaskDialog.Show("Message", "okay");
-            //    //stationsDS = Helper.AddStation(doc, z);
-            //    Helper.AddStation(doc, z);
-            //}
-            //catch (Exception)
-            //{
-            //    TaskDialog.Show("Message", "shit");
-            //    //stationsDS = Helper.ReadStationsDS(doc);
-            //}
-
-            #endregion dataStorage
             var allStations = Helper.CollectFamilyInstances(doc, trans, "ScanStation");
             TaskDialog.Show("Message", stationsPBP.Count.ToString() + " new ScanStations, total " + allStations.Count.ToString() + " ScanStations");
             Log.Information("end Revit2Station");

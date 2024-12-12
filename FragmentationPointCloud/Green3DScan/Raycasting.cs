@@ -30,6 +30,7 @@ namespace Revit.Green3DScan
             }
             countPoints = count;
             var pMin = 1;
+            // TODO Test with minimum number of points on face
             //var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 25000;
             Log.Information(pMin.ToString() + " pMin");
             // Test if a minimum number has been reached
@@ -308,8 +309,6 @@ namespace Revit.Green3DScan
         private static HashSet<S.Id> VisibleFaces(Dictionary<S.Id, S.PlanarFace> pfMap, IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, D3.Vector station, SettingsJson set, out D3.Vector[] pointCloud)
         {
             var visibleFaces = new HashSet<S.Id>();
-            //var visibleFacesListPoints = new List<S.Id>();
-
             var points = new List<D3.Vector>();
 
             // create octants
