@@ -1,5 +1,5 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-  <Package Name="Green3DScanRevitPlugin" Manufacturer="HTW Dresden" Version="1.1.8" UpgradeCode="b91bf47a-ed28-40ed-9cc8-b573c91486a3" Scope="perMachine" >
+  <Package Name="Green3DScanRevitPlugin" Manufacturer="HTW Dresden" Version="1.1.9" UpgradeCode="b91bf47a-ed28-40ed-9cc8-b573c91486a3" Scope="perMachine" >
 	  <MajorUpgrade DowngradeErrorMessage="A newer version of Green3DScan is already installed." />
 	  <MediaTemplate EmbedCab="yes"/>
 	  
@@ -12,16 +12,16 @@
 			</Component>
 			<!-- Adding Additional Executable Files -->
 			<Component Id="CMP_SearchVoxel" Guid="{31D76B02-656F-426F-AB34-5DBBE0B8C8AC}">
-				<File Id="FILE_SearchVoxel" Source="D:\06_Green3DScan\000_C++\Green3D\x64\Release\SearchVoxel.exe" KeyPath="yes"/>
+				<File Id="FILE_SearchVoxel" Source="C:\Git\Docker\SearchVoxel.exe" KeyPath="yes"/>
 			</Component>
 			<Component Id="CMP_SegmentationBBox" Guid="{72492684-3A92-4B60-869A-0B2ACE36FBB4}">
-				<File Id="FILE_SegmentationBBox" Source="D:\06_Green3DScan\000_C++\Green3D\x64\Release\SegmentationBBox.exe" KeyPath="yes"/>
+				<File Id="FILE_SegmentationBBox" Source="C:\Git\Docker\SegmentationBBox.exe" KeyPath="yes"/>
 			</Component>
 			<Component Id="CMP_SegmentationVoxel" Guid="{F88B450B-311C-41E8-81D6-11C6B78AF5F3}">
-				<File Id="FILE_SegmentationVoxel" Source="D:\06_Green3DScan\000_C++\Green3D\x64\Release\SegmentationVoxel.exe" KeyPath="yes"/>
+				<File Id="FILE_SegmentationVoxel" Source="C:\Git\Docker\SegmentationVoxel.exe" KeyPath="yes"/>
 			</Component>
 			<Component Id="CMP_SegmentationIFC" Guid="{4A6B9C25-91BA-4774-8B62-215FC6B86925}">
-				<File Id="FILE_SegmentationIFC" Source="D:\06_Green3DScan\00_GIT\FragmentationPointCloud\PythonIfcTools\faceBoxExtraction\dist\IFCFaceBoxExtractor.exe" KeyPath="yes"/>
+				<File Id="FILE_SegmentationIFC" Source="C:\Git\FragmentationPointCloud\PythonIfcTools\faceBoxExtraction\dist\IFCFaceBoxExtractor.exe" KeyPath="yes"/>
 			</Component>
 			<Component Id="CMP_SettingsIFC" Guid="{85ECB70A-E753-439B-8DF7-E50F14F0870D}">
 				<File Id="FILE_SettingsIFC" Source="$(var.Revit.ProjectDir)basicList.json" KeyPath="yes"/>
