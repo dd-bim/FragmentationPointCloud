@@ -1,11 +1,11 @@
-﻿<Project Sdk="WixToolset.Sdk/4.0.0">
+﻿<Project Sdk="WixToolset.Sdk/4.0.6">
   <PropertyGroup>
     <DefineConstants Condition=" '$(Configuration)' == 'Debug' ">HarvestPath=..\FragmentationPointCloud\bin\Debug</DefineConstants>
     <DefineConstants Condition=" '$(Configuration)' == 'Release' ">HarvestPath=..\FragmentationPointCloud\bin\Release</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="WixToolset.Heat" Version="4.0.3" />
-    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.3" />
+    <PackageReference Include="WixToolset.Heat" Version="4.0.6" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.6" />
   </ItemGroup>
   <!-- Harvesting Project Output-->
   <ItemGroup>
