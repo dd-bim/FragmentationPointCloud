@@ -4,11 +4,8 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 
-using static System.Math;
 using static GeometryLib.Double.Constants;
 using static GeometryLib.Double.Helper;
-
-using I = GeometryLib.Int32.D2;
 
 namespace GeometryLib.Double.D2
 {

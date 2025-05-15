@@ -7,7 +7,7 @@ using static System.Math;
 
 namespace GeometryLib.Double.D2
 {
-    public readonly struct SpdMatrix: Interfaces.ISpdMatrix
+    public readonly struct SpdMatrix
     {
         private static readonly SpdMatrix unit = new SpdMatrix(
             1.0, 0.0,
