@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using Serilog;
+using System.Linq;
 using D2 = GeometryLib.Double.D2;
 using D3 = GeometryLib.Double.D3;
 using D = Revit.Data;
@@ -32,7 +32,7 @@ namespace Revit.Green3DScan
             var pMin = 1;
             // TODO Test with minimum number of points on face
             //var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 25000;
-            Log.Information(pMin.ToString() + " pMin");
+            //Log.Information(pMin.ToString() + " pMin");
             // Test if a minimum number has been reached
             foreach (var pf in count)
             {
@@ -85,20 +85,15 @@ namespace Revit.Green3DScan
                 {
                     continue;
                 }
-                if (distance < minDistance)
-                {
-                    var s = station + distance * direction;
-                    // point in collection?
-                    var ntsPolygon = NTSWrapper.GeometryLib.ToNTSPolygon(pFMap[id].Polygon);
-                    var prepPolygon = NTSWrapper.GeometryLib.ToPrepared(ntsPolygon);
-                    var point = new NetTopologySuite.Geometries.Point(pfRefPlane.ToPlaneSystem(s).x, pfRefPlane.ToPlaneSystem(s).y);
-                    if (prepPolygon.Contains(point))
-                    {
-                        minPoint = s;
-                        minDistance = distance;
-                        minId = id;
-                    }
-                }
+
+                if (!(distance < minDistance)) continue;
+                var s = station + distance * direction;
+                // point in collection?
+                var point = pfRefPlane.ToPlaneSystem(s);
+                if (!pFMap[id].Polygon.IsPointInPolygon(point)) continue;
+                minPoint = s;
+                minDistance = distance;
+                minId = id;
             }
             return !double.IsInfinity(minDistance);
         }
@@ -287,21 +282,16 @@ namespace Revit.Green3DScan
                 {
                     continue;
                 }
-                if (distance < minDistance)
-                {
-                    var s = station + distance * direction;
-                    // point in collection?
-                    var ntsPolygon = NTSWrapper.GeometryLib.ToNTSPolygon(pFMap[id].Polygon);
-                    var prepPolygon = NTSWrapper.GeometryLib.ToPrepared(ntsPolygon);
-                    var point = new NetTopologySuite.Geometries.Point(pfRefPlane.ToPlaneSystem(s).x, pfRefPlane.ToPlaneSystem(s).y);
-                    if (prepPolygon.Contains(point))
-                    {
-                        // insert noise
-                        minPoint = station + (distance + GenerateNormalDistribution(0, set.NoiceOfScanner_Meter)) * direction;
-                        minDistance = distance;
-                        minId = id;
-                    }
-                }
+
+                if (!(distance < minDistance)) continue;
+                var s = station + distance * direction;
+                // point in collection?
+                var point = pfRefPlane.ToPlaneSystem(s);
+                if (!pFMap[id].Polygon.IsPointInPolygon(point)) continue;
+                // insert noise
+                minPoint = station + (distance + GenerateNormalDistribution(0, set.NoiceOfScanner_Meter)) * direction;
+                minDistance = distance;
+                minId = id;
             }
             return !double.IsInfinity(minDistance);
         }

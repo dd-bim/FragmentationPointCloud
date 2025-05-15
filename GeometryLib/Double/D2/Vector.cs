@@ -67,7 +67,7 @@ namespace GeometryLib.Double.D2
         //public static implicit operator Vector(IVector2<double> v) => v is Vector vec ? vec : new Vector(v.x,v.y);
 
         /// <summary>The length (magnitude) of the vector.</summary>
-        public double Length() => Hypot(x, y);
+        public double Length() => double.Hypot(x, y);
 
         /// <summary>The angle of the vector direction.</summary>
         public double Angle() => Math.Atan2(y, x);
@@ -231,52 +231,6 @@ namespace GeometryLib.Double.D2
 
         public string ToString(string separator) => string.Format(CultureInfo.InvariantCulture, "{0:G17}{2}{1:G17}", x, y, separator);
 
-        private static int circleSign(in Vector a, in Vector b, in Vector c)
-        {
-            //Det(in Vector a, in Vector b) => a.Sub(this).Det(b.Sub(this));
-            // Nicht under/over-flow sicher!
-            var ab = a.Det(b);
-            var bc = b.Det(c);
-            var ca = c.Det(a);
-
-            var s1 = Math.Sign(ab);
-            var s2 = Math.Sign(bc);
-            var s3 = Math.Sign(ca);
-            Int32.Helper.Sort(ref s1, ref s2, ref s3);
-
-            /*
-             * Dreieck muss ccw sein!
-             * s1  s2  s3
-             * <0  <0  >0 = Außen (hinter Vertex)           = s2 
-             * <0  =0  >0 = Außen (hinter Vertex auf Kante) = <0
-             * <0  >0  >0 = Außen (neben Kante)             =  ?
-             * =0  =0  >0 = auf Vertex                      = s2
-             * =0  >0  >0 = auf Kante                       = s2
-             * >0  >0  >0 = innen                           = s2
-             */
-
-            var sig = s2;
-            if (s1 < 0)
-            {
-                if (s2 > 0)
-                {
-                    var ad = a.SumSq();
-                    var bd = b.SumSq();
-                    var cd = c.SumSq();
-                    //return false;
-                    sig = Math.Sign(Helper.Sum(ad * bc, bd * ca, cd * ab));
-                }
-                else
-                {
-                    sig = -1;
-                }
-            }
-
-            return sig;
-        }
-
-        public int CircleSign(in Vector a, in Vector b, in Vector c) => circleSign(a - this, b - this, c - this);
-
         public bool Equals(Vector point) => (x == point.x) && (y == point.y);
 
         public override bool Equals(object? obj) => obj is Vector point && Equals(point);
@@ -304,9 +258,6 @@ namespace GeometryLib.Double.D2
 
         public Vector ToDouble() => this;
 
-
-        public string ToWktString() => $"{WKTNames.Point}({ToString()})";
-
         public static bool TryParse(in string input, out Vector vector, char separator = ' ')
         {
             var str = input.Trim();
@@ -321,16 +272,6 @@ namespace GeometryLib.Double.D2
                     return true;
                 }
             }
-            vector = default;
-            return false;
-        }
-
-        public static bool TryParseWkt(in string input, out Vector vector)
-        {
-            var si = input.IndexOf(WKTNames.Point, StringComparison.InvariantCultureIgnoreCase) + WKTNames.Point.Length + 1;
-            var ei = input.LastIndexOf(')');
-            if ((ei - si) > 2)
-                return TryParse(input[si..ei], out vector);
             vector = default;
             return false;
         }
@@ -363,82 +304,6 @@ namespace GeometryLib.Double.D2
         public static bool operator >=(Vector left, Vector right)
         {
             return left.CompareTo(right) >= 0;
-        }
-
-        /// <summary>
-        /// Cleans point list from duplicates
-        /// </summary>
-        /// <param name="minimalDistance">Minimal point distance</param>
-        /// <param name="points">Point list</param>
-        /// <param name="old2newIndex">Mapping of indices in old point list to indices in new list </param>
-        /// <param name="bbox">Bounding box</param>
-        /// <returns>Cleaned list of points, rounded to the mean of all points in the minimal distance</returns>
-        public static ImmutableArray<Vector> MakeUnique(in double minimalDistance, in IReadOnlyList<Vector> points, out ImmutableDictionary<int, int> old2newIndex, in BBox? bbox = null)
-        {
-            // Punkte sortieren nach Koordinatensumme (absolute Werte)
-            var xys = points.Select(p => p.AbsSum()).ToArray();
-            var indices = Enumerable.Range(0, points.Count).ToArray();
-            Array.Sort(xys, indices);
-
-            // Vorwärtssuche nach Punkten in Mindestabstand
-            var maxSumDiff = SQRT2 * minimalDistance; // Maximal mögliche Differenz der XY Summe
-            var minimalDistanceSquared = minimalDistance * minimalDistance;
-            var sindices = ImmutableArray.CreateBuilder<ImmutableHashSet<int>.Builder>(indices.Length);
-            for (var i = 0; i < indices.Length; i++)
-            {
-                var ix = xys[i];
-                var ii = indices[i];
-                var iv = points[ii];
-                if (ii < 0)
-                    continue;
-
-                var equalIndizes = ImmutableHashSet.CreateBuilder<int>();
-                equalIndizes.Add(ii);
-
-                for (var j = i + 1; j < indices.Length; j++)
-                {
-                    if (Math.Abs(ix - xys[j]) > maxSumDiff)
-                        break;
-                    var ji = indices[j];
-                    if ((iv - points[ji]).SumSq() > minimalDistanceSquared)
-                        continue;
-                    equalIndizes.Add(ji);
-                }
-                sindices.Add(equalIndizes);
-            }
-
-            // Indizes vereinigen (Rückwärtssuche)
-            for (var i = sindices.Count - 1; i >= 0; i--)
-            {
-                var ii = sindices[i];
-                for (var j = i - 1; j >= 0; j--)
-                {
-                    if (sindices[j].Overlaps(ii))
-                    {
-                        sindices[j].UnionWith(ii);
-                        sindices.RemoveAt(i);
-                        break;
-                    }
-                }
-            }
-
-            // Mittel bilden und Indizes zuweisen
-            var map = ImmutableDictionary.CreateBuilder<int, int>();
-            var spoints = ImmutableArray.CreateBuilder<Vector>();
-            for (var i = 0; i < sindices.Count; i++)
-            {
-                var sum = zero;
-                foreach (var pi in sindices[i])
-                {
-                    sum += points[pi];
-                    map[pi] = i;
-                }
-                spoints.Add(sum / sindices[i].Count);
-            }
-
-            old2newIndex = map.ToImmutable();
-
-            return spoints.ToImmutable();
         }
 
         public class XComparer : IComparer<Vector>

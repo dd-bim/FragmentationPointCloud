@@ -57,7 +57,7 @@ namespace GeometryLib.Double.D3
         }
 
 
-        public LineString(in IPlane plane, in D2.LineString lineString2)
+        public LineString(in Plane plane, in D2.LineString lineString2)
         {
             var box = BBox.Empty;
             var vertices = new Vector[lineString2.Count];
@@ -70,6 +70,19 @@ namespace GeometryLib.Double.D3
             IsClosed = isClosed(Vertices);
         }
 
+
+        public LineString(in CoordinateSystem system, in D2.LineString lineString2)
+        {
+            var box = BBox.Empty;
+            var vertices = new Vector[lineString2.Count];
+            for (var i = 0; i < vertices.Length; i++)
+            {
+                box = box.Extend(vertices[i] = system.FromPlaneSystem(lineString2[i]));
+            }
+            BBox = box;
+            Vertices = vertices.ToImmutableArray();
+            IsClosed = isClosed(Vertices);
+        }
 
 
 
@@ -100,8 +113,6 @@ namespace GeometryLib.Double.D3
 
         public override string ToString() => ToString(",");
 
-        public string ToWktString() => WKTNames.LineStringZ + ToString();
-
         public static bool TryParse(in string input, out LineString lineString)
         {
             var si = input.IndexOf('(') + 1;
@@ -127,13 +138,6 @@ namespace GeometryLib.Double.D3
             }
             lineString = default;
             return false;
-        }
-
-        public static bool TryParseWkt(in string input, out LineString lineString, in bool isLinearRing = false)
-        {
-            lineString = default;
-            var wi = input.IndexOf(WKTNames.LineStringZ, StringComparison.InvariantCultureIgnoreCase);
-            return wi >= 0 && TryParse(input[(wi + WKTNames.LineStringZ.Length)..], out lineString);
         }
 
         public IEnumerator<Vector> GetEnumerator() => ((IEnumerable<Vector>)Vertices).GetEnumerator();

@@ -1,11 +1,11 @@
-﻿using System;
+﻿using GeometryLib.Double.D3;
+using System;
 using System.Collections;
 using System.Collections.Generic;
-
 using System.Collections.Immutable;
-using D3 = GeometryLib.Double.D3;
-using static System.Math;
 using static GeometryLib.Double.Constants;
+using static System.Math;
+using D3 = GeometryLib.Double.D3;
 
 
 namespace GeometryLib.Double.D2
@@ -134,13 +134,30 @@ namespace GeometryLib.Double.D2
         }
 
 
-        public LineString(in D3.IPlane plane, in IReadOnlyList<D3.Vector> lineString3, bool addFirst = false)
+        public LineString(in D3.Plane plane, in IReadOnlyList<D3.Vector> lineString3, bool addFirst = false)
         {
             var box = BBox.Empty;
             var vertices = ImmutableArray.CreateBuilder<Vector>(lineString3.Count + (addFirst ? 1 : 0));
             foreach (var v in lineString3)
             {
                 var v2 = plane.ToPlaneSystem(v, out var z);
+                vertices.Add(v2);
+                box = box.Extend(v2);
+            }
+            if (addFirst)
+                vertices.Add(vertices[0]);
+            BBox = box;
+            Vertices = vertices.ToImmutable();
+            (IsClosed, Area) = GetArea(Vertices, addFirst);
+        }
+
+        public LineString(in D3.CoordinateSystem system, in IReadOnlyList<D3.Vector> lineString3, bool addFirst = false)
+        {
+            var box = BBox.Empty;
+            var vertices = ImmutableArray.CreateBuilder<Vector>(lineString3.Count + (addFirst ? 1 : 0));
+            foreach (var v in lineString3)
+            {
+                var v2 = system.ToPlaneSystem(v, out var z);
                 vertices.Add(v2);
                 box = box.Extend(v2);
             }
@@ -165,7 +182,33 @@ namespace GeometryLib.Double.D2
             }
             return new LineString(BBox, vertices.ToImmutableArray(), IsClosed, -Area);
         }
- 
+
+
+        public bool IsPointInPolygon(in D2.Vector p)
+        {
+            var (px, py) = p;
+            if (px < BBox.Min.x || px > BBox.Max.x || py < BBox.Min.y || py > BBox.Max.y)
+            {
+                return false;
+            }
+
+            // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html
+            bool inside = false;
+            for (int i = 0, j = Vertices.Length - 1; i < Vertices.Length; j = i++)
+            {
+                var (ix, iy) = Vertices[i]; 
+                var (jx, jy) = Vertices[j];
+                if ((iy > py) != (jy > py) &&
+                    px < (jx - ix) * (py - iy) / (jy - iy) + ix)
+                {
+                    inside = !inside;
+                }
+            }
+
+            return inside;
+        }
+
+
         public string ToString(string separator, string vectorSeparator = " ")
         {
             var strings = new string[Vertices.Length];
@@ -189,8 +232,6 @@ namespace GeometryLib.Double.D2
         public IEnumerator<Vector> GetEnumerator() => ((IEnumerable<Vector>)Vertices).GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-        public string ToWktString() => WKTNames.LineString + ToString();
 
         public static bool TryParse(in string input, out LineString lineString, in bool isLinearRing = false)
         {
@@ -217,13 +258,6 @@ namespace GeometryLib.Double.D2
             }
             lineString = default;
             return false;
-        }
-
-        public static bool TryParseWkt(in string input, out LineString lineString, in bool isLinearRing = false)
-        {
-            lineString = default;
-            var wi = input.IndexOf(WKTNames.LineString, StringComparison.InvariantCultureIgnoreCase);
-            return wi >= 0 && TryParse(input[(wi + WKTNames.LineString.Length)..], out lineString, isLinearRing);
         }
 
     }

@@ -106,7 +106,7 @@ namespace GeometryLib.Double.D2
 
         public Direction ReNormalize()
         {
-            var rlen = 1.0 / Hypot(x,y);
+            var rlen = 1.0 / double.Hypot(x,y);
             return new Direction(x * rlen, y * rlen);
         }
 
@@ -136,7 +136,7 @@ namespace GeometryLib.Double.D2
         {
             var xx = this.x + other.x;
             var yy = this.y + other.y;
-            var len = Hypot(xx, yy);
+            var len = double.Hypot(xx, yy);
             return len > TRIGTOL
                 ? new Direction(xx / len, yy / len, true)
                 : AddHalfPi(); // Richtungen entgegengesetzt kollinear

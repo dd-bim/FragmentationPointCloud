@@ -176,12 +176,11 @@ namespace Revit.Green3DScan
 
                                 try
                                 {
-                                    NTSWrapper.GeometryLib.ToPolygon2d(plane, rings, out D2.Polygon polygon, out D3.BBox bbox, out double maxPlaneDist);
-                                    S.PlanarFace planarFaceIO = new S.PlanarFace(id, refPlane, bbox, polygon);
-                                    if (!(maxPlaneDist <= set.MaxPlaneDist_Meter))
+                                    if (!S.PlanarFace.Create(id, refPlane, rings, out var planarFaceIO, out double maxPlaneDist)
+                                        || !(maxPlaneDist <= set.MaxPlaneDist_Meter))
                                     {
                                         notAnalysedFaces.Add(id);
-                                        Log.Information("maxPlaneDist: " + maxPlaneDist);
+                                        Log.Information("maxPlaneDist: {maxPlaneDist}", maxPlaneDist);
                                     }
                                     faces.Add(planarFaceIO);
                                 }
@@ -189,7 +188,7 @@ namespace Revit.Green3DScan
                                 {
                                     notAnalysedFaces.Add(id);
                                     totalFailedFaces += 1;
-                                    Log.Information(id + " Coversion failed");
+                                    Log.Information("Conversion if id {id} failed", id);
                                 }
                             }
                             else
@@ -290,12 +289,11 @@ namespace Revit.Green3DScan
 
                                     try
                                     {
-                                        NTSWrapper.GeometryLib.ToPolygon2d(plane, rings, out D2.Polygon polygon, out D3.BBox bbox, out double maxPlaneDist);
-                                        S.PlanarFace planarFaceIO = new S.PlanarFace(id, refPlane, bbox, polygon);
-                                        if (!(maxPlaneDist <= set.MaxPlaneDist_Meter))
+                                        if (!S.PlanarFace.Create(id, refPlane, rings, out var planarFaceIO, out double maxPlaneDist)
+                                            || !(maxPlaneDist <= set.MaxPlaneDist_Meter))
                                         {
                                             notAnalysedFaces.Add(id);
-                                            Log.Information("maxPlaneDist failed");
+                                            Log.Information("maxPlaneDist: {maxPlaneDist}", maxPlaneDist);
                                         }
                                         faces.Add(planarFaceIO);
                                     }
@@ -416,8 +414,8 @@ namespace Revit.Green3DScan
                 return false;
             }
             // stateId and objectId
-            createStateId = ele.CreatedPhaseId.IntegerValue.ToString();
-            demolishedStateId = ele.DemolishedPhaseId.IntegerValue.ToString();
+            createStateId = ele.CreatedPhaseId.Value.ToString();
+            demolishedStateId = ele.DemolishedPhaseId.Value.ToString();
             objectId = ele.UniqueId;
             eleId = reference.ElementId;
             return true;
@@ -469,9 +467,8 @@ namespace Revit.Green3DScan
 
             try
             {
-                NTSWrapper.GeometryLib.ToPolygon2d(plane, rings, out D2.Polygon polygon, out D3.BBox bbox, out double maxPlaneDist);
-                S.PlanarFace planarFaceIO = new S.PlanarFace(id, refPlane, bbox, polygon);
-                if (!(maxPlaneDist <= set.MaxPlaneDist_Meter))
+                if (!S.PlanarFace.Create(id, refPlane, rings, out var planarFaceIO, out double maxPlaneDist)
+                    || !(maxPlaneDist <= set.MaxPlaneDist_Meter))
                 {
                     return false;
                 }

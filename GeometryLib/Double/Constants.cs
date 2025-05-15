@@ -9,9 +9,9 @@
 
         public const double THIRD = 1.0 / 3.0;
 
-        public const double SQRT2 = 1.4142135623730950488016887242097;
+        //public const double SQRT2 = 1.4142135623730950488016887242097;
 
-        public const double SQRT3 = 1.7320508075688772935274463415059;
+        //public const double SQRT3 = 1.7320508075688772935274463415059;
 
         /// <summary>
         ///  kleinstmöglicher Trig/Det Wert
@@ -33,8 +33,6 @@
         public const double DISTTOL_SQUARED = DISTTOL * DISTTOL;
 
         public const double HALFPI = 1.5707963267948966192313216916398;
-
-        public const double TWOPI = 6.283185307179586476925286766559;
 
         public const double RSQRT2 = 0.70710678118654752440084436210485;
 

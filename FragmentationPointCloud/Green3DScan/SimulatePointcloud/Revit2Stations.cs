@@ -125,9 +125,8 @@ namespace Revit.Green3DScan
 
                     try
                     {
-                        NTSWrapper.GeometryLib.ToPolygon2d(plane, rings, out D2.Polygon polygon, out D3.BBox bbox, out double maxPlaneDist);
-                        var planarFaceIO = new S.PlanarFace(id, refPlane, bbox, polygon);
-                        if (!(maxPlaneDist <= 0.01))
+                        if (!(S.PlanarFace.Create(id, refPlane, rings, out var planarFaceIO, out double maxPlaneDist))
+                            || !(maxPlaneDist <= 0.01))
                         {
                             Log.Information("maxPlaneDist: " + maxPlaneDist);
                         }

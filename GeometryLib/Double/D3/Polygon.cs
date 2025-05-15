@@ -24,14 +24,14 @@ namespace GeometryLib.Double.D3
 
         public LineString this[int index] => Rings[index];
 
-        private Polygon(in IPlane plane, in D2.Polygon polygon2D, in ImmutableArray<LineString> rings)
+        private Polygon(in Plane plane, in D2.Polygon polygon2D, in ImmutableArray<LineString> rings)
         {
             Plane = plane.GetPlane();
             Polygon2D = polygon2D;
             Rings = rings;
         }
 
-        public Polygon(in IPlane plane, in D2.Polygon polygon)
+        public Polygon(in Plane plane, in D2.Polygon polygon)
         {
             Plane = plane.GetPlane();
             Polygon2D = polygon;
@@ -80,7 +80,7 @@ namespace GeometryLib.Double.D3
             return false;
         }
 
-        public static bool Create(in IPlane plane, in IReadOnlyList<LineString> rings, out Polygon polygon, out double maxPlaneDist)
+        public static bool Create(in Plane plane, in IReadOnlyList<LineString> rings, out Polygon polygon, out double maxPlaneDist)
         {
             var plane_ = plane.GetPlane();
             var rings2d = new D2.LineString[rings.Count];
@@ -145,8 +145,6 @@ namespace GeometryLib.Double.D3
             };
         }
 
-        public string ToWktString() => WKTNames.Polygon + ToString();
-
         public static bool TryParse(in string input, out Polygon polygon, out double maxPlaneDist)
         {
             var si = input.IndexOf('(') + 1;
@@ -181,8 +179,8 @@ namespace GeometryLib.Double.D3
         {
             polygon = default;
             maxPlaneDist = double.NaN;
-            var wi = input.IndexOf(WKTNames.PolygonZ, StringComparison.InvariantCultureIgnoreCase);
-            return wi >= 0 && TryParse(input[(wi + WKTNames.PolygonZ.Length)..], out polygon, out maxPlaneDist);
+            var wi = input.IndexOf("PolygonZ", StringComparison.InvariantCultureIgnoreCase);
+            return wi >= 0 && TryParse(input[(wi + 8)..], out polygon, out maxPlaneDist);
         }
 
     }

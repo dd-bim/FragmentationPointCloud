@@ -13,14 +13,14 @@ namespace ScantraIO.Data
     {
         public string Id { get; }
 
-        public IPlane Plane { get; }
+        public Plane Plane { get; }
 
-        public ReferencePlane(in string id, in IPlane plane)
+        public ReferencePlane(in string id, in Plane plane)
         {
             Id = id;
             Plane = plane;
         }
-        public ReferencePlane(in CoordinateSystem system, in IPlane plane, in Id id, int digits = 3)
+        public ReferencePlane(in CoordinateSystem system, in Plane plane, in Id id, int digits = 3)
         {
             Plane = plane;
             var lokNormal = system.ToSystem(plane.Normal);
@@ -33,7 +33,7 @@ namespace ScantraIO.Data
             int hc = plane.Position.GetHashCode() ^ (3 * plane.Normal.GetHashCode()) ^ (5 * plane.PlaneX.GetHashCode());
             Id = id.ToString();
         }
-        public ReferencePlane(in IPlane plane, int digits = 3)
+        public ReferencePlane(in Plane plane, int digits = 3)
         {
             Plane = plane;
             var x = (n: Math.Abs(plane.Normal.x), c: 'X');
@@ -45,7 +45,7 @@ namespace ScantraIO.Data
             Id = $"0 {max.c} {(plane.D < 0 ? '+' : '-')} {Math.Round(-plane.D, digits)} {hc}";
         }
 
-        public ReferencePlane(in CoordinateSystem system, in IPlane plane, int digits = 3)
+        public ReferencePlane(in CoordinateSystem system, in Plane plane, int digits = 3)
         {
             Plane = plane;
             var lokNormal = system.ToSystem(plane.Normal);
@@ -94,13 +94,13 @@ namespace ScantraIO.Data
                     line[2] = p.Normal.ToString();
                     line[3] = p.PlaneX.ToString();
                     break;
-                case StochasticPlane sp:
-                    line = new string[LineCountCxx];
-                    line[0] = Id;
-                    line[1] = sp.Position.ToWktString();
-                    line[2] = sp.Normal.ToString();
-                    line[3] = sp.PlaneX.ToString();
-                    line[4] = sp.Cxx.ToArrayString(); break;
+                //case StochasticPlane sp:
+                //    line = new string[LineCountCxx];
+                //    line[0] = Id;
+                //    line[1] = sp.Position.ToWktString();
+                //    line[2] = sp.Normal.ToString();
+                //    line[3] = sp.PlaneX.ToString();
+                //    line[4] = sp.Cxx.ToArrayString(); break;
                 default:
                     line = Array.Empty<string>();
                     break;
@@ -124,9 +124,10 @@ namespace ScantraIO.Data
             {
                 var normal = (Direction)nrm;
                 var planeX = (Direction)px;
-                IPlane plane = strings.Length >= LineCountCxx && D6.SpdMatrix.TryParseArray(strings[4], out var cxx)
-                    ? new StochasticPlane(position, normal, planeX, cxx)
-                    : new Plane(position, normal, planeX);
+                //Plane plane = strings.Length >= LineCountCxx && D6.SpdMatrix.TryParseArray(strings[4], out var cxx)
+                //    ? new StochasticPlane(position, normal, planeX, cxx)
+                //    : new Plane(position, normal, planeX);
+                Plane plane = new Plane(position, normal, planeX);
 
                 referencePlane = new ReferencePlane(strings[0], plane);
                 error = string.Empty;

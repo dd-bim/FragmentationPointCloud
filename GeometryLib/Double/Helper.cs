@@ -7,62 +7,6 @@ namespace GeometryLib.Double
 {
     public static class Helper
     {
-#if NETSTANDARD2_0 || NETSTANDARD2_1 || NET48
-        public static double FusedMultiplyAdd(double x, double y, double z) => (x * y) + z;
-
-        public static double ScaleB(double x, int n) => n >= 0 ? x * (1L << n) : x / (1L << -n);
-#endif
-
-        //private static readonly double fs = Math.Sqrt(3 / 8.0);
-        //private static readonly double a0 = 15 / 8.0;
-        //private static readonly double a1 = Math.Sqrt(25 / 6.0);
-
-        //private const double t60 =  +3003 / 1024.0;
-        //private const double t61 =  -6006 / 1024.0;
-        //private const double t62 =  +9009 / 1024.0;
-        //private const double t63 =  -8580 / 1024.0;
-        //private const double t64 =  +5005 / 1024.0;
-        //private const double t65 =  -1638 / 1024.0;
-        //private const double t66 =   +231 / 1024.0;
-
-        //private static double ApproxRSqrt(in double s)
-        //{
-        //    var ts = fs * s;
-        //    var y = ts * s * s;
-        //    var x = s * (a0 - y * (a1 - y));
-        //    y = ts * x * x;
-        //    //x *= a0 - y * (a1 - y);
-        //    //y = ts * x * x;
-        //    //x *= a0 - y * (a1 - y);
-        //    //y = ts * x * x;
-        //    return x * (a0 - y * (a1 - y));
-        //}
-
-
-        //public static double ApproxRSqrt0(double s) => 1.0 / Sqrt(s);
-
-        //public static double ApproxRSqrt1(double s)
-        //{
-        //    var ts = fs * s;
-        //    var y = ts * s * s;
-        //    var x = s * (a0 - y * (a1 - y));
-        //    y = ts * x * x;
-        //    //x *= a0 - y * (a1 - y);
-        //    //y = ts * x * x;
-        //    //x *= a0 - y * (a1 - y);
-        //    //y = ts * x * x;
-        //    return x * (a0 - y * (a1 - y));
-        //}
-
-        //public static double ApproxRSqrt2(double s) => s * (s * (s * (s * (s * (t66 * s + t66) + t64) + t63) + t62) + t61) + t60;
-
-        //public static double ApproxRSqrt3(double s) => t60 + s * (t61 + s * (t62 + s * (t63 + s * (t64 + s * (t65 + s * t66)))));
-
-        //public static double ApproxRSqrt4(double s) =>
-        //    FusedMultiplyAdd(s, FusedMultiplyAdd(s, FusedMultiplyAdd(s, 
-        //    FusedMultiplyAdd(s, FusedMultiplyAdd(s, FusedMultiplyAdd(s, 
-        //        t66, t65), t64),t63),t62),t61),t62);
-
 
 
         public static (double x, double y) xy(in (double x, double y, double z) value) => (value.x, value.y);
@@ -115,9 +59,9 @@ namespace GeometryLib.Double
         {
             if (byAbsoluteValue)
             {
-                var absa = Math.Abs(a);
-                var absb = Math.Abs(b);
-                var absc = Math.Abs(c);
+                var absa = double.Abs(a);
+                var absb = double.Abs(b);
+                var absc = double.Abs(c);
                 SortByAbsoluteValue(ref absa, ref a, ref absb, ref b);
                 SortByAbsoluteValue(ref absb, ref b, ref absc, ref c);
                 SortByAbsoluteValue(ref absa, ref a, ref absb, ref b);
@@ -152,6 +96,41 @@ namespace GeometryLib.Double
                 Sort(ref c, ref d);
                 Sort(ref b, ref c);
             }
+        }
+
+
+        public static double Hypot(in double a,in  double b,in  double c)
+        {
+            double aa = double.Abs(a);
+            double ab = double.Abs(b);
+            double ac = double.Abs(c);
+
+            Sort(ref aa, ref ab, ref ac);
+
+            return double.Hypot(aa, double.Hypot(ab, ac));
+        }
+
+        public static double Hypot(in double a, in double b, in double c, in double d)
+        {
+            double aa = double.Abs(a);
+            double ab = double.Abs(b);
+            double ac = double.Abs(c);
+            double ad = double.Abs(d);
+
+            Sort(ref aa, ref ab, ref ac, ref ad);
+
+            return double.Hypot(aa, double.Hypot(ab, double.Hypot(ac, ad)));
+        }
+
+        public static double Hypot(in double a, double b, double c)
+        {
+            double aa = double.Abs(a);
+            double ab = double.Abs(b);
+            double ac = double.Abs(c);
+
+            Sort(ref aa, ref ab, ref b);
+
+            return double.Hypot(aa, double.Hypot(ab, ac));
         }
 
         public static double Normalize(ref double a, ref double b)
@@ -288,81 +267,6 @@ namespace GeometryLib.Double
             d = d < 0 ? -aabcd[3] : aabcd[3];
         }
 
-
-        public static double Hypot(double a, double b, bool absSort = true)
-        {
-            if (absSort)
-            {
-                a = Math.Abs(a);
-                b = Math.Abs(b);
-                Sort(ref a, ref b);
-            }
-            if (a == 0.0)
-            {
-                return b;
-            }
-            else if (double.IsPositiveInfinity(b) && !double.IsNaN(a))
-            {
-                return double.PositiveInfinity;
-            }
-            else
-            {
-                a /= b;
-                return b * Sqrt(a * a + 1.0);
-            }
-        }
-
-        public static double Hypot((double a, double b, double c) vector) => Hypot(vector.a, vector.b, vector.c);
-
-        public static double Hypot(double a, double b, double c, bool absSort = true)
-        {
-            if (absSort)
-            {
-                a = Math.Abs(a);
-                b = Math.Abs(b);
-                c = Math.Abs(c);
-                Sort(ref a, ref b, ref c);
-            }
-            if (a == 0.0)
-            {
-                return b == 0.0 ? c : Hypot(b, c, false);
-            }
-            else if (double.IsPositiveInfinity(c) && !double.IsNaN(a) && !double.IsNaN(b))
-            {
-                return double.PositiveInfinity;
-            }
-            else
-            {
-                a /= c;
-                b /= c;
-                return c * Sqrt((a * a + b * b) + 1.0);
-            }
-        }
-
-        public static double Hypot(double a, double b, double c, double d)
-        {
-            a = Abs(a);
-            b = Abs(b);
-            c = Abs(c);
-            d = Abs(d);
-            Sort(ref a, ref b, ref c, ref d);
-            if (a == 0.0)
-            {
-                return b == 0.0 ? Hypot(c, d, false) : Hypot(b, c, d, false);
-            }
-            else if (double.IsPositiveInfinity(d) && !double.IsNaN(a) && !double.IsNaN(b) && !double.IsNaN(c))
-            {
-                return double.PositiveInfinity;
-            }
-            else
-            {
-                a /= d;
-                b /= d;
-                c /= d;
-                return d * Sqrt(((a * a + b * b) + c * c) + 1.0);
-            }
-        }
-
         public static double Sum(double a, double b, double c, bool absSort = true)
         {
             Sort(ref a, ref b, ref c, absSort);
@@ -394,37 +298,6 @@ namespace GeometryLib.Double
         public static double Dot(in (double x, double y, double z) a, in (double x, double y, double z) b) => Sum(a.x * b.x, a.y * b.y, a.z * b.z);
 
         public static double Dot(in (double x, double y, double z) a) => Dot(a, a);
-
-
-        //public static (double x, double y, double z) Add(in (double x, double y, double z) a, in (double x, double y, double z) b) => (
-        //    a.x + b.x,
-        //    a.y + b.y,
-        //    a.z + b.z);
-
-        //public static (double x, double y, double z) Add(in (double x, double y, double z) a, in double b) => (
-        //    a.x + b,
-        //    a.y + b,
-        //    a.z + b);
-
-        //public static (double x, double y, double z) Sub(in (double x, double y, double z) a, in (double x, double y, double z) b) => (
-        //    a.x - b.x,
-        //    a.y - b.y,
-        //    a.z - b.z);
-
-        //public static (double x, double y, double z) Sub(in (double x, double y, double z) a, in double b) => (
-        //    a.x - b,
-        //    a.y - b,
-        //    a.z - b);
-
-        //public static (double x, double y, double z) Mul(in (double x, double y, double z) a, in double b) => (
-        //    a.x * b,
-        //    a.y * b,
-        //    a.z * b);
-
-        //public static (double x, double y, double z) Mul(in double a, in (double x, double y, double z) b) => (
-        //    a * b.x,
-        //    a * b.y,
-        //    a * b.z);
 
     }
 }

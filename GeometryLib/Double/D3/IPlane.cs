@@ -1,26 +1,28 @@
-﻿using System.Collections.Generic;
+﻿//using System.Collections.Generic;
 
-namespace GeometryLib.Double.D3
-{
-    public interface IPlane
-    {
-        Direction Normal { get; }
+//namespace GeometryLib.Double.D3
+//{
+//    public interface IPlane
+//    {
+//        CoordinateSystem System { get; }
 
-        Vector Position { get; }
+//        Direction Normal { get; }
 
-        Direction PlaneX { get; }
+//        Vector Position { get; }
 
-        double D { get; }
+//        Direction PlaneX { get; }
 
-        D2.Vector ToPlaneSystem(in Vector vector);
+//        double D { get; }
 
-        D2.Vector ToPlaneSystem(in Vector vector, out double z);
+//        D2.Vector ToPlaneSystem(in Vector vector);
 
-        Vector FromPlaneSystem(in D2.Vector vector);
+//        D2.Vector ToPlaneSystem(in Vector vector, out double z);
 
-        bool ApproxEquals(in IPlane other, in double maxDifferenceD, in double maxDifferenceCosOne);
+//        Vector FromPlaneSystem(in D2.Vector vector);
 
-        Plane GetPlane();
+//        bool ApproxEquals(in IPlane other, in double maxDifferenceD, in double maxDifferenceCosOne);
 
-    }
-}
+//        Plane GetPlane();
+
+//    }
+//}

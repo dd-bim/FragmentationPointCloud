@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Xml;
 
 namespace Revit
 {
@@ -40,19 +41,24 @@ namespace Revit
             string jText = File.ReadAllText(path);
 
             //create collection from each json file
-            SettingsJson settings = JsonConvert.DeserializeObject<SettingsJson>(jText);
+            SettingsJson settings = JsonSerializer.Deserialize<SettingsJson>(jText);
             return settings;
         }
+
         /// <summary>
         /// serialize json file
         /// </summary>
+        /// <param name="json"></param>
         /// <param name="path"></param>
-        /// <returns></returns>
         public static void WriteSettingsJson(SettingsJson json, string path)
         {
             try
             {
-                string jExportText = JsonConvert.SerializeObject(json, Formatting.Indented);
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+                string jExportText = JsonSerializer.Serialize(json, options);
                 File.WriteAllText(path, jExportText);
                 Console.WriteLine("write settings");
             }

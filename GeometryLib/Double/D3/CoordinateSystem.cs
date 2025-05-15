@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace GeometryLib.Double.D3
 {
 
-    public readonly struct CoordinateSystem : IPlane
+    public readonly struct CoordinateSystem
     {
         private static readonly CoordinateSystem zero = new CoordinateSystem(Vector.Zero, RotMatrix.Unit);
 
@@ -164,9 +164,9 @@ namespace GeometryLib.Double.D3
 
         public override string ToString() => $"T:{Position}\r\nR:{Rotation}";
 
-        D2.Vector IPlane.ToPlaneSystem(in Vector vector)=> ToSystem2d(vector);
+        //D2.Vector Plane.ToPlaneSystem(in Vector vector)=> ToSystem2d(vector);
 
-        public bool ApproxEquals(in IPlane other, in double maxDifferenceD, in double maxDifferenceCosOne = Constants.TRIGTOL) =>
+        public bool ApproxEquals(in Plane other, in double maxDifferenceD, in double maxDifferenceCosOne = Constants.TRIGTOL) =>
             Math.Abs(1.0 - Normal.Dot(other.Normal)) <= maxDifferenceCosOne
             && Math.Abs(D - other.D) <= maxDifferenceD;
 

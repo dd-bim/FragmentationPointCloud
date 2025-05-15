@@ -152,7 +152,7 @@ namespace GeometryLib.Double.D3
         /// <param name="c">Ebene 3</param>
         /// <param name="point"></param>
         /// <returns></returns>
-        public static bool Create(IPlane a, IPlane b, IPlane c, out Vector point)
+        public static bool Create(Plane a, Plane b, Plane c, out Vector point)
         {
             var ab = a.Normal.Cross(b.Normal);
             if (ab.SumSq() > TRIGTOL_SQUARED)
@@ -173,7 +173,6 @@ namespace GeometryLib.Double.D3
             point = default;
             return false;
         }
-
 
         public static Vector operator +(in Vector left, in Vector right) => left.Add(right);
 

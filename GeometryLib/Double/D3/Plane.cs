@@ -6,7 +6,7 @@ using static System.Math;
 
 namespace GeometryLib.Double.D3
 {
-    public readonly struct Plane : IPlane
+    public readonly struct Plane
     {
         public CoordinateSystem System { get; }
 
@@ -200,17 +200,13 @@ namespace GeometryLib.Double.D3
         //    return true;
         //}
 
-        public bool ApproxEquals(in IPlane other, in double maxDifferenceD, in double maxDifferenceCosOne = TRIGTOL) => 
+        public bool ApproxEquals(in Plane other, in double maxDifferenceD, in double maxDifferenceCosOne = TRIGTOL) => 
             System.ApproxEquals(other, maxDifferenceD, maxDifferenceCosOne);
 
 
         public override int GetHashCode()
         {
-#if NETSTANDARD2_0 || NET472 || NET48 || NET462
-            return Normal.GetHashCode() ^ D.GetHashCode();
-#else
             return HashCode.Combine(Normal, D);
-#endif
         }
 
         public Plane GetPlane() => this;

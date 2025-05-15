@@ -145,7 +145,11 @@ namespace GeometryLib.Double.D3
 
         public double DiffCos(in Direction other) => Dot(other);
 
-        public double DiffSin(in Direction other) => Hypot(Helper.Cross(other.xyz, xyz));
+        public double DiffSin(in Direction other)
+        {
+            var (x, y, z) = Helper.Cross(other.xyz, xyz);
+            return Hypot(x,y,z);
+        }
 
         private Vector perp()
         {

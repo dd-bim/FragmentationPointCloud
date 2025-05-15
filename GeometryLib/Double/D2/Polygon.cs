@@ -52,7 +52,7 @@ namespace GeometryLib.Double.D2
             Area = ring.Area;
         }
 
-        public Polygon ChangePlane(in D3.IPlane oldPlane, in D3.IPlane newPlane)
+        public Polygon ChangePlane(in D3.Plane oldPlane, in D3.Plane newPlane)
         {
             var p3 = new List<D3.LineString>(Rings.Length);
             foreach (var ls in Rings)
@@ -170,6 +170,24 @@ namespace GeometryLib.Double.D2
             return true;
         }
 
+        public bool IsPointInPolygon(in D2.Vector p)
+        {
+            if (!Rings[0].IsPointInPolygon(p))
+            {
+                return false;
+            }
+
+            for (int i = 1; i < Rings.Length; i++)
+            {
+                if (Rings[i].IsPointInPolygon(p))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         public string ToString(string separator, string lineStringSeparator = ",", string vectorSeparator = " ")
         {
             var strings = new string[Rings.Length];
@@ -185,8 +203,6 @@ namespace GeometryLib.Double.D2
         public IEnumerator<LineString> GetEnumerator() => ((IEnumerable<LineString>)Rings).GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-        public string ToWktString() => WKTNames.Polygon + ToString();
 
         public static bool TryParse(in string input, out Polygon polygon)
         {
@@ -217,8 +233,8 @@ namespace GeometryLib.Double.D2
         public static bool TryParseWkt(in string input, out Polygon polygon)
         {
             polygon = default;
-            var wi = input.IndexOf(WKTNames.Polygon, StringComparison.InvariantCultureIgnoreCase);
-            return wi >= 0 && TryParse(input[(wi + WKTNames.Polygon.Length)..], out polygon);
+            var wi = input.IndexOf("Polygon", StringComparison.InvariantCultureIgnoreCase);
+            return wi >= 0 && TryParse(input[(wi + 7)..], out polygon);
         }
     }
 }
