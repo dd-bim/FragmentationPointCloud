@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 using System.IO;
 using GeometryLib.D3;
 
-namespace ScantraIO.Data;
+namespace Revit.Data;
 
 public readonly struct ReferencePlane : IEquatable<ReferencePlane>
 {

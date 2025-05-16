@@ -2,29 +2,28 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using D = Revit.Data;
+using Revit.Data;
 using D2_Direction = GeometryLib.D2.Direction;
 using D2_Vector = GeometryLib.D2.Vector;
 using D3_Direction = GeometryLib.D3.Direction;
 using Plane = GeometryLib.D3.Plane;
-using S = ScantraIO.Data;
 using D3_Vector = GeometryLib.D3.Vector;
 
 namespace Revit.Green3DScan
 {
     public static class RayCasting
     {
-        public static HashSet<S.Id>[] VisibleFaces(IReadOnlyCollection<S.PlanarFace> planarFaces,
-            IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, IReadOnlyList<D3_Vector> stations,
-            SettingsJson set, out D3_Vector[][] pointClouds, out Dictionary<S.Id, int> countPoints,
-            out HashSet<S.Id> hashPMin)
+        public static HashSet<Id>[] VisibleFaces(IReadOnlyCollection<PlanarFace> planarFaces,
+            IReadOnlyDictionary<string, ReferencePlane> refPlanes, IReadOnlyList<D3_Vector> stations,
+            SettingsJson set, out D3_Vector[][] pointClouds, out Dictionary<Id, int> countPoints,
+            out HashSet<Id> hashPMin)
         {
             countPoints = null;
-            var count = new Dictionary<S.Id, int>();
-            var pFMap = new Dictionary<S.Id, S.PlanarFace>();
-            foreach (S.PlanarFace pf in planarFaces) pFMap[pf.Id] = pf;
-            var visibleWithPMin = new HashSet<S.Id>();
-            var vf = new HashSet<S.Id>[stations.Count];
+            var count = new Dictionary<Id, int>();
+            var pFMap = new Dictionary<Id, PlanarFace>();
+            foreach (PlanarFace pf in planarFaces) pFMap[pf.Id] = pf;
+            var visibleWithPMin = new HashSet<Id>();
+            var vf = new HashSet<Id>[stations.Count];
             pointClouds = new D3_Vector[vf.Length][];
             for (var i = 0; i < vf.Length; i++)
             {
@@ -50,25 +49,25 @@ namespace Revit.Green3DScan
             return vf;
         }
 
-        private static D.Octant GetOctant(D3_Vector vector)
+        private static Octant GetOctant(D3_Vector vector)
         {
-            var octant = vector.x < 0 ? D.Octant.XNeg : D.Octant.XPlus;
-            octant |= vector.y < 0 ? D.Octant.YNeg : D.Octant.YPlus;
-            octant |= vector.z < 0 ? D.Octant.ZNeg : D.Octant.ZPlus;
+            var octant = vector.x < 0 ? Octant.XNeg : Octant.XPlus;
+            octant |= vector.y < 0 ? Octant.YNeg : Octant.YPlus;
+            octant |= vector.z < 0 ? Octant.ZNeg : Octant.ZPlus;
             return octant;
         }
 
-        private static bool GetMinDist(Dictionary<S.Id, S.PlanarFace> pFMap,
-            IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, Dictionary<D.Octant, HashSet<S.Id>> octants,
-            D3_Vector station, D3_Direction direction, SettingsJson set, out S.Id minId, out D3_Vector minPoint)
+        private static bool GetMinDist(Dictionary<Id, PlanarFace> pFMap,
+            IReadOnlyDictionary<string, ReferencePlane> refPlanes, Dictionary<Octant, HashSet<Id>> octants,
+            D3_Vector station, D3_Direction direction, SettingsJson set, out Id minId, out D3_Vector minPoint)
         {
             // test only faces in the correct octant
             var octantFaces = octants[GetOctant(direction)];
             double minDistance = double.PositiveInfinity;
             minPoint = default;
-            minId = new S.Id();
+            minId = new Id();
 
-            foreach (S.Id id in octantFaces)
+            foreach (Id id in octantFaces)
             {
                 Plane pfRefPlane = refPlanes[pFMap[id].ReferencePlaneId].Plane;
                 double r_ = direction.Dot(pfRefPlane.Normal);
@@ -95,32 +94,32 @@ namespace Revit.Green3DScan
             return !double.IsInfinity(minDistance);
         }
 
-        private static HashSet<S.Id> VisibleFaces(Dictionary<S.Id, S.PlanarFace> pfMap,
-            IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, D3_Vector station, SettingsJson set,
-            Dictionary<S.Id, int> countPointsAll, out D3_Vector[] pointCloud, out Dictionary<S.Id, int> countPoints)
+        private static HashSet<Id> VisibleFaces(Dictionary<Id, PlanarFace> pfMap,
+            IReadOnlyDictionary<string, ReferencePlane> refPlanes, D3_Vector station, SettingsJson set,
+            Dictionary<Id, int> countPointsAll, out D3_Vector[] pointCloud, out Dictionary<Id, int> countPoints)
         {
-            var visibleFaces = new HashSet<S.Id>();
+            var visibleFaces = new HashSet<Id>();
             //var visibleFacesListPoints = new List<S.Id>();
             var frequencyDict = countPointsAll;
             var points = new List<D3_Vector>();
 
             // create octants
-            var octants = new Dictionary<D.Octant, HashSet<S.Id>>
+            var octants = new Dictionary<Octant, HashSet<Id>>
             {
-                { D.Octant.PPP, new HashSet<S.Id>() },
-                { D.Octant.NPP, new HashSet<S.Id>() },
-                { D.Octant.PNP, new HashSet<S.Id>() },
-                { D.Octant.NNP, new HashSet<S.Id>() },
-                { D.Octant.PPN, new HashSet<S.Id>() },
-                { D.Octant.NPN, new HashSet<S.Id>() },
-                { D.Octant.PNN, new HashSet<S.Id>() },
-                { D.Octant.NNN, new HashSet<S.Id>() }
+                { Octant.PPP, new HashSet<Id>() },
+                { Octant.NPP, new HashSet<Id>() },
+                { Octant.PNP, new HashSet<Id>() },
+                { Octant.NNP, new HashSet<Id>() },
+                { Octant.PPN, new HashSet<Id>() },
+                { Octant.NPN, new HashSet<Id>() },
+                { Octant.PNN, new HashSet<Id>() },
+                { Octant.NNN, new HashSet<Id>() }
             };
 
             // assigning faces to octants
-            foreach (S.PlanarFace pf in pfMap.Values)
+            foreach (PlanarFace pf in pfMap.Values)
             {
-                D.Octant oct = GetOctant(pf.PlanarBtmLft - station);
+                Octant oct = GetOctant(pf.PlanarBtmLft - station);
                 oct |= GetOctant(pf.PlanarBtmRgt - station);
                 oct |= GetOctant(pf.PlanarTopRgt - station);
                 oct |= GetOctant(pf.PlanarTopLft - station);
@@ -138,7 +137,7 @@ namespace Revit.Green3DScan
             double beta = set.Beta_Degree * Constants.gradToRad;
 
             // faces at the poles
-            if (GetMinDist(pfMap, refPlanes, octants, station, D3_Direction.UnitZ, set, out S.Id minId, out D3_Vector minPoint))
+            if (GetMinDist(pfMap, refPlanes, octants, station, D3_Direction.UnitZ, set, out Id minId, out D3_Vector minPoint))
             {
                 double angle = Math.Acos(
                     new D3_Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));
@@ -192,7 +191,7 @@ namespace Revit.Green3DScan
                 azimuth += step;
             }
 
-            pointCloud = points.ToArray();
+            pointCloud = [.. points];
             countPoints = frequencyDict;
             return visibleFaces;
         }
@@ -201,18 +200,18 @@ namespace Revit.Green3DScan
     public static class CreatePointCloud
     {
         // Normally distributed random number for noise of the distance measurement
-        private static readonly Random random = new Random();
+        private static readonly Random Random = new();
 
-        public static D3_Vector[][] VisibleFaces(IReadOnlyCollection<S.PlanarFace> planarFaces,
-            IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, IReadOnlyList<D3_Vector> stations,
+        public static D3_Vector[][] VisibleFaces(IReadOnlyCollection<PlanarFace> planarFaces,
+            IReadOnlyDictionary<string, ReferencePlane> refPlanes, IReadOnlyList<D3_Vector> stations,
             SettingsJson set)
         {
-            var pFMap = new Dictionary<S.Id, S.PlanarFace>();
+            var pFMap = new Dictionary<Id, PlanarFace>();
             foreach (var pf in planarFaces) pFMap[pf.Id] = pf;
-            var vf = new HashSet<S.Id>[stations.Count];
+            var vf = new HashSet<Id>[stations.Count];
             var pointClouds = new D3_Vector[vf.Length][];
 
-            var visibleFacesPerStation = new HashSet<S.Id>[stations.Count];
+            var visibleFacesPerStation = new HashSet<Id>[stations.Count];
 
             Parallel.For(0, stations.Count, i =>
             {
@@ -223,32 +222,32 @@ namespace Revit.Green3DScan
             return pointClouds;
         }
 
-        private static D.Octant GetOctant(D3_Vector vector)
+        private static Octant GetOctant(D3_Vector vector)
         {
-            var octant = vector.x < 0 ? D.Octant.XNeg : D.Octant.XPlus;
-            octant |= vector.y < 0 ? D.Octant.YNeg : D.Octant.YPlus;
-            octant |= vector.z < 0 ? D.Octant.ZNeg : D.Octant.ZPlus;
+            var octant = vector.x < 0 ? Octant.XNeg : Octant.XPlus;
+            octant |= vector.y < 0 ? Octant.YNeg : Octant.YPlus;
+            octant |= vector.z < 0 ? Octant.ZNeg : Octant.ZPlus;
             return octant;
         }
 
         private static double GenerateNormalDistribution(double mean, double stdDev)
         {
-            double u1 = 1.0 - random.NextDouble();
-            double u2 = 1.0 - random.NextDouble();
+            double u1 = 1.0 - Random.NextDouble();
+            double u2 = 1.0 - Random.NextDouble();
             double randStdNormal =
                 Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2); // Box-Muller-Transformation
             return mean + stdDev * randStdNormal;
         }
 
-        private static bool GetMinDist(Dictionary<S.Id, S.PlanarFace> pFMap,
-            IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, Dictionary<D.Octant, HashSet<S.Id>> octants,
-            D3_Vector station, D3_Direction direction, SettingsJson set, out S.Id minId, out D3_Vector minPoint)
+        private static bool GetMinDist(Dictionary<Id, PlanarFace> pFMap,
+            IReadOnlyDictionary<string, ReferencePlane> refPlanes, Dictionary<Octant, HashSet<Id>> octants,
+            D3_Vector station, D3_Direction direction, SettingsJson set, out Id minId, out D3_Vector minPoint)
         {
             // test only faces in the correct octant
             var octantFaces = octants[GetOctant(direction)];
             double minDistance = double.PositiveInfinity;
             minPoint = default;
-            minId = new S.Id();
+            minId = new Id();
 
             foreach (var id in octantFaces)
             {
@@ -279,24 +278,24 @@ namespace Revit.Green3DScan
             return !double.IsInfinity(minDistance);
         }
 
-        private static HashSet<S.Id> VisibleFaces(Dictionary<S.Id, S.PlanarFace> pfMap,
-            IReadOnlyDictionary<string, S.ReferencePlane> refPlanes, D3_Vector station, SettingsJson set,
+        private static HashSet<Id> VisibleFaces(Dictionary<Id, PlanarFace> pfMap,
+            IReadOnlyDictionary<string, ReferencePlane> refPlanes, D3_Vector station, SettingsJson set,
             out D3_Vector[] pointCloud)
         {
-            var visibleFaces = new HashSet<S.Id>();
+            var visibleFaces = new HashSet<Id>();
             var points = new List<D3_Vector>();
 
             // create octants
-            var octants = new Dictionary<D.Octant, HashSet<S.Id>>
+            var octants = new Dictionary<Octant, HashSet<Id>>
             {
-                { D.Octant.PPP, [] },
-                { D.Octant.NPP, [] },
-                { D.Octant.PNP, [] },
-                { D.Octant.NNP, [] },
-                { D.Octant.PPN, [] },
-                { D.Octant.NPN, [] },
-                { D.Octant.PNN, [] },
-                { D.Octant.NNN, [] }
+                { Octant.PPP, [] },
+                { Octant.NPP, [] },
+                { Octant.PNP, [] },
+                { Octant.NNP, [] },
+                { Octant.PPN, [] },
+                { Octant.NPN, [] },
+                { Octant.PNN, [] },
+                { Octant.NNN, [] }
             };
 
             // assigning faces to octants
@@ -364,7 +363,7 @@ namespace Revit.Green3DScan
                 azimuth += step;
             }
 
-            pointCloud = points.ToArray();
+            pointCloud = [.. points];
             return visibleFaces;
         }
     }

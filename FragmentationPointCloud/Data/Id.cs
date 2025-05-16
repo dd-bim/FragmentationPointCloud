@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ScantraIO.Data;
+namespace Revit.Data;
 
 /// <summary>
 ///     Unique identifier for planar faces, combined key from 3 individual IDs, equality only with Object and FaceId
@@ -123,7 +123,7 @@ public readonly struct Id : IEquatable<Id>
     ///     <see langword="true" /> if <paramref name="obj" /> and this instance are the same type and represent the same
     ///     value; otherwise, <see langword="false" />.
     /// </returns>
-    public override bool Equals(object? obj)
+    public override bool Equals(object obj)
     {
         return obj is Id face && Equals(face);
     }

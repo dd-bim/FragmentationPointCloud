@@ -12,7 +12,7 @@ using Plane = GeometryLib.D3.Plane;
 using Polygon = GeometryLib.D2.Polygon;
 using Vector = GeometryLib.D3.Vector;
 
-namespace ScantraIO.Data;
+namespace Revit.Data;
 
 public class PlanarFace : IEquatable<PlanarFace>
 {

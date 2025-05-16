@@ -8,12 +8,11 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using D3 = GeometryLib.D3;
 using Document = Autodesk.Revit.DB.Document;
 using Except = Autodesk.Revit.Exceptions;
-using S = ScantraIO.Data;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
+using D = Revit.Data;
 
 namespace Revit.Green3DScan;
 
@@ -70,9 +69,9 @@ public class Revit2FaceObjects : IExternalCommand
 
         // Extract PlanarFaces and ReferencePlanes from the selected building components
         int totalFailedFaces = 0;
-        List<S.PlanarFace> faces = [];
-        Dictionary<string, S.ReferencePlane> refPlanes = [];
-        List<S.Id> notAnalysedFaces = [];
+        List<D.PlanarFace> faces = [];
+        Dictionary<string, D.ReferencePlane> refPlanes = [];
+        List<D.Id> notAnalysedFaces = [];
         int solids = 0;
 
         foreach (var reference in pickedObjects)
@@ -133,11 +132,11 @@ public class Revit2FaceObjects : IExternalCommand
         {
             Log.Information("number of faces: {count}", faces.Count);
             
-            S.PlanarFace.WriteCsv(Path.Combine(projectPath, BIMFacesFileName), faces);
-            S.ReferencePlane.WriteCsv(Path.Combine(projectPath, BIMPlanesFileName), refPlanes.Values);
+            D.PlanarFace.WriteCsv(Path.Combine(projectPath, BIMFacesFileName), faces);
+            D.ReferencePlane.WriteCsv(Path.Combine(projectPath, BIMPlanesFileName), refPlanes.Values);
             
             // write OBJ
-            S.PlanarFace.WriteObj(Path.Combine(projectPath, RevitObjects), refPlanes, faces);
+            D.PlanarFace.WriteObj(Path.Combine(projectPath, RevitObjects), refPlanes, faces);
 
             Log.Information("skipped faces: {_totalFailedFaces}", totalFailedFaces);
             foreach (var item in notAnalysedFaces)
@@ -174,9 +173,9 @@ public class Revit2FaceObjects : IExternalCommand
         Reference reference,
         Transform transform,
         D3.CoordinateSystem crs,
-        ref List<S.PlanarFace> faces,
-        ref Dictionary<string, S.ReferencePlane> refPlanes,
-        ref List<S.Id> notAnalysedFaces,
+        ref List<D.PlanarFace> faces,
+        ref Dictionary<string, D.ReferencePlane> refPlanes,
+        ref List<D.Id> notAnalysedFaces,
         FaceArray faceArray)
     {
         int totalFailedFaces = 0;
@@ -198,7 +197,7 @@ public class Revit2FaceObjects : IExternalCommand
                 }
 
                 string convertRepresentation = face.Reference.ConvertToStableRepresentation(document);
-                var id = new S.Id(createId, demolishedId, element.UniqueId, convertRepresentation, 0);
+                var id = new D.Id(createId, demolishedId, element.UniqueId, convertRepresentation, 0);
                 var normal = transform.OfVector(planarFace.FaceNormal);
                 var position = transform.OfPoint(planarFace.Origin) * Constants.feet2Meter;
                 var rings = Face2LinearRings(planarFace, transform);
@@ -256,7 +255,7 @@ public class Revit2FaceObjects : IExternalCommand
 
                     // faceId
                     string convertRepresentation = face.Reference.ConvertToStableRepresentation(document);
-                    S.Id id = new(createId, demolishedId, element.UniqueId, convertRepresentation, partId);
+                    D.Id id = new(createId, demolishedId, element.UniqueId, convertRepresentation, partId);
 
                     CreatePlanarFace(settings, crs, va, normal, id, rings, 
                         ref refPlanes, ref notAnalysedFaces, ref faces);
@@ -267,14 +266,14 @@ public class Revit2FaceObjects : IExternalCommand
         return totalFailedFaces;
     }
 
-    private static int CreatePlanarFace(SettingsJson settings, D3.CoordinateSystem crs, D3.Vector position, XYZ normal, S.Id id,
-        D3.LineString[] rings, ref Dictionary<string, S.ReferencePlane> refPlanes, ref List<S.Id> notAnalysedFaces, ref List<S.PlanarFace> faces)
+    private static int CreatePlanarFace(SettingsJson settings, D3.CoordinateSystem crs, D3.Vector position, XYZ normal, D.Id id,
+        D3.LineString[] rings, ref Dictionary<string, D.ReferencePlane> refPlanes, ref List<D.Id> notAnalysedFaces, ref List<D.PlanarFace> faces)
     {
         var plane = new D3.Plane(position, normal.ToDirection());
-        var refPlane = new S.ReferencePlane(crs, plane, 2); // 2 decimal places
+        var refPlane = new D.ReferencePlane(crs, plane, 2); // 2 decimal places
         refPlanes.Add(refPlane.Id, refPlane);
 
-        if (!S.PlanarFace.Create(id, refPlane, rings, out var planarFaceIO, out double maxPlaneDist)
+        if (!D.PlanarFace.Create(id, refPlane, rings, out var planarFaceIO, out double maxPlaneDist)
             || !(maxPlaneDist <= settings.MaxPlaneDist_Meter))
         {
             Log.Information("maxPlaneDist: {maxPlaneDist}", maxPlaneDist);
@@ -291,20 +290,21 @@ public class Revit2FaceObjects : IExternalCommand
 
     private static D3.LineString[] Face2LinearRings(Face face, Transform transform)
     {
-        var rings = face.GetEdgesAsCurveLoops()
-            .Select(curveLoop => CurveLoop2LinearRing(curveLoop, transform))
-            .ToArray();
+        var rings = new D3.LineString[face.EdgeLoops.Size];
+        int i = 0;
+        foreach (EdgeArray edgeLoop in face.EdgeLoops)
+        {
+            var vertices = new D3.Vector[edgeLoop.Size + 1];
+            int j = 0;
+            foreach (Edge edge in edgeLoop)
+            {
+                vertices[j++] = (edge.AsCurve().GetEndPoint(0) * Constants.feet2Meter).ToVector();
+            }
+            vertices[^1] = vertices[0];
+            D3.LineString lineString = new(vertices);
+            rings[i++] = lineString;
+        }
         return rings;
     }
 
-    private static D3.LineString CurveLoop2LinearRing(CurveLoop curveLoop, Transform transform)
-    {
-        var vertices = curveLoop
-            .Select(curve => transform.OfPoint(curve.GetEndPoint(0)) * Constants.feet2Meter)
-            .Select(pntStart => new D3.Vector(pntStart.X, pntStart.Y, pntStart.Z))
-            .ToList();
-        vertices.Add(vertices[0]);
-        D3.LineString lineString = new(vertices);
-        return lineString;
-    }
 }

@@ -7,6 +7,7 @@
         <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
         <LangVersion>latest</LangVersion>
         <Platforms>x64</Platforms>
+		<nullable>true</nullable>
     </PropertyGroup>
     <ItemGroup>
         <None Update="SettingsGreen3DScan.json">
@@ -32,6 +33,7 @@
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Autodesk.Revit.SDK" Version="2025.0.2.419" />
+        <PackageReference Include="NetTopologySuite" Version="2.6.0" />
         <PackageReference Include="Nice3point.Revit.Extensions" Version="2026.0.1" />
         <PackageReference Include="OpenCvSharp4" Version="4.11.0.20250507" />
         <PackageReference Include="OpenCvSharp4.Windows" Version="4.11.0.20250507" />
@@ -41,7 +43,6 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\GeometryLib\GeometryLib.csproj" />
-        <ProjectReference Include="..\ScantraIO\ScantraIO.csproj" />
     </ItemGroup>
     <ItemGroup>
         <WCFMetadata Include="Connected Services\" />
