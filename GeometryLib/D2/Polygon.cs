@@ -2,36 +2,17 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using GeometryLib.Double.D3;
+using GeometryLib.D3;
 
-/* Unmerged change from project 'GeometryLib (netstandard2.1)'
-Before:
-using System.Collections.Immutable;
-using static System.Math;
-After:
-using System.Collections.Immutable;
-
-using static System.Math;
-*/
-/* Unmerged change from project 'GeometryLib (netstandard2.0)'
-Before:
-using System.Collections.Immutable;
-using static System.Math;
-After:
-using System.Collections.Immutable;
-
-using static System.Math;
-*/
-
-namespace GeometryLib.Double.D2;
+namespace GeometryLib.D2;
 
 public readonly struct Polygon : IReadOnlyList<LineString>
 {
-    public ImmutableArray<LineString> Rings { get; }
+    private ImmutableArray<LineString> Rings { get; }
 
     public BBox BBox => Rings[0].BBox;
 
-    public double Area { get; }
+    private double Area { get; }
 
     public int Count => Rings.Length;
 
@@ -39,16 +20,8 @@ public readonly struct Polygon : IReadOnlyList<LineString>
 
     private Polygon(IReadOnlyList<LineString> rings, double area)
     {
-        Rings = rings.ToImmutableArray();
+        Rings = [..rings];
         Area = area;
-    }
-
-    public Polygon(in LineString ring)
-    {
-        if (!ring.IsLinearRing)
-            throw new ArgumentException($"Parameter {nameof(ring)} must be a LinearRing");
-        Rings = ImmutableArray.Create(ring.Area < 0 ? ring.Reverse() : ring);
-        Area = ring.Area;
     }
 
     public Polygon ChangePlane(in Plane oldPlane, in Plane newPlane)
@@ -58,68 +31,6 @@ public readonly struct Polygon : IReadOnlyList<LineString>
         var p2 = new List<LineString>(Rings.Length);
         foreach (D3.LineString ls in p3) p2.Add(new LineString(newPlane, ls));
         return new Polygon(p2, Area);
-    }
-
-    public static bool Create(in IReadOnlyList<Vector> ring, out Polygon polygon)
-    {
-        LineString lineString = ring is LineString ls ? ls : new LineString(ring, true);
-        if (!lineString.IsLinearRing)
-        {
-            polygon = default;
-            return false;
-        }
-
-        if (lineString.Area < 0) lineString = lineString.Reverse();
-        polygon = new Polygon(lineString);
-        return true;
-    }
-
-    public static bool Create(in IReadOnlyList<LineString>? rings, out Polygon polygon)
-    {
-        if (rings is null || rings.Count < 1)
-        {
-            polygon = default;
-            return false;
-        }
-
-        LineString ls = rings[0];
-        if (!ls.IsLinearRing)
-        {
-            polygon = default;
-            return false;
-        }
-
-        double area = ls.Area;
-        bool reverse = area < 0;
-        var lss = new List<LineString>(rings.Count)
-        {
-            reverse ? ls.Reverse() : ls
-        };
-
-        for (var i = 1; i < rings.Count; i++)
-        {
-            ls = rings[i];
-            if (ls.Area == 0.0) continue;
-            if (!ls.IsLinearRing || ls.Area > 0 != reverse || !lss[0].BBox.Encloses(ls.BBox))
-            {
-                polygon = default;
-                return false;
-            }
-
-            area += ls.Area;
-            lss.Add(reverse ? ls.Reverse() : ls);
-        }
-
-        area = reverse ? -area : area;
-
-        if (area <= 0.0)
-        {
-            polygon = default;
-            return false;
-        }
-
-        polygon = new Polygon(lss, area);
-        return true;
     }
 
     public static bool Create(in LineString exterior, in IReadOnlyList<LineString>? interiors, out Polygon polygon)
@@ -172,7 +83,7 @@ public readonly struct Polygon : IReadOnlyList<LineString>
         return true;
     }
 
-    public string ToString(string separator, string lineStringSeparator = ",", string vectorSeparator = " ")
+    private string ToString(string separator, string lineStringSeparator = ",", string vectorSeparator = " ")
     {
         var strings = new string[Rings.Length];
         for (var i = 0; i < Rings.Length; i++) strings[i] = Rings[i].ToString(lineStringSeparator, vectorSeparator);
@@ -194,7 +105,7 @@ public readonly struct Polygon : IReadOnlyList<LineString>
         return GetEnumerator();
     }
 
-    public static bool TryParse(in string input, out Polygon polygon)
+    private static bool TryParse(in string input, out Polygon polygon)
     {
         int si = input.IndexOf('(') + 1;
         int lastei = input.LastIndexOf(')');
@@ -214,7 +125,50 @@ public readonly struct Polygon : IReadOnlyList<LineString>
                     ei = input.IndexOf(')', si) + 1;
                 }
 
-                return Create(rings, out polygon);
+                if ((IReadOnlyList<LineString>?)rings is null || rings.Count < 1)
+                {
+                    polygon = default;
+                    return false;
+                }
+
+                LineString ls = rings[0];
+                if (!ls.IsLinearRing)
+                {
+                    polygon = default;
+                    return false;
+                }
+
+                double area = ls.Area;
+                bool reverse = area < 0;
+                var lss = new List<LineString>(rings.Count)
+                {
+                    reverse ? ls.Reverse() : ls
+                };
+
+                for (var i = 1; i < rings.Count; i++)
+                {
+                    ls = rings[i];
+                    if (ls.Area == 0.0) continue;
+                    if (!ls.IsLinearRing || ls.Area > 0 != reverse || !lss[0].BBox.Encloses(ls.BBox))
+                    {
+                        polygon = default;
+                        return false;
+                    }
+
+                    area += ls.Area;
+                    lss.Add(reverse ? ls.Reverse() : ls);
+                }
+
+                area = reverse ? -area : area;
+
+                if (area <= 0.0)
+                {
+                    polygon = default;
+                    return false;
+                }
+
+                polygon = new Polygon(lss, area);
+                return true;
             }
         }
 

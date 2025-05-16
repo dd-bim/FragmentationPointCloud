@@ -19,6 +19,6 @@ namespace Revit.Data
         PPN = XPlus | YPlus | ZNeg,
         NPN = XNeg | YPlus | ZNeg,
         PNN = XPlus | YNeg | ZNeg,
-        NNN = XNeg | YNeg | ZNeg,
+        NNN = XNeg | YNeg | ZNeg
     }
 }

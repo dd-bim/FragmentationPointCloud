@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
-namespace GeometryLib.Double.D2;
+namespace GeometryLib.D2;
 
 /// <summary>
 ///     Bounding Box
@@ -27,53 +28,10 @@ public readonly struct BBox
     /// </summary>
     public static ref readonly BBox Empty => ref empty;
 
-    public BBox(in Vector vector)
-    {
-        Min = vector;
-        Max = vector;
-    }
-
     private BBox(in Vector min, in Vector max)
     {
         Min = min;
         Max = max;
-    }
-
-    public static BBox FromVectors(in IReadOnlyList<Vector> vectors, bool isRing = false)
-    {
-        BBox bbox = Empty;
-        for (int i = isRing ? 1 : 0; i < vectors.Count; i++)
-        {
-            Vector v = vectors[i];
-            bbox += v;
-        }
-
-        return bbox;
-    }
-
-    public Vector Centre => Min.Mid(Max);
-
-    public Vector Range => Max - Min;
-
-    public BBox Extend(in Vector vector)
-    {
-        return new BBox(
-            vector.Min(Min), vector.Max(Max));
-    }
-
-    public BBox Combine(in BBox other)
-    {
-        return new BBox(Min.Min(other.Min), Max.Max(other.Max));
-    }
-
-    public bool DoOverlap(in BBox other)
-    {
-        return other.Min.x < Max.x && Min.x < other.Max.x && other.Min.y < Max.y && Min.y < other.Max.y;
-    }
-
-    public bool DoOverlapOrTouch(in BBox other)
-    {
-        return other.Min.x <= Max.x && Min.x <= other.Max.x && other.Min.y <= Max.y && Min.y <= other.Max.y;
     }
 
     public bool Encloses(in BBox other)
@@ -81,56 +39,14 @@ public readonly struct BBox
         return other.Min.x >= Min.x && other.Max.x <= Max.x && other.Min.y >= Min.y && other.Max.y <= Max.y;
     }
 
-    public bool Distinct(in BBox other)
-    {
-        return other.Max.x < Min.x || other.Min.x > Max.x || other.Max.y < Min.y || other.Min.y > Max.y;
-    }
-
-    public bool Encloses(in Vector vector)
-    {
-        return vector.x > Min.x && vector.x < Max.x && vector.y > Min.y && vector.y < Max.y;
-    }
-
-    private bool EnclosesOrTouch(in Vector vector)
-    {
-        return vector.x >= Min.x && vector.x <= Max.x && vector.y >= Min.y && vector.y <= Max.y;
-    }
-
-    public bool Distinct(in Vector vector)
-    {
-        return vector.x < Min.x || vector.x > Max.x || vector.y < Min.y || vector.y > Max.y;
-    }
-
-    //public bool Intersects(in Line line)
-    //{
-    //    int sign0 = line.SideSign(Min);
-    //    int sign1 = line.SideSign(new Vector(Max.x, Min.y));
-    //    int sign2 = line.SideSign(Max);
-    //    int sign3 = line.SideSign(new Vector(Min.x, Max.y));
-    //    return sign0 == 0 || sign1 == 0 || sign2 == 0 || sign3 == 0 
-    //           || sign0 != sign1 || sign0 != sign2 || sign0 != sign3
-    //           || sign1 != sign2 || sign1 != sign3
-    //           || sign2 != sign3;
-    //}
-
-    public bool EnclosesOrTouch(in Edge edge)
-    {
-        return EnclosesOrTouch(edge.Orig) || EnclosesOrTouch(edge.Dest);
-    }
-
-    public BBox Buffer(double value)
-    {
-        return new BBox(new Vector(Min.x - value, Min.y - value), new Vector(Max.x + value, Max.y + value));
-    }
-
     public static BBox operator +(in BBox box, in Vector vector)
     {
-        return box.Extend(vector);
-    }
-
-    public static BBox operator +(in BBox left, in BBox right)
-    {
-        return left.Combine(right);
+        return new BBox(
+            new Vector(
+                Math.Min(vector.x, box.Min.x),
+                Math.Min(vector.y, box.Min.y)), new Vector(
+                Math.Max(vector.x, box.Max.x),
+                Math.Max(vector.y, box.Max.y)));
     }
 
     public override string ToString()

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using GeometryLib.D3;
-using static GeometryLib.Double.Constants;
+using static GeometryLib.Constants;
 using static System.Math;
 
 
@@ -10,20 +10,13 @@ namespace GeometryLib.D2;
 
 public readonly struct LineString : IReadOnlyList<Vector>
 {
-    private static readonly LineString empty = new(
-        BBox.Empty, ImmutableArray<Vector>.Empty);
-
-    public static ref readonly LineString Empty => ref empty;
-
     public BBox BBox { get; }
 
-    public ImmutableArray<Vector> Vertices { get; }
+    private ImmutableArray<Vector> Vertices { get; }
 
     public bool IsClosed { get; }
 
     public int Count => Vertices.Length;
-
-    public int EdgesCount => Vertices.Length - 1;
 
     public double Area { get; }
 
@@ -31,19 +24,14 @@ public readonly struct LineString : IReadOnlyList<Vector>
 
     public Vector this[int index] => Vertices[index];
 
-    public Edge GetEdge(int index)
-    {
-        return new Edge(Vertices[index], Vertices[index + 1]);
-    }
-
-    private static bool isClosed(in ImmutableArray<Vector> vertices)
+    private static bool ComputeIsClosed(in ImmutableArray<Vector> vertices)
     {
         return vertices.Length > 2 && vertices[0].Equals(vertices[^1]);
     }
 
     private static (bool isClosed, double area) GetArea(in ImmutableArray<Vector> vertices, bool isClosed = false)
     {
-        isClosed = isClosed || LineString.isClosed(vertices);
+        isClosed = isClosed || ComputeIsClosed(vertices);
         if (!isClosed || vertices.Length <= 3) return (isClosed, 0.0);
         double area = vertices[0].x * (vertices[1].y - vertices[^2].y);
         Vector prev = vertices[0];
@@ -66,21 +54,6 @@ public readonly struct LineString : IReadOnlyList<Vector>
         Area = area;
     }
 
-    private LineString(in BBox bBox, in ImmutableArray<Vector> vertices)
-    {
-        BBox = bBox;
-        Vertices = vertices;
-        (IsClosed, Area) = GetArea(Vertices);
-    }
-
-    public LineString(in Vector first)
-    {
-        BBox = new BBox(first);
-        Vertices = ImmutableArray.Create(first);
-        IsClosed = false;
-        Area = 0.0;
-    }
-
     public LineString(in IReadOnlyList<Vector> vertices, bool isLinearRing, bool addFirst = false)
     {
         if (vertices.Count < 1)
@@ -101,41 +74,27 @@ public readonly struct LineString : IReadOnlyList<Vector>
             }
             else
             {
-                Vertices = vertices.ToImmutableArray();
+                Vertices = [..vertices];
             }
 
-            BBox = BBox.FromVectors(Vertices, addFirst);
+            BBox bbox = BBox.Empty;
+            for (int i = addFirst ? 1 : 0; i < ((IReadOnlyList<Vector>)Vertices).Count; i++)
+            {
+                Vector v = ((IReadOnlyList<Vector>)Vertices)[i];
+                bbox += v;
+            }
+
+            BBox = bbox;
             if (isLinearRing)
             {
                 (IsClosed, Area) = GetArea(Vertices, addFirst);
             }
             else
             {
-                IsClosed = isClosed(Vertices);
+                IsClosed = ComputeIsClosed(Vertices);
                 Area = 0;
             }
         }
-    }
-
-    public static bool Create(in D3.LineString lineString3, out LineString lineString2, out Plane plane)
-    {
-        if (Plane.Create(lineString3, out plane, true))
-        {
-            BBox box = BBox.Empty;
-            ImmutableArray<Vector>.Builder vertices = ImmutableArray.CreateBuilder<Vector>(lineString3.Count);
-            foreach (D3.Vector v in lineString3)
-            {
-                Vector v2 = plane.ToPlaneSystem(v, out double z);
-                vertices.Add(v2);
-                box = box.Extend(v2);
-            }
-
-            lineString2 = new LineString(box, vertices.ToImmutable());
-            return true;
-        }
-
-        lineString2 = default;
-        return false;
     }
 
 
@@ -146,9 +105,9 @@ public readonly struct LineString : IReadOnlyList<Vector>
             ImmutableArray.CreateBuilder<Vector>(lineString3.Count + (addFirst ? 1 : 0));
         foreach (D3.Vector v in lineString3)
         {
-            Vector v2 = plane.ToPlaneSystem(v, out double z);
+            Vector v2 = plane.ToPlaneSystem(v, out _);
             vertices.Add(v2);
-            box = box.Extend(v2);
+            box += v2;
         }
 
         if (addFirst)
@@ -156,37 +115,13 @@ public readonly struct LineString : IReadOnlyList<Vector>
         BBox = box;
         Vertices = vertices.ToImmutable();
         (IsClosed, Area) = GetArea(Vertices, addFirst);
-    }
-
-    public LineString(in CoordinateSystem system, in IReadOnlyList<D3.Vector> lineString3, bool addFirst = false)
-    {
-        BBox box = BBox.Empty;
-        ImmutableArray<Vector>.Builder vertices =
-            ImmutableArray.CreateBuilder<Vector>(lineString3.Count + (addFirst ? 1 : 0));
-        foreach (D3.Vector v in lineString3)
-        {
-            Vector v2 = system.ToPlaneSystem(v, out double z);
-            vertices.Add(v2);
-            box = box.Extend(v2);
-        }
-
-        if (addFirst)
-            vertices.Add(vertices[0]);
-        BBox = box;
-        Vertices = vertices.ToImmutable();
-        (IsClosed, Area) = GetArea(Vertices, addFirst);
-    }
-
-    public LineString Add(in Vector vector)
-    {
-        return new LineString(BBox + vector, Vertices.Add(vector));
     }
 
     public LineString Reverse()
     {
         var vertices = new Vector[Vertices.Length];
         for (int i = 0, j = vertices.Length - 1; i < vertices.Length; i++, j--) vertices[i] = Vertices[j];
-        return new LineString(BBox, vertices.ToImmutableArray(), IsClosed, -Area);
+        return new LineString(BBox, [..vertices], IsClosed, -Area);
     }
 
 
@@ -222,11 +157,6 @@ public readonly struct LineString : IReadOnlyList<Vector>
         return ToString(",");
     }
 
-    public IEnumerable<Edge> Edges()
-    {
-        for (var i = 0; i < EdgesCount; i++) yield return GetEdge(i);
-    }
-
     public IEnumerator<Vector> GetEnumerator()
     {
         return ((IEnumerable<Vector>)Vertices).GetEnumerator();
@@ -243,7 +173,7 @@ public readonly struct LineString : IReadOnlyList<Vector>
         int ei = input.LastIndexOf(')');
         if (si > 0 && ei - si > 6)
         {
-            string[] split = input[si..ei].Split(new[] { ',' });
+            string[] split = input[si..ei].Split([',']);
             if (split.Length > 1)
             {
                 ImmutableArray<Vector>.Builder vertices = ImmutableArray.CreateBuilder<Vector>(split.Length);

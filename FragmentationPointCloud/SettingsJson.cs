@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Text.Json;
-using System.Xml;
 
 namespace Revit
 {
@@ -22,7 +21,7 @@ namespace Revit
         public int StepsPerFullTurn { get; set; }
         public double SphereDiameter_Meter { get; set; }
         public double HeightOfScanner_Meter { get; set; }
-        public double NoiceOfScanner_Meter { get; set; }
+        public double NoiseOfScanner_Meter { get; set; }
         public double Beta_Degree { get; set; }
         public double MinDF_Meter { get; set; }
         public double MaxDF_Meter { get; set; }
@@ -32,7 +31,7 @@ namespace Revit
         public int GridRows { get; set; }
 
         /// <summary>
-        /// deserialize json file
+        ///     deserialize json file
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
@@ -41,12 +40,11 @@ namespace Revit
             string jText = File.ReadAllText(path);
 
             //create collection from each json file
-            SettingsJson settings = JsonSerializer.Deserialize<SettingsJson>(jText);
-            return settings;
+            return JsonSerializer.Deserialize<SettingsJson>(jText);
         }
 
         /// <summary>
-        /// serialize json file
+        ///     serialize json file
         /// </summary>
         /// <param name="json"></param>
         /// <param name="path"></param>
@@ -60,13 +58,12 @@ namespace Revit
                 };
                 string jExportText = JsonSerializer.Serialize(json, options);
                 File.WriteAllText(path, jExportText);
-                Console.WriteLine("write settings");
+                Console.WriteLine(@"write settings");
             }
             catch
             {
-                Console.WriteLine(" Fail");
+                Console.WriteLine(@" Fail");
             }
         }
-
     }
 }

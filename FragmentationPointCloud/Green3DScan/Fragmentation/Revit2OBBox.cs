@@ -1,343 +1,64 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
 using System.Collections.Generic;
+using System.IO;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using GeometryLib.D3;
 using Serilog;
 using Except = Autodesk.Revit.Exceptions;
 using Sys = System.Globalization.CultureInfo;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using Line = Autodesk.Revit.DB.Line;
 
-namespace Revit.Green3DScan
+namespace Revit.Green3DScan.Fragmentation
 {
     [Transaction(TransactionMode.Manual)]
     public class Revit2OBBox : IExternalCommand
     {
-        public const string CsvHeader = "Oriented;StateId;ObjectGuid;ElementId;" +
-            "BBoxMinX;BBoxMinY;BBoxMinZ;" +
-            "BBoxMaxX;BBoxMaxY;BBoxMaxZ;" +
-            "OBoxCenterX;OBoxCenterY;OBoxCenterZ;" +
-            "OBoxXDirX;OBoxXDirY;OBoxXDirZ;" +
-            "OBoxYDirX;OBoxYDirY;OBoxYDirZ;" +
-            "OBoxZDirX;OBoxZDirY;OBoxZDirZ;" +
-            "OBoxXHSize;OBoxYHSize;OBoxZHSize";
+        private const string CsvHeader = "Oriented;StateId;ObjectGuid;ElementId;" +
+                                         "BBoxMinX;BBoxMinY;BBoxMinZ;" +
+                                         "BBoxMaxX;BBoxMaxY;BBoxMaxZ;" +
+                                         "OBoxCenterX;OBoxCenterY;OBoxCenterZ;" +
+                                         "OBoxXDirX;OBoxXDirY;OBoxXDirZ;" +
+                                         "OBoxYDirX;OBoxYDirY;OBoxYDirZ;" +
+                                         "OBoxZDirX;OBoxZDirY;OBoxZDirZ;" +
+                                         "OBoxXHSize;OBoxYHSize;OBoxZHSize";
 
-        #region Execute
-        string path;
-        string dateBimLastModified;
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        private static void WriteOBBoxToOBJFile(List<Helper.OrientedBoundingBox> oboxes, string filePath)
         {
-            #region setup
-            // settings json
-            SettingsJson set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
-
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
-            try
-            {
-                path = Path.GetDirectoryName(doc.PathName);
-                FileInfo fileInfo = new FileInfo(path);
-                var date = fileInfo.LastWriteTime;
-                dateBimLastModified = date.Year + "-" + date.Month + "-" + date.Day + "-" + date.Hour + "-" + date.Minute;
-            }
-            catch (Exception)
-            {
-                TaskDialog.Show("Message", "The file has not been saved yet.");
-                return Result.Failed;
-            }
-
-            // logger
-            string logsPath = Path.Combine(path, "00_Logs/");
-            if (!Directory.Exists(logsPath))
-            {
-                Directory.CreateDirectory(logsPath);
-            }
-            Log.Logger = new LoggerConfiguration()
-               .MinimumLevel.Debug()
-               .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
-               .CreateLogger();
-            Log.Information("start Revit2OBBox");
-            Log.Information(set.BBox_Buffer.ToString());
-            #endregion setup
-
-            Transform trans = Helper.GetTransformation(doc, set, out var crs);
-
-            string csvPath = Path.Combine(path, "06_BBox/");
-
-            if (!Directory.Exists(csvPath))
-            {
-                Directory.CreateDirectory(csvPath);
-            }
-
-            // view
-            View currentView = doc.ActiveView;
-
-            // get all levels
-            FilteredElementCollector planCollector = new FilteredElementCollector(doc);
-            IList<ViewPlan> floorPlans = planCollector
-                .OfClass(typeof(ViewPlan))
-                .WhereElementIsNotElementType()
-                .Cast<ViewPlan>()
-                .Where(vp => vp.ViewType == ViewType.FloorPlan)
-                .ToList();
-
-            using StreamWriter csv = File.CreateText(Path.Combine(csvPath, "BIM_BBoxes.csv"));
-            csv.WriteLine(CsvHeader);
-            List<BoundingBox> bBoxes = new List<BoundingBox>();
-            List<Helper.OrientedBoundingBox> oBBoxes = new List<Helper.OrientedBoundingBox>();
-            
-            try
-            {
-                IList<Reference> pickedObjects = uidoc.Selection.PickObjects(ObjectType.Element, "Select components whose oriented bounding boxes are to be output.");
-                
-                foreach (Reference reference in pickedObjects)
-                {
-                    bool oriented = false;
-                    string stateId = default;
-                    string objectGuid = default;
-                    string elementId = default;
-                    double halfLength = default;
-                    double halfWidth = default;
-                    double halfHeight = default;
-                    string ifcGuid = default;
-                    XYZ center3D = new XYZ(0, 0, 0);
-                    XYZ directionX = new XYZ(0, 0, 0);
-                    XYZ directionY = new XYZ(0, 0, 0);
-                    XYZ bBoxMin = new XYZ(0, 0, 0);
-                    XYZ bBoxMax = new XYZ(0, 0, 0);
-                    // oriented bbox, rotation around z-axis
-                    XYZ directionZ = new XYZ(0, 0, 1);
-
-                    if (!GetGeometryElement(doc, reference, out ElementId eleId, out GeometryElement geomElement, out string createStateId, out string demolishedStateId, out string objectId, out Category cat))
-                    {
-                        Log.Information("skipped building component");
-                        continue;
-                    }
-                    Element element = doc.GetElement(eleId);
-                    // conversion to IFC GUID
-                    ifcGuid = Helper.ToIfcGuid(Helper.ToGuid(element.UniqueId));
-
-                    // bbox
-                    BoundingBoxXYZ bBox = element.get_BoundingBox(currentView);
-                    bBoxMin = trans.OfPoint(bBox.Min) * Constants.feet2Meter;
-                    bBoxMax = trans.OfPoint(bBox.Max) * Constants.feet2Meter;
-                    // height of obbox
-                    var high = bBox.Max.Z - bBox.Min.Z;
-
-                    if (element is Wall wall)
-                    {
-                        if (element.Location is LocationCurve locationCurve)
-                        {
-                            Curve curve = locationCurve.Curve;
-                            if (curve is Line line)
-                            {
-                                // direction of the line
-                                directionX = trans.OfVector(line.Direction).Normalize();
-                                directionY = directionX.CrossProduct(directionZ);
-                                halfLength = line.Length / 2 * Constants.feet2Meter + set.BBox_Buffer;
-                                halfHeight = high / 2 * Constants.feet2Meter + set.BBox_Buffer;
-                                // center obbox
-                                var center2D = (line.GetEndPoint(0) + line.GetEndPoint(1)) / 2;
-
-                                // must be transformed if coordinatereduktion true
-                                center3D = trans.OfPoint(center2D + new XYZ(0, 0, 0.5 * high)) * Constants.feet2Meter;
-
-                                if (doc.GetElement(wall.GetTypeId()) is WallType wallType)
-                                {
-                                    ParameterSet parameters = wallType.Parameters;
-                                    foreach (Parameter param in parameters)
-                                    {
-                                        string parameterName = param.Definition.Name;
-                                        if (parameterName == "Width" || parameterName == "Breite")
-                                        {
-                                            double paramValue = param.AsDouble();
-                                            halfWidth = paramValue / 2 * Constants.feet2Meter + set.BBox_Buffer;
-                                        }
-                                    }
-                                }
-                                oriented = true;
-                                Element ele = doc.GetElement(reference.ElementId);
-                                elementId = reference.ElementId.ToString();
-                                stateId = ele.CreatedPhaseId.ToString();
-                                objectGuid = ele.UniqueId.ToString();
-
-                                oBBoxes.Add(new Helper.OrientedBoundingBox(oriented, stateId, objectGuid, elementId, center3D, directionX, directionY, new XYZ(0, 0, 1), halfLength, halfWidth, halfHeight));
-
-                                csv.WriteLine(oriented.ToString() + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid + ";" + eleId + ";"
-                                + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                                + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                                + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                                + directionX.X.ToString(Sys.InvariantCulture) + ";" + directionX.Y.ToString(Sys.InvariantCulture) + ";" + directionX.Z.ToString(Sys.InvariantCulture) + ";"
-                                + directionY.X.ToString(Sys.InvariantCulture) + ";" + directionY.Y.ToString(Sys.InvariantCulture) + ";" + directionY.Z.ToString(Sys.InvariantCulture) + ";"
-                                + directionZ.X.ToString(Sys.InvariantCulture) + ";" + directionZ.Y.ToString(Sys.InvariantCulture) + ";" + directionZ.Z.ToString(Sys.InvariantCulture) + ";"
-                                + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
-                            }
-                            else
-                            {
-                                Log.Information("Wall, but the LocationCurve is not a line.");
-                            }
-                        }
-                        else
-                        {
-                            Log.Information("Wall, but LocationCurve not existing.");
-                        }
-                    }
-                    else if (element.Category != null && element.Category.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFraming)
-                    {
-                        if (element.Location is LocationCurve locationCurve)
-                        {
-                            Curve curve = locationCurve.Curve;
-                            if (curve is Line line)
-                            {
-                                // direction of the line
-                                directionX = trans.OfVector(line.Direction).Normalize();
-                                directionY = directionX.CrossProduct(directionZ);
-                                halfLength = line.Length / 2 * Constants.feet2Meter + set.BBox_Buffer;
-                                halfHeight = high / 2 * Constants.feet2Meter + set.BBox_Buffer;
-                                // center obbox
-                                var center2D = (line.GetEndPoint(0) + line.GetEndPoint(1)) / 2;
-
-                                // must be transformed if coordinatereduktion true
-                                center3D = trans.OfPoint(center2D - new XYZ(0, 0, 0.5 * high)) * Constants.feet2Meter;
-
-                                var x = doc.GetElement(element.GetTypeId());
-                                ParameterSet parameters = x.Parameters;
-                                foreach (Parameter param in parameters)
-                                {
-                                    string parameterName = param.Definition.Name;
-                                    if (parameterName == "Width" || parameterName == "Breite")
-                                    {
-                                        double paramValue = param.AsDouble();
-                                        halfWidth = paramValue / 2 * Constants.feet2Meter + set.BBox_Buffer;
-                                    }
-                                }
-                                oriented = true;
-                                Element ele = doc.GetElement(reference.ElementId);
-                                elementId = reference.ElementId.ToString();
-                                stateId = ele.CreatedPhaseId.ToString();
-                                objectGuid = ele.UniqueId.ToString();
-                                oBBoxes.Add(new Helper.OrientedBoundingBox(oriented, stateId,objectGuid,elementId,center3D, directionX, directionY, new XYZ(0, 0, 1), halfLength, halfWidth, halfHeight));
-
-                                csv.WriteLine(oriented.ToString() + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid + ";" + eleId + ";"
-                                + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                                + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                                + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                                + directionX.X.ToString(Sys.InvariantCulture) + ";" + directionX.Y.ToString(Sys.InvariantCulture) + ";" + directionX.Z.ToString(Sys.InvariantCulture) + ";"
-                                + directionY.X.ToString(Sys.InvariantCulture) + ";" + directionY.Y.ToString(Sys.InvariantCulture) + ";" + directionY.Z.ToString(Sys.InvariantCulture) + ";"
-                                + directionZ.X.ToString(Sys.InvariantCulture) + ";" + directionZ.Y.ToString(Sys.InvariantCulture) + ";" + directionZ.Z.ToString(Sys.InvariantCulture) + ";"
-                                + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
-                            }
-                            else
-                            {
-                                Log.Information("Wall, but the LocationCurve is not a line.");
-                                bBoxes.Add(new BoundingBox(bBoxMin, bBoxMax));
-                                oriented = false;
-                                csv.WriteLine(oriented.ToString() + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid + ";" + eleId + ";"
-                                + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                                + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                                + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                                + directionX.X.ToString(Sys.InvariantCulture) + ";" + directionX.Y.ToString(Sys.InvariantCulture) + ";" + directionX.Z.ToString(Sys.InvariantCulture) + ";"
-                                + directionY.X.ToString(Sys.InvariantCulture) + ";" + directionY.Y.ToString(Sys.InvariantCulture) + ";" + directionY.Z.ToString(Sys.InvariantCulture) + ";"
-                                + directionZ.X.ToString(Sys.InvariantCulture) + ";" + directionZ.Y.ToString(Sys.InvariantCulture) + ";" + directionZ.Z.ToString(Sys.InvariantCulture) + ";"
-                                + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
-                            }
-                        }
-                        else
-                        {
-                            Log.Information("Wall, but LocationCurve not existing.");
-                            bBoxes.Add(new BoundingBox(bBoxMin, bBoxMax));
-                            oriented = false;
-                            csv.WriteLine(oriented.ToString() + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid + ";" + eleId + ";"
-                            + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                            + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                            + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                            + directionX.X.ToString(Sys.InvariantCulture) + ";" + directionX.Y.ToString(Sys.InvariantCulture) + ";" + directionX.Z.ToString(Sys.InvariantCulture) + ";"
-                            + directionY.X.ToString(Sys.InvariantCulture) + ";" + directionY.Y.ToString(Sys.InvariantCulture) + ";" + directionY.Z.ToString(Sys.InvariantCulture) + ";"
-                            + directionZ.X.ToString(Sys.InvariantCulture) + ";" + directionZ.Y.ToString(Sys.InvariantCulture) + ";" + directionZ.Z.ToString(Sys.InvariantCulture) + ";"
-                            + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
-                        }
-                    }
-                    else
-                    {
-                        Log.Information("Building segment is not a Wall or StructuralFraming, but: " + element.Category.ToString());
-                        bBoxes.Add(new BoundingBox(bBoxMin, bBoxMax));
-                        oriented = false;
-                        csv.WriteLine(oriented.ToString() + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid + ";" + eleId + ";"
-                        + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                        + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                        + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
-                        + directionX.X.ToString(Sys.InvariantCulture) + ";" + directionX.Y.ToString(Sys.InvariantCulture) + ";" + directionX.Z.ToString(Sys.InvariantCulture) + ";"
-                        + directionY.X.ToString(Sys.InvariantCulture) + ";" + directionY.Y.ToString(Sys.InvariantCulture) + ";" + directionY.Z.ToString(Sys.InvariantCulture) + ";"
-                        + directionZ.X.ToString(Sys.InvariantCulture) + ";" + directionZ.Y.ToString(Sys.InvariantCulture) + ";" + directionZ.Z.ToString(Sys.InvariantCulture) + ";"
-                        + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" + Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
-                    }
-                }  
-                
-                WriteOBBoxToOBJFile(oBBoxes, Path.Combine(csvPath, "OBBoxes.obj"));
-                WriteBBoxToOBJFile(bBoxes, Path.Combine(csvPath, "BBoxes.obj"));
-
-                TaskDialog.Show("Message", oBBoxes.Count + " OBBoxes and " + bBoxes.Count + " BBoxes were exported!!!");
-                return Result.Succeeded;
-            }
-            #region catch
-            catch (Except.OperationCanceledException)
-            {
-                TaskDialog.Show("Message", "Error 1: Command canceled.");
-                return Result.Failed;
-            }
-            catch (Except.ForbiddenForDynamicUpdateException)
-            {
-                TaskDialog.Show("Message", "Error 2");
-                return Result.Failed;
-            }
-            catch (Exception ex)
-            {
-                message += "Error message::" + ex.ToString();
-                TaskDialog.Show("Message", message);
-                return Result.Failed;
-            }
-            #endregion catch
-        }
-        #endregion execute
-        public class BoundingBox
-        {
-            public XYZ Min { get; set; }
-            public XYZ Max { get; set; }
-
-            public BoundingBox(XYZ min, XYZ max)
-            {
-                Min = min;
-                Max = max;
-            }
-        }
-        public void WriteOBBoxToOBJFile(List<Helper.OrientedBoundingBox> oboxes, string filePath)
-        {
-            using StreamWriter objFile = new StreamWriter(filePath);
-            int indexOffset = 0;
+            using var objFile = new StreamWriter(filePath);
+            var indexOffset = 0;
 
             foreach (Helper.OrientedBoundingBox obox in oboxes)
             {
-                XYZ[] points = new XYZ[8];
-                points[0] = obox.Center - obox.XDirection * obox.HalfLength - obox.YDirection * obox.HalfWidth - obox.ZDirection * obox.HalfHeight; // Punkt 1
-                points[1] = obox.Center + obox.XDirection * obox.HalfLength - obox.YDirection * obox.HalfWidth - obox.ZDirection * obox.HalfHeight; // Punkt 2
-                points[2] = obox.Center + obox.XDirection * obox.HalfLength + obox.YDirection * obox.HalfWidth - obox.ZDirection * obox.HalfHeight; // Punkt 3
-                points[3] = obox.Center - obox.XDirection * obox.HalfLength + obox.YDirection * obox.HalfWidth - obox.ZDirection * obox.HalfHeight; // Punkt 4
-                points[4] = obox.Center - obox.XDirection * obox.HalfLength - obox.YDirection * obox.HalfWidth + obox.ZDirection * obox.HalfHeight; // Punkt 5
-                points[5] = obox.Center + obox.XDirection * obox.HalfLength - obox.YDirection * obox.HalfWidth + obox.ZDirection * obox.HalfHeight; // Punkt 6
-                points[6] = obox.Center + obox.XDirection * obox.HalfLength + obox.YDirection * obox.HalfWidth + obox.ZDirection * obox.HalfHeight; // Punkt 7
-                points[7] = obox.Center - obox.XDirection * obox.HalfLength + obox.YDirection * obox.HalfWidth + obox.ZDirection * obox.HalfHeight; // Punkt 8
+                var points = new XYZ[8];
+                points[0] = obox.Center - obox.XDirection * obox.HalfLength - obox.YDirection * obox.HalfWidth -
+                            obox.ZDirection * obox.HalfHeight; // Punkt 1
+                points[1] = obox.Center + obox.XDirection * obox.HalfLength - obox.YDirection * obox.HalfWidth -
+                            obox.ZDirection * obox.HalfHeight; // Punkt 2
+                points[2] = obox.Center + obox.XDirection * obox.HalfLength + obox.YDirection * obox.HalfWidth -
+                            obox.ZDirection * obox.HalfHeight; // Punkt 3
+                points[3] = obox.Center - obox.XDirection * obox.HalfLength + obox.YDirection * obox.HalfWidth -
+                            obox.ZDirection * obox.HalfHeight; // Punkt 4
+                points[4] = obox.Center - obox.XDirection * obox.HalfLength - obox.YDirection * obox.HalfWidth +
+                            obox.ZDirection * obox.HalfHeight; // Punkt 5
+                points[5] = obox.Center + obox.XDirection * obox.HalfLength - obox.YDirection * obox.HalfWidth +
+                            obox.ZDirection * obox.HalfHeight; // Punkt 6
+                points[6] = obox.Center + obox.XDirection * obox.HalfLength + obox.YDirection * obox.HalfWidth +
+                            obox.ZDirection * obox.HalfHeight; // Punkt 7
+                points[7] = obox.Center - obox.XDirection * obox.HalfLength + obox.YDirection * obox.HalfWidth +
+                            obox.ZDirection * obox.HalfHeight; // Punkt 8
 
                 foreach (XYZ point in points)
                 {
-                    objFile.WriteLine($"v {point.X.ToString(Sys.InvariantCulture)} {point.Y.ToString(Sys.InvariantCulture)} {point.Z.ToString(Sys.InvariantCulture)}");
+                    objFile.WriteLine(
+                        $"v {point.X.ToString(Sys.InvariantCulture)} {point.Y.ToString(Sys.InvariantCulture)} {point.Z.ToString(Sys.InvariantCulture)}");
                 }
             }
 
-            foreach (Helper.OrientedBoundingBox obox in oboxes)
+            foreach (Helper.OrientedBoundingBox unused in oboxes)
             {
                 int v0 = 1 + indexOffset;
                 int v1 = 2 + indexOffset;
@@ -358,24 +79,41 @@ namespace Revit.Green3DScan
                 indexOffset += 8;
             }
         }
-        public void WriteBBoxToOBJFile(List<BoundingBox> boxes, string filePath)
+
+        private static void WriteBBoxToOBJFile(List<BoundingBox> boxes, string filePath)
         {
-            using StreamWriter writer = new StreamWriter(filePath);
+            using var writer = new StreamWriter(filePath);
             foreach (BoundingBox box in boxes)
             {
-                writer.WriteLine("v " + box.Min.X.ToString(Sys.InvariantCulture) + " " + box.Min.Y.ToString(Sys.InvariantCulture) + " " + box.Min.Z.ToString(Sys.InvariantCulture));
-                writer.WriteLine("v " + box.Max.X.ToString(Sys.InvariantCulture) + " " + box.Min.Y.ToString(Sys.InvariantCulture) + " " + box.Min.Z.ToString(Sys.InvariantCulture));
-                writer.WriteLine("v " + box.Max.X.ToString(Sys.InvariantCulture) + " " + box.Max.Y.ToString(Sys.InvariantCulture) + " " + box.Min.Z.ToString(Sys.InvariantCulture));
-                writer.WriteLine("v " + box.Min.X.ToString(Sys.InvariantCulture) + " " + box.Max.Y.ToString(Sys.InvariantCulture) + " " + box.Min.Z.ToString(Sys.InvariantCulture));
-                writer.WriteLine("v " + box.Min.X.ToString(Sys.InvariantCulture) + " " + box.Min.Y.ToString(Sys.InvariantCulture) + " " + box.Max.Z.ToString(Sys.InvariantCulture));
-                writer.WriteLine("v " + box.Max.X.ToString(Sys.InvariantCulture) + " " + box.Min.Y.ToString(Sys.InvariantCulture) + " " + box.Max.Z.ToString(Sys.InvariantCulture));
-                writer.WriteLine("v " + box.Max.X.ToString(Sys.InvariantCulture) + " " + box.Max.Y.ToString(Sys.InvariantCulture) + " " + box.Max.Z.ToString(Sys.InvariantCulture));
-                writer.WriteLine("v " + box.Min.X.ToString(Sys.InvariantCulture) + " " + box.Max.Y.ToString(Sys.InvariantCulture) + " " + box.Max.Z.ToString(Sys.InvariantCulture));
+                writer.WriteLine("v " + box.Min.X.ToString(Sys.InvariantCulture) + " " +
+                                 box.Min.Y.ToString(Sys.InvariantCulture) + " " +
+                                 box.Min.Z.ToString(Sys.InvariantCulture));
+                writer.WriteLine("v " + box.Max.X.ToString(Sys.InvariantCulture) + " " +
+                                 box.Min.Y.ToString(Sys.InvariantCulture) + " " +
+                                 box.Min.Z.ToString(Sys.InvariantCulture));
+                writer.WriteLine("v " + box.Max.X.ToString(Sys.InvariantCulture) + " " +
+                                 box.Max.Y.ToString(Sys.InvariantCulture) + " " +
+                                 box.Min.Z.ToString(Sys.InvariantCulture));
+                writer.WriteLine("v " + box.Min.X.ToString(Sys.InvariantCulture) + " " +
+                                 box.Max.Y.ToString(Sys.InvariantCulture) + " " +
+                                 box.Min.Z.ToString(Sys.InvariantCulture));
+                writer.WriteLine("v " + box.Min.X.ToString(Sys.InvariantCulture) + " " +
+                                 box.Min.Y.ToString(Sys.InvariantCulture) + " " +
+                                 box.Max.Z.ToString(Sys.InvariantCulture));
+                writer.WriteLine("v " + box.Max.X.ToString(Sys.InvariantCulture) + " " +
+                                 box.Min.Y.ToString(Sys.InvariantCulture) + " " +
+                                 box.Max.Z.ToString(Sys.InvariantCulture));
+                writer.WriteLine("v " + box.Max.X.ToString(Sys.InvariantCulture) + " " +
+                                 box.Max.Y.ToString(Sys.InvariantCulture) + " " +
+                                 box.Max.Z.ToString(Sys.InvariantCulture));
+                writer.WriteLine("v " + box.Min.X.ToString(Sys.InvariantCulture) + " " +
+                                 box.Max.Y.ToString(Sys.InvariantCulture) + " " +
+                                 box.Max.Z.ToString(Sys.InvariantCulture));
             }
 
             // faces
-            int indexOffset = 0;
-            foreach (BoundingBox box in boxes)
+            var indexOffset = 0;
+            foreach (BoundingBox unused in boxes)
             {
                 int v0 = 1 + indexOffset;
                 int v1 = 2 + indexOffset;
@@ -398,21 +136,23 @@ namespace Revit.Green3DScan
         }
 
         /// <summary>
-        /// GeometryElement with their StateId and ObjectId is taken from the reference
+        ///     GeometryElement with their StateId and ObjectId is taken from the reference
         /// </summary>
         /// <param name="doc"></param>
         /// <param name="reference"></param>
+        /// <param name="eleId"></param>
         /// <param name="geomElement"></param>
         /// <param name="createStateId"></param>
         /// <param name="demolishedStateId"></param>
         /// <param name="objectId"></param>
         /// <param name="cat"></param>
         /// <returns></returns>
-        public static bool GetGeometryElement(Document doc, Reference reference, out ElementId eleId, out GeometryElement geomElement, out string createStateId, out string demolishedStateId,
+        private static bool GetGeometryElement(Document doc, Reference reference, out ElementId eleId,
+            out GeometryElement geomElement, out string createStateId, out string demolishedStateId,
             out string objectId, out Category cat)
         {
             Element ele = doc.GetElement(reference.ElementId);
-            Options options = new Options
+            var options = new Options
             {
                 ComputeReferences = true
             };
@@ -423,20 +163,387 @@ namespace Revit.Green3DScan
             geomElement = ele.get_Geometry(options);
             if (geomElement is null)
             {
-                eleId = default;
-                geomElement = default;
-                createStateId = default;
-                demolishedStateId = default;
-                objectId = default;
+                eleId = null;
+                geomElement = null;
+                createStateId = null;
+                demolishedStateId = null;
+                objectId = null;
                 return false;
             }
+
             // stateId and objectId
-            createStateId = ele.CreatedPhaseId.IntegerValue.ToString();
-            demolishedStateId = ele.DemolishedPhaseId.IntegerValue.ToString();
+            createStateId = ele.CreatedPhaseId.Value.ToString();
+            demolishedStateId = ele.DemolishedPhaseId.Value.ToString();
             objectId = ele.UniqueId;
             eleId = reference.ElementId;
             return true;
         }
 
+        private class BoundingBox(XYZ min, XYZ max)
+        {
+            public XYZ Min { get; set; } = min;
+            public XYZ Max { get; set; } = max;
+        }
+
+        #region Execute
+
+        private string _path;
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            #region setup
+
+            // settings json
+            var set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
+
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            try
+            {
+                _path = Path.GetDirectoryName(doc.PathName);
+            }
+            catch (Exception)
+            {
+                TaskDialog.Show("Message", "The file has not been saved yet.");
+                return Result.Failed;
+            }
+
+            // logger
+            string logsPath = Path.Combine(_path!, "00_Logs/");
+            if (!Directory.Exists(logsPath)) Directory.CreateDirectory(logsPath);
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
+                .CreateLogger();
+            Log.Information("start Revit2OBBox");
+            Log.Information(set.BBox_Buffer.ToString(Sys.InvariantCulture));
+
+            #endregion setup
+
+            Transform trans = Helper.GetTransformation(doc, set, out CoordinateSystem _);
+
+            string csvPath = Path.Combine(_path, "06_BBox/");
+
+            if (!Directory.Exists(csvPath)) Directory.CreateDirectory(csvPath);
+
+            // view
+            View currentView = doc.ActiveView;
+
+            // get all levels
+            // var planCollector = new FilteredElementCollector(doc);
+            // IList<ViewPlan> floorPlans = planCollector
+            //     .OfClass(typeof(ViewPlan))
+            //     .WhereElementIsNotElementType()
+            //     .Cast<ViewPlan>()
+            //     .Where(vp => vp.ViewType == ViewType.FloorPlan)
+            //     .ToList();
+
+            using StreamWriter csv = File.CreateText(Path.Combine(csvPath, "BIM_BBoxes.csv"));
+            csv.WriteLine(CsvHeader);
+            var bBoxes = new List<BoundingBox>();
+            var oBBoxes = new List<Helper.OrientedBoundingBox>();
+
+            try
+            {
+                var pickedObjects = uidoc.Selection.PickObjects(ObjectType.Element,
+                    "Select components whose oriented bounding boxes are to be output.");
+
+                foreach (Reference reference in pickedObjects)
+                {
+                    bool oriented;
+                    string stateId = "";
+                    string elementId = "";
+                    double halfLength = 0;
+                    double halfWidth = 0;
+                    double halfHeight = 0;
+                    string ifcGuid = "";
+                    var center3D = new XYZ(0, 0, 0);
+                    var directionX = new XYZ(0, 0, 0);
+                    var directionY = new XYZ(0, 0, 0);
+                    // oriented bbox, rotation around z-axis
+                    var directionZ = new XYZ(0, 0, 1);
+
+                    if (!GetGeometryElement(doc, reference, out ElementId eleId, out GeometryElement _,
+                            out string createStateId,
+                            out string demolishedStateId, out string _, out Category _))
+                    {
+                        Log.Information("skipped building component");
+                        continue;
+                    }
+
+                    Element element = doc.GetElement(eleId);
+                    // conversion to IFC GUID
+                    ifcGuid = Helper.ToIfcGuid(Helper.ToGuid(element.UniqueId));
+
+                    // bbox
+                    BoundingBoxXYZ bBox = element.get_BoundingBox(currentView);
+                    XYZ bBoxMin = trans.OfPoint(bBox.Min) * Constants.feet2Meter;
+                    XYZ bBoxMax = trans.OfPoint(bBox.Max) * Constants.feet2Meter;
+                    // height of obbox
+                    double high = bBox.Max.Z - bBox.Min.Z;
+
+                    string objectGuid = null;
+                    if (element is Wall wall)
+                    {
+                        if (element.Location is LocationCurve locationCurve)
+                        {
+                            Curve curve = locationCurve.Curve;
+                            if (curve is Line line)
+                            {
+                                // direction of the line
+                                directionX = trans.OfVector(line.Direction).Normalize();
+                                directionY = directionX.CrossProduct(directionZ);
+                                halfLength = line.Length / 2 * Constants.feet2Meter + set.BBox_Buffer;
+                                halfHeight = high / 2 * Constants.feet2Meter + set.BBox_Buffer;
+                                // center obbox
+                                XYZ center2D = (line.GetEndPoint(0) + line.GetEndPoint(1)) / 2;
+
+                                // must be transformed if coordinatereduktion true
+                                center3D = trans.OfPoint(center2D + new XYZ(0, 0, 0.5 * high)) * Constants.feet2Meter;
+
+                                if (doc.GetElement(wall.GetTypeId()) is WallType wallType)
+                                {
+                                    ParameterSet parameters = wallType.Parameters;
+                                    foreach (Parameter param in parameters)
+                                    {
+                                        string parameterName = param.Definition.Name;
+                                        if (parameterName == "Width" || parameterName == "Breite")
+                                        {
+                                            double paramValue = param.AsDouble();
+                                            halfWidth = paramValue / 2 * Constants.feet2Meter + set.BBox_Buffer;
+                                        }
+                                    }
+                                }
+
+                                oriented = true;
+                                Element ele = doc.GetElement(reference.ElementId);
+                                elementId = reference.ElementId.ToString();
+                                stateId = ele.CreatedPhaseId.ToString();
+                                objectGuid = ele.UniqueId;
+
+                                oBBoxes.Add(new Helper.OrientedBoundingBox(oriented, stateId, objectGuid, elementId,
+                                    center3D, directionX, directionY, new XYZ(0, 0, 1), halfLength, halfWidth,
+                                    halfHeight));
+
+                                csv.WriteLine(oriented + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid +
+                                              ";" + eleId + ";"
+                                              + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                              + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                              + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                              + directionX.X.ToString(Sys.InvariantCulture) + ";" +
+                                              directionX.Y.ToString(Sys.InvariantCulture) + ";" +
+                                              directionX.Z.ToString(Sys.InvariantCulture) + ";"
+                                              + directionY.X.ToString(Sys.InvariantCulture) + ";" +
+                                              directionY.Y.ToString(Sys.InvariantCulture) + ";" +
+                                              directionY.Z.ToString(Sys.InvariantCulture) + ";"
+                                              + directionZ.X.ToString(Sys.InvariantCulture) + ";" +
+                                              directionZ.Y.ToString(Sys.InvariantCulture) + ";" +
+                                              directionZ.Z.ToString(Sys.InvariantCulture) + ";"
+                                              + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
+                            }
+                            else
+                            {
+                                Log.Information("Wall, but the LocationCurve is not a line.");
+                            }
+                        }
+                        else
+                        {
+                            Log.Information("Wall, but LocationCurve not existing.");
+                        }
+                    }
+                    else if (element.Category != null &&
+                             element.Category.Id.Value == (int)BuiltInCategory.OST_StructuralFraming)
+                    {
+                        if (element.Location is LocationCurve locationCurve)
+                        {
+                            Curve curve = locationCurve.Curve;
+                            if (curve is Line line)
+                            {
+                                // direction of the line
+                                directionX = trans.OfVector(line.Direction).Normalize();
+                                directionY = directionX.CrossProduct(directionZ);
+                                halfLength = line.Length / 2 * Constants.feet2Meter + set.BBox_Buffer;
+                                halfHeight = high / 2 * Constants.feet2Meter + set.BBox_Buffer;
+                                // center obbox
+                                XYZ center2D = (line.GetEndPoint(0) + line.GetEndPoint(1)) / 2;
+
+                                // must be transformed if coordinatereduktion true
+                                center3D = trans.OfPoint(center2D - new XYZ(0, 0, 0.5 * high)) * Constants.feet2Meter;
+
+                                Element x = doc.GetElement(element.GetTypeId());
+                                ParameterSet parameters = x.Parameters;
+                                foreach (Parameter param in parameters)
+                                {
+                                    string parameterName = param.Definition.Name;
+                                    if (parameterName == "Width" || parameterName == "Breite")
+                                    {
+                                        double paramValue = param.AsDouble();
+                                        halfWidth = paramValue / 2 * Constants.feet2Meter + set.BBox_Buffer;
+                                    }
+                                }
+
+                                oriented = true;
+                                Element ele = doc.GetElement(reference.ElementId);
+                                elementId = reference.ElementId.ToString();
+                                stateId = ele.CreatedPhaseId.ToString();
+                                objectGuid = ele.UniqueId;
+                                oBBoxes.Add(new Helper.OrientedBoundingBox(oriented, stateId, objectGuid, elementId,
+                                    center3D, directionX, directionY, new XYZ(0, 0, 1), halfLength, halfWidth,
+                                    halfHeight));
+
+                                csv.WriteLine(oriented + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid +
+                                              ";" + eleId + ";"
+                                              + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                              + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                              + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                              + directionX.X.ToString(Sys.InvariantCulture) + ";" +
+                                              directionX.Y.ToString(Sys.InvariantCulture) + ";" +
+                                              directionX.Z.ToString(Sys.InvariantCulture) + ";"
+                                              + directionY.X.ToString(Sys.InvariantCulture) + ";" +
+                                              directionY.Y.ToString(Sys.InvariantCulture) + ";" +
+                                              directionY.Z.ToString(Sys.InvariantCulture) + ";"
+                                              + directionZ.X.ToString(Sys.InvariantCulture) + ";" +
+                                              directionZ.Y.ToString(Sys.InvariantCulture) + ";" +
+                                              directionZ.Z.ToString(Sys.InvariantCulture) + ";"
+                                              + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
+                            }
+                            else
+                            {
+                                Log.Information("Wall, but the LocationCurve is not a line.");
+                                bBoxes.Add(new BoundingBox(bBoxMin, bBoxMax));
+                                oriented = false;
+                                csv.WriteLine(oriented + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid +
+                                              ";" + eleId + ";"
+                                              + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                              + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                              + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                              + directionX.X.ToString(Sys.InvariantCulture) + ";" +
+                                              directionX.Y.ToString(Sys.InvariantCulture) + ";" +
+                                              directionX.Z.ToString(Sys.InvariantCulture) + ";"
+                                              + directionY.X.ToString(Sys.InvariantCulture) + ";" +
+                                              directionY.Y.ToString(Sys.InvariantCulture) + ";" +
+                                              directionY.Z.ToString(Sys.InvariantCulture) + ";"
+                                              + directionZ.X.ToString(Sys.InvariantCulture) + ";" +
+                                              directionZ.Y.ToString(Sys.InvariantCulture) + ";" +
+                                              directionZ.Z.ToString(Sys.InvariantCulture) + ";"
+                                              + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" +
+                                              Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
+                            }
+                        }
+                        else
+                        {
+                            Log.Information("Wall, but LocationCurve not existing.");
+                            bBoxes.Add(new BoundingBox(bBoxMin, bBoxMax));
+                            oriented = false;
+                            csv.WriteLine(oriented + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid +
+                                          ";" + eleId + ";"
+                                          + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                          Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                          Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                          + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                          Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                          Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                          + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                          Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                          Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                          + directionX.X.ToString(Sys.InvariantCulture) + ";" +
+                                          directionX.Y.ToString(Sys.InvariantCulture) + ";" +
+                                          directionX.Z.ToString(Sys.InvariantCulture) + ";"
+                                          + directionY.X.ToString(Sys.InvariantCulture) + ";" +
+                                          directionY.Y.ToString(Sys.InvariantCulture) + ";" +
+                                          directionY.Z.ToString(Sys.InvariantCulture) + ";"
+                                          + directionZ.X.ToString(Sys.InvariantCulture) + ";" +
+                                          directionZ.Y.ToString(Sys.InvariantCulture) + ";" +
+                                          directionZ.Z.ToString(Sys.InvariantCulture) + ";"
+                                          + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" +
+                                          Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" +
+                                          Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
+                        }
+                    }
+                    else
+                    {
+                        Log.Information("Building segment is not a Wall or StructuralFraming, but: " +
+                                        element.Category);
+                        bBoxes.Add(new BoundingBox(bBoxMin, bBoxMax));
+                        oriented = false;
+                        csv.WriteLine(oriented + ";" + createStateId + "|" + demolishedStateId + ";" + ifcGuid + ";" +
+                                      eleId + ";"
+                                      + Math.Round(bBoxMin.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                      Math.Round(bBoxMin.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                      Math.Round(bBoxMin.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                      + Math.Round(bBoxMax.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                      Math.Round(bBoxMax.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                      Math.Round(bBoxMax.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                      + Math.Round(center3D.X, 4).ToString(Sys.InvariantCulture) + ";" +
+                                      Math.Round(center3D.Y, 4).ToString(Sys.InvariantCulture) + ";" +
+                                      Math.Round(center3D.Z, 4).ToString(Sys.InvariantCulture) + ";"
+                                      + directionX.X.ToString(Sys.InvariantCulture) + ";" +
+                                      directionX.Y.ToString(Sys.InvariantCulture) + ";" +
+                                      directionX.Z.ToString(Sys.InvariantCulture) + ";"
+                                      + directionY.X.ToString(Sys.InvariantCulture) + ";" +
+                                      directionY.Y.ToString(Sys.InvariantCulture) + ";" +
+                                      directionY.Z.ToString(Sys.InvariantCulture) + ";"
+                                      + directionZ.X.ToString(Sys.InvariantCulture) + ";" +
+                                      directionZ.Y.ToString(Sys.InvariantCulture) + ";" +
+                                      directionZ.Z.ToString(Sys.InvariantCulture) + ";"
+                                      + Math.Round(halfLength, 4).ToString(Sys.InvariantCulture) + ";" +
+                                      Math.Round(halfWidth, 4).ToString(Sys.InvariantCulture) + ";" +
+                                      Math.Round(halfHeight, 4).ToString(Sys.InvariantCulture));
+                    }
+                }
+
+                WriteOBBoxToOBJFile(oBBoxes, Path.Combine(csvPath, "OBBoxes.obj"));
+                WriteBBoxToOBJFile(bBoxes, Path.Combine(csvPath, "BBoxes.obj"));
+
+                TaskDialog.Show("Message", oBBoxes.Count + " OBBoxes and " + bBoxes.Count + " BBoxes were exported!!!");
+                return Result.Succeeded;
+            }
+
+            #region catch
+
+            catch (Except.OperationCanceledException)
+            {
+                TaskDialog.Show("Message", "Error 1: Command canceled.");
+                return Result.Failed;
+            }
+            catch (Except.ForbiddenForDynamicUpdateException)
+            {
+                TaskDialog.Show("Message", "Error 2");
+                return Result.Failed;
+            }
+            catch (Exception ex)
+            {
+                message += "Error message::" + ex;
+                TaskDialog.Show("Message", message);
+                return Result.Failed;
+            }
+
+            #endregion catch
+        }
+
+        #endregion execute
     }
 }

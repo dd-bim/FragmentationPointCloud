@@ -1,40 +1,42 @@
 ﻿using System;
-using System.IO;
-using System.Diagnostics;
-using System.Globalization;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using JetBrains.Annotations;
 using Serilog;
-using D3 = GeometryLib.Double.D3;
+using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
 using S = ScantraIO.Data;
-using Transform = Autodesk.Revit.DB.Transform;
 using Sys = System.Globalization.CultureInfo;
 using Path = System.IO.Path;
-using Document = Autodesk.Revit.DB.Document;
+using Vector = GeometryLib.D3.Vector;
 
-namespace Revit.Green3DScan
+namespace Revit.Green3DScan.SimulatePointCloud
 {
     [Transaction(TransactionMode.Manual)]
-    public class Stations2Pointclouds : IExternalCommand
+    [UsedImplicitly]
+    public class Stations2PointClouds : IExternalCommand
     {
-        string path;
-        public const string CsvHeader = "East;North;Elevation";
+        private const string CsvHeader = "East;North;Elevation";
+        private string _path;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
+
             // settings json
-            SettingsJson set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
+            var set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
 
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
             Document doc = uidoc.Document;
             UIApplication uiapp = commandData.Application;
             try
             {
-                path = Path.GetDirectoryName(doc.PathName);
-                FileInfo fileInfo = new FileInfo(path);
-                var date = fileInfo.LastWriteTime;
+                _path = Path.GetDirectoryName(doc.PathName);
+                var fileInfo = new FileInfo(_path);
+                DateTime date = fileInfo.LastWriteTime;
             }
             catch (Exception)
             {
@@ -43,24 +45,23 @@ namespace Revit.Green3DScan
             }
 
             // logger
-            string logsPath = Path.Combine(path, "00_Logs/");
-            if (!Directory.Exists(logsPath))
-            {
-                Directory.CreateDirectory(logsPath);
-            }
+            string logsPath = Path.Combine(_path, "00_Logs/");
+            if (!Directory.Exists(logsPath)) Directory.CreateDirectory(logsPath);
             Log.Logger = new LoggerConfiguration()
-               .MinimumLevel.Debug()
-               .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
-               .CreateLogger();
+                .MinimumLevel.Debug()
+                .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
+                .CreateLogger();
             Log.Information("start Stations2PointClouds");
 
-            Transform trans = Helper.GetTransformation(doc, set, out var crs);
+            var trans = Helper.GetTransformation(doc, set, out var crs);
 
-            string csvVisibleFaces = Path.Combine(path, "Revit2StationsVisibleFaces.csv");
-            string csvVisibleFacesRef = Path.Combine(path, "Revit2StationsVisibleFacesRef.csv");
+            string csvVisibleFaces = Path.Combine(_path, "Revit2StationsVisibleFaces.csv");
+            string csvVisibleFacesRef = Path.Combine(_path, "Revit2StationsVisibleFacesRef.csv");
 
             #endregion setup
+
             Log.Information("setup");
+
             #region select files
 
             if (uidoc.ActiveView is View3D current3DView)
@@ -72,75 +73,72 @@ namespace Revit.Green3DScan
             // Revit
             var fodPfRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
             fodPfRevit.Title = "Select CSV file with BimFaces from Revit!";
-            if (fodPfRevit.Show() == ItemSelectionDialogResult.Canceled)
-            {
-                return Result.Cancelled;
-            }
-            var csvPathPfRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodPfRevit.GetSelectedModelPath());
+            if (fodPfRevit.Show() == ItemSelectionDialogResult.Canceled) return Result.Cancelled;
+            string csvPathPfRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodPfRevit.GetSelectedModelPath());
 
             var fodRpRevit = new FileOpenDialog("CSV file (*.csv)|*.csv");
             fodRpRevit.Title = "Select CSV file with BimFacesPlanes fromRevit!";
-            if (fodRpRevit.Show() == ItemSelectionDialogResult.Canceled)
-            {
-                return Result.Cancelled;
-            }
-            var csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
+            if (fodRpRevit.Show() == ItemSelectionDialogResult.Canceled) return Result.Cancelled;
+            string csvPathRpRevit = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodRpRevit.GetSelectedModelPath());
 
             #endregion select files
+
             Log.Information("select files");
+
             #region read files
 
-            var facesRevit = S.PlanarFace.ReadCsv(csvPathPfRevit, out var lineErrors1, out string error1);
+            var facesRevit = S.PlanarFace.ReadCsv(csvPathPfRevit, out string[] lineErrors1, out string error1);
             var facesMap = new Dictionary<S.Id, S.PlanarFace>();
-            foreach (var pf in facesRevit)
-            {
-                facesMap[pf.Id] = pf;
-            }
+            foreach (S.PlanarFace pf in facesRevit) facesMap[pf.Id] = pf;
 
-            var referencePlanesRevit = S.ReferencePlane.ReadCsv(csvPathRpRevit, out var lineErrors2, out string error2);
+            var referencePlanesRevit =
+                S.ReferencePlane.ReadCsv(csvPathRpRevit, out string[] lineErrors2, out string error2);
 
             #endregion read files
+
             Log.Information("read files");
+
             #region stations
+
             var allStations = Helper.CollectFamilyInstances(doc, trans, "ScanStation");
 
             Log.Information("read files");
 
-            string csvPath = Path.Combine(path, "07_Stations/");
+            string csvPath = Path.Combine(_path, "07_Stations/");
 
-            if (!Directory.Exists(csvPath))
-            {
-                Directory.CreateDirectory(csvPath);
-            }
+            if (!Directory.Exists(csvPath)) Directory.CreateDirectory(csvPath);
 
             using StreamWriter csv = File.CreateText(Path.Combine(csvPath, "Stations.csv"));
             csv.WriteLine(CsvHeader);
 
-            foreach (var item in allStations)
+            foreach (XYZ item in allStations)
             {
-                csv.WriteLine(item.X.ToString(Sys.InvariantCulture) + ";" + item.Y.ToString(Sys.InvariantCulture) + ";" + item.Z.ToString(Sys.InvariantCulture));
+                csv.WriteLine(item.X.ToString(Sys.InvariantCulture) + ";" + item.Y.ToString(Sys.InvariantCulture) +
+                              ";" + item.Z.ToString(Sys.InvariantCulture));
             }
+
             csv.Close();
 
-            var listVector = new List<D3.Vector>();
-            foreach (var item in allStations)
-            {
-                listVector.Add(new D3.Vector(item.X, item.Y, item.Z));
-            }
+            var listVector = new List<Vector>();
+            foreach (XYZ item in allStations) listVector.Add(new Vector(item.X, item.Y, item.Z));
+
             #endregion stations
-            Log.Information(allStations.Count.ToString() + " stations");
+
+            Log.Information(allStations.Count + " stations");
+
             #region write pointcloud in XYZ
-            var pointClouds = CreatePointcloud.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set);
-            for (int i = 0; i < listVector.Count; i++)
+
+            var pointClouds = CreatePointCloud.VisibleFaces(facesRevit, referencePlanesRevit, listVector, set);
+            for (var i = 0; i < listVector.Count; i++)
             {
-                List<string> lines = new List<string>();
+                var lines = new List<string>();
 
                 // collect points of the current station
-                for (int j = 0; j < pointClouds[i].Length; j++)
+                for (var j = 0; j < pointClouds[i].Length; j++)
                 {
                     lines.Add(pointClouds[i][j].x.ToString(Sys.InvariantCulture) + " "
-                            + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " "
-                            + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
+                        + pointClouds[i][j].y.ToString(Sys.InvariantCulture) + " "
+                        + pointClouds[i][j].z.ToString(Sys.InvariantCulture));
                 }
 
                 // create file for the current station and save points
@@ -153,13 +151,13 @@ namespace Revit.Green3DScan
                 double tz = -listVector[i].z;
 
                 // create the transformation matrix for station-centered point cloud
-                var transformationLines = new string[]
-                {
-                    "1 0 0 " + tx.ToString(CultureInfo.InvariantCulture),
-                    "0 1 0 " + ty.ToString(CultureInfo.InvariantCulture),
-                    "0 0 1 " + tz.ToString(CultureInfo.InvariantCulture),
+                string[] transformationLines =
+                [
+                    "1 0 0 " + tx.ToString(Sys.InvariantCulture),
+                    "0 1 0 " + ty.ToString(Sys.InvariantCulture),
+                    "0 0 1 " + tz.ToString(Sys.InvariantCulture),
                     "0 0 0 1"
-                };
+                ];
 
                 // path to transformation file
                 string transformationFilePath = Path.Combine(csvPath, "transformation.txt");
@@ -169,17 +167,21 @@ namespace Revit.Green3DScan
                 // path to E57
                 string outputPointCloud = Path.Combine(csvPath, $"Station_{i}.e57");
 
-                Process cloudCompareProcess = new Process();
+                var cloudCompareProcess = new Process();
 
                 // Configure the process object with the required arguments
                 cloudCompareProcess.StartInfo.FileName = set.PathCloudCompare;
-                cloudCompareProcess.StartInfo.Arguments = "-SILENT -O \"" + xyzPath + "\" -APPLY_TRANS \"" + transformationFilePath + "\" -C_EXPORT_FMT E57 -SAVE_CLOUDS FILE \"" + outputPointCloud + "\"";
+                cloudCompareProcess.StartInfo.Arguments = "-SILENT -O \"" + xyzPath + "\" -APPLY_TRANS \"" +
+                                                          transformationFilePath +
+                                                          "\" -C_EXPORT_FMT E57 -SAVE_CLOUDS FILE \"" +
+                                                          outputPointCloud + "\"";
                 cloudCompareProcess.Start();
                 cloudCompareProcess.WaitForExit();
             }
 
             #endregion write pointcloud in XYZ
-            Log.Information("write pointcloud in XYZ");
+
+            Log.Information("write point cloud in XYZ");
             TaskDialog.Show("Message", "finish");
             return Result.Succeeded;
         }

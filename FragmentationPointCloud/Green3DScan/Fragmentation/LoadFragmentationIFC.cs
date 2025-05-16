@@ -1,36 +1,91 @@
 ﻿using System;
-using System.IO;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Except = Autodesk.Revit.Exceptions;
+using GeometryLib.D3;
 using Serilog;
+using Except = Autodesk.Revit.Exceptions;
 using Transform = Autodesk.Revit.DB.Transform;
 using Path = System.IO.Path;
 
-namespace Revit.Green3DScan
+namespace Revit.Green3DScan.Fragmentation
 {
     [Transaction(TransactionMode.Manual)]
     public class LoadFragmentationIFC : IExternalCommand
     {
+        private bool ReadCsvBoxes(string csvPathBBoxes, out List<Helper.OrientedBoundingBox> listOBBox)
+        {
+            var list = new List<Helper.OrientedBoundingBox>();
+            try
+            {
+                using (var reader = new StreamReader(csvPathBBoxes))
+                {
+                    reader.ReadLine();
+                    while (reader.ReadLine() is { } line)
+                    {
+                        string[] columns = line.Split(';');
+
+                        if (columns.Length == 25)
+                            list.Add(new Helper.OrientedBoundingBox(bool.Parse(columns[0]), columns[1], columns[2],
+                                columns[3],
+                                new XYZ(double.Parse(columns[4]), double.Parse(columns[5]), double.Parse(columns[6])),
+                                new XYZ(double.Parse(columns[7]), double.Parse(columns[8]), double.Parse(columns[9])),
+                                new XYZ(double.Parse(columns[10]), double.Parse(columns[11]),
+                                    double.Parse(columns[12])),
+                                new XYZ(double.Parse(columns[13]), double.Parse(columns[14]),
+                                    double.Parse(columns[15])),
+                                double.Parse(columns[16]), double.Parse(columns[17]), double.Parse(columns[18])));
+                        else
+                            TaskDialog.Show("Message", "Incorrect line " + line);
+                    }
+                }
+
+                listOBBox = list;
+                return true;
+            }
+            catch (Exception)
+            {
+                listOBBox = list;
+                return false;
+            }
+        }
+
+        private bool LoadPointCloud(Document doc, string path, Transform trans)
+        {
+            try
+            {
+                var tx = new Transaction(doc, "Load RCP");
+                tx.Start();
+                var type = PointCloudType.Create(doc, "rcp", path);
+                PointCloudInstance.Create(doc, type.Id, trans);
+                tx.Commit();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         #region Execute
-        string path;
-        string dateBimLastModified;
+
+        private string _path;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             #region setup
-            // settings json
-            SettingsJson set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
 
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            // settings json
+            var set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
+
+            UIDocument activeUiDocument = commandData.Application.ActiveUIDocument;
+            Document doc = activeUiDocument.Document;
             try
             {
-                path = Path.GetDirectoryName(doc.PathName);
-                FileInfo fileInfo = new FileInfo(path);
-                var date = fileInfo.LastWriteTime;
-                dateBimLastModified = date.Year + "-" + date.Month + "-" + date.Day + "-" + date.Hour + "-" + date.Minute;
+                _path = Path.GetDirectoryName(doc.PathName);
             }
             catch (Exception)
             {
@@ -39,36 +94,31 @@ namespace Revit.Green3DScan
             }
 
             // logger
-            string logsPath = Path.Combine(path, "00_Logs/");
-            if (!Directory.Exists(logsPath))
-            {
-                Directory.CreateDirectory(logsPath);
-            }
+            string logsPath = Path.Combine(_path!, "00_Logs/");
+            if (!Directory.Exists(logsPath)) Directory.CreateDirectory(logsPath);
             Log.Logger = new LoggerConfiguration()
-               .MinimumLevel.Debug()
-               .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
-               .CreateLogger();
+                .MinimumLevel.Debug()
+                .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
+                .CreateLogger();
             Log.Information("start LoadFragmentationIFC");
-            Log.Information(set.BBox_Buffer.ToString());
+            Log.Information(set.BBox_Buffer.ToString(CultureInfo.InvariantCulture));
+
             #endregion setup
 
             // bboxes
-            FileOpenDialog fodBBox = new FileOpenDialog("CSV file (*.csv)|*.csv");
+            var fodBBox = new FileOpenDialog("CSV file (*.csv)|*.csv");
             fodBBox.Title = "Select CSV file with BBoxes from Revit!";
-            if (fodBBox.Show() == ItemSelectionDialogResult.Canceled)
-            {
-                return Result.Cancelled;
-            }
+            if (fodBBox.Show() == ItemSelectionDialogResult.Canceled) return Result.Cancelled;
             string csvPathBBoxes = ModelPathUtils.ConvertModelPathToUserVisiblePath(fodBBox.GetSelectedModelPath());
 
             // read csv
-            if (!ReadCsvBoxes(csvPathBBoxes, out List<Helper.OrientedBoundingBox> obboxes))
+            if (!ReadCsvBoxes(csvPathBBoxes, out var obboxes))
             {
                 TaskDialog.Show("Message", "Reading csv successful!");
                 return Result.Failed;
             }
 
-            Transform trans = Helper.GetTransformation(doc, set, out var crs);
+            Transform trans = Helper.GetTransformation(doc, set, out CoordinateSystem _);
             Transform transInverse = trans.Inverse;
 
             int fail = 0;
@@ -76,18 +126,17 @@ namespace Revit.Green3DScan
             {
                 try
                 {
-                    string rcpFilePath = Path.Combine(path, "07_FragmentationBBox\\" + box.ObjectGuid + ".rcp");
+                    string rcpFilePath = Path.Combine(_path, "07_FragmentationBBox\\" + box.ObjectGuid + ".rcp");
 
                     // load rcp
-                    if (!LoadPointCloud(doc, rcpFilePath, transInverse))
-                    {
-                        Log.Information("Fragment not existant!");
-                        fail++;
-                        return Result.Failed;
-                    }
-
+                    if (LoadPointCloud(doc, rcpFilePath, transInverse)) continue;
+                    Log.Information("Fragment not existent!");
+                    fail++;
+                    return Result.Failed;
                 }
+
                 #region catch
+
                 catch (Except.OperationCanceledException)
                 {
                     TaskDialog.Show("Message", "Error 1: Command canceled.");
@@ -100,107 +149,18 @@ namespace Revit.Green3DScan
                 }
                 catch (Exception ex)
                 {
-                    message += "Error message::" + ex.ToString();
+                    message += "Error message::" + ex;
                     TaskDialog.Show("Message", message);
                     return Result.Failed;
                 }
+
                 #endregion catch
             }
 
             TaskDialog.Show("Message", "Loading rcp successful! " + fail + " Fragments not existants!");
             return Result.Succeeded;
         }
+
         #endregion execute
-        private bool ReadCsvBoxes(string csvPathBBoxes, out List<Helper.OrientedBoundingBox> listOBBox)
-        {
-            List<Helper.OrientedBoundingBox> list = new List<Helper.OrientedBoundingBox>();
-            try
-            {
-                using (StreamReader reader = new StreamReader(csvPathBBoxes))
-                {
-                    reader.ReadLine();
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        string[] columns = line.Split(';');
-
-                        if (columns.Length == 25)
-                        {
-                            list.Add(new Helper.OrientedBoundingBox(bool.Parse(columns[0]), columns[1], columns[2], columns[3],
-                                new XYZ(double.Parse(columns[4]), double.Parse(columns[5]), double.Parse(columns[6])),
-                                new XYZ(double.Parse(columns[7]), double.Parse(columns[8]), double.Parse(columns[9])),
-                                new XYZ(double.Parse(columns[10]), double.Parse(columns[11]), double.Parse(columns[12])),
-                                new XYZ(double.Parse(columns[13]), double.Parse(columns[14]), double.Parse(columns[15])),
-                                double.Parse(columns[16]), double.Parse(columns[17]), double.Parse(columns[18])));
-                        }
-                        else
-                        {
-                            TaskDialog.Show("Message", "Incorrect line " + line);
-                        }
-                    }
-                }
-                listOBBox = list;
-                return true;
-            }
-            catch (Exception)
-            {
-                listOBBox = list;
-                return false;
-            }
-        }
-        /// <summary>
-        /// GeometryElement with their StateId and ObjectId is taken from the reference
-        /// </summary>
-        /// <param name="doc"></param>
-        /// <param name="reference"></param>
-        /// <param name="geomElement"></param>
-        /// <param name="createStateId"></param>
-        /// <param name="demolishedStateId"></param>
-        /// <param name="objectId"></param>
-        /// <param name="cat"></param>
-        /// <returns></returns>
-        private static bool GetGeometryElement(Document doc, Reference reference, out GeometryElement geomElement, out string createStateId, out string demolishedStateId,
-            out string objectId, out Category cat)
-        {
-            Element ele = doc.GetElement(reference.ElementId);
-            Options options = new Options
-            {
-                ComputeReferences = true
-            };
-
-            // category
-            cat = ele.Category;
-
-            geomElement = ele.get_Geometry(options);
-            if (geomElement is null)
-            {
-                geomElement = default;
-                createStateId = default;
-                demolishedStateId = default;
-                objectId = default;
-                return false;
-            }
-            // stateId and objectId
-            createStateId = ele.CreatedPhaseId.IntegerValue.ToString();
-            demolishedStateId = ele.DemolishedPhaseId.IntegerValue.ToString();
-            objectId = ele.UniqueId;
-            return true;
-        }
-        private bool LoadPointCloud(Document doc, string path, Transform trans)
-        {
-            try
-            {
-                Transaction tx = new Transaction(doc, "Load RCP");
-                tx.Start();
-                PointCloudType type = PointCloudType.Create(doc, "rcp", path);
-                PointCloudInstance.Create(doc, type.Id, trans);
-                tx.Commit();
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
     }
 }

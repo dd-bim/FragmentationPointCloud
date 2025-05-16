@@ -1,19 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace GeometryLib.D3;
 
 public readonly struct LineString : IReadOnlyList<Vector>
 {
-    private static readonly LineString empty = new(
-        BBox.Empty, ImmutableArray<Vector>.Empty);
-
-    public static ref readonly LineString Empty => ref empty;
-
     public BBox BBox { get; }
 
-    public ImmutableArray<Vector> Vertices { get; }
+    private ImmutableArray<Vector> Vertices { get; }
 
     public bool IsClosed { get; }
 
@@ -21,23 +17,9 @@ public readonly struct LineString : IReadOnlyList<Vector>
 
     public Vector this[int index] => Vertices[index];
 
-    private static bool isClosed(in ImmutableArray<Vector> vertices)
+    private static bool CheckIfClosed(in ImmutableArray<Vector> vertices)
     {
         return vertices.Length > 2 && vertices[0].ApproxEquals(vertices[^1]);
-    }
-
-    private LineString(in BBox bBox, in ImmutableArray<Vector> vertices)
-    {
-        BBox = bBox;
-        Vertices = vertices;
-        IsClosed = isClosed(Vertices);
-    }
-
-    public LineString(in Vector first)
-    {
-        BBox = new BBox(first);
-        Vertices = ImmutableArray.Create(first);
-        IsClosed = false;
     }
 
     public LineString(in IReadOnlyList<Vector>? vertices)
@@ -50,89 +32,27 @@ public readonly struct LineString : IReadOnlyList<Vector>
         }
         else
         {
-            Vertices = vertices.ToImmutableArray();
-            BBox = BBox.FromVectors(Vertices);
-            IsClosed = isClosed(Vertices);
+            Vertices = [..vertices];
+            BBox = ((IReadOnlyCollection<Vector>)Vertices).Aggregate(BBox.Empty, (current, v) => current + v);
+            IsClosed = CheckIfClosed(Vertices);
         }
     }
-
 
     public LineString(in Plane plane, in D2.LineString lineString2)
     {
         BBox box = BBox.Empty;
         var vertices = new Vector[lineString2.Count];
-        for (var i = 0; i < vertices.Length; i++) box = box.Extend(vertices[i] = plane.FromPlaneSystem(lineString2[i]));
+        for (var i = 0; i < vertices.Length; i++) box += vertices[i] = plane.FromPlaneSystem(lineString2[i]);
         BBox = box;
-        Vertices = vertices.ToImmutableArray();
-        IsClosed = isClosed(Vertices);
-    }
-
-
-    public LineString(in CoordinateSystem system, in D2.LineString lineString2)
-    {
-        BBox box = BBox.Empty;
-        var vertices = new Vector[lineString2.Count];
-        for (var i = 0; i < vertices.Length; i++)
-            box = box.Extend(vertices[i] = system.FromPlaneSystem(lineString2[i]));
-        BBox = box;
-        Vertices = vertices.ToImmutableArray();
-        IsClosed = isClosed(Vertices);
-    }
-
-
-    public LineString Add(in Vector vector)
-    {
-        return new LineString(BBox + vector, Vertices.Add(vector));
-    }
-
-
-    public LineString Reverse()
-    {
-        var vertices = new Vector[Vertices.Length];
-        for (int i = 0, j = vertices.Length - 1; i < vertices.Length; i++, j--) vertices[i] = Vertices[j];
-        return new LineString(BBox, vertices.ToImmutableArray());
-    }
-
-    public string ToString(string separator, string vectorSeparator = " ")
-    {
-        var strings = new string[Vertices.Length];
-        for (var i = 0; i < Vertices.Length; i++) strings[i] = Vertices[i].ToString(vectorSeparator);
-        return '(' + string.Join(separator, strings) + ')';
+        Vertices = [..vertices];
+        IsClosed = CheckIfClosed(Vertices);
     }
 
     public override string ToString()
     {
-        return ToString(",");
-    }
-
-    public static bool TryParse(in string input, out LineString lineString)
-    {
-        int si = input.IndexOf('(') + 1;
-        int ei = input.LastIndexOf(')');
-        if (si > 0 && ei - si > 6)
-        {
-            string[] split = input[si..ei].Split(new[] { ',' });
-            if (split.Length > 1)
-            {
-                ImmutableArray<Vector>.Builder vertices = ImmutableArray.CreateBuilder<Vector>(split.Length);
-                foreach (string data in split)
-                {
-                    if (!Vector.TryParse(data, out Vector vector))
-                    {
-                        lineString = default;
-                        return false;
-                    }
-
-                    vertices.Add(vector);
-                }
-
-                lineString = new LineString(vertices);
-                return true;
-            }
-        }
-
-        lineString = default;
-        return false;
+        var strings = new string[Vertices.Length];
+        for (var i = 0; i < Vertices.Length; i++) strings[i] = Vertices[i].ToString(" ");
+        return '(' + string.Join(",", strings) + ')';
     }
 
     public IEnumerator<Vector> GetEnumerator()

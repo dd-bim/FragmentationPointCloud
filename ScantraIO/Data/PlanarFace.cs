@@ -1,515 +1,366 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
-using System.Linq;
 using System.Text;
-
-using GeometryLib.Double;
-using GeometryLib.Double.D3;
-
-using D2 = GeometryLib.Double.D2;
-using D3 = GeometryLib.Double.D3;
+using BBox = GeometryLib.D3.BBox;
+using D2_Vector = GeometryLib.D2.Vector;
+using D3_LineString = GeometryLib.D3.LineString;
+using LinearRingCollection = GeometryLib.D2.LinearRingCollection;
+using LineString = GeometryLib.D2.LineString;
 using NTS = NetTopologySuite.Geometries;
+using Plane = GeometryLib.D3.Plane;
+using Polygon = GeometryLib.D2.Polygon;
+using Vector = GeometryLib.D3.Vector;
 
-namespace ScantraIO.Data
+namespace ScantraIO.Data;
+
+public class PlanarFace : IEquatable<PlanarFace>
 {
-    public class PlanarFace : IEquatable<PlanarFace>
+    private const string CsvHeader =
+        "StateId;ObjectGuid;FaceId;PlaneId;BtmLft;BtmRgt;TopRgt;TopLft;BBoxMin;BBoxMax;Polygon";
+
+    public const string ShortCsvHeader = "StateId;ObjectGuid;FaceId;Polygon";
+
+    private const int LineCount = 11;
+
+    private PlanarFace(Id id, string referencePlaneId, Vector planarBtmLft, Vector planarBtmRgt,
+        Vector planarTopRgt, Vector planarTopLft, BBox bBox, Polygon polygon)
     {
-
-        public Id Id { get; }
-
-        public string ReferencePlaneId { get; private set; }
-
-        public Vector PlanarBtmLft { get; }
-
-        public Vector PlanarBtmRgt { get; }
-
-        public Vector PlanarTopRgt { get; }
-
-        public Vector PlanarTopLft { get; }
-
-        /// <summary>
-        /// Bounding Box, Min X Y Z + Max X Y Z
-        /// </summary>
-        public BBox BBox { get; }
-
-        public D2.Polygon Polygon { get; private set; }
-
-        public PlanarFace(Id id, string referencePlaneId, Vector planarBtmLft, Vector planarBtmRgt, Vector planarTopRgt, Vector planarTopLft, BBox bBox, D2.Polygon polygon)
-        {
-            Id = id;
-            ReferencePlaneId = referencePlaneId;
-            PlanarBtmLft = planarBtmLft;
-            PlanarBtmRgt = planarBtmRgt;
-            PlanarTopRgt = planarTopRgt;
-            PlanarTopLft = planarTopLft;
-            BBox = bBox;
-            Polygon = polygon;
-        }
-
-        public PlanarFace(in Id id, in ReferencePlane referencePlane, in BBox bBox, in D2.Polygon polygon)
-        {
-            Id = id;
-            ReferencePlaneId = referencePlane.Id;
-            BBox = bBox;
-            PlanarBtmLft = referencePlane.Plane.FromPlaneSystem(polygon.BBox.Min);
-            PlanarBtmRgt = referencePlane.Plane.FromPlaneSystem(new D2.Vector(polygon.BBox.Min.x, polygon.BBox.Max.y));
-            PlanarTopRgt = referencePlane.Plane.FromPlaneSystem(polygon.BBox.Max);
-            PlanarTopLft = referencePlane.Plane.FromPlaneSystem(new D2.Vector(polygon.BBox.Max.x, polygon.BBox.Min.y));
-            Polygon = polygon;
-        }
-        private static bool ToNTSLinearRing(in D2.LineString lineString, out NTS.LinearRing linearRing, bool reverse = false)
-        {
-            var gf = NTS.GeometryFactory.Floating;
-            if (!lineString.IsClosed)
-            {
-                linearRing = gf.CreateLinearRing();
-                return false;
-            }
-            var coo = new NTS.Coordinate[lineString.Count];
-            if (reverse)
-            {
-                for (int i = 0; i < lineString.Count; i++)
-                {
-                    var vector = lineString[i];
-                    coo[lineString.Count - 1 - i] = new NTS.Coordinate(vector.x, vector.y);
-                }
-            }
-            else
-            {
-                for (int i = 0; i < lineString.Count; i++)
-                {
-                    var vector = lineString[i];
-                    coo[i] = new NTS.Coordinate(vector.x, vector.y);
-                }
-            }
-
-            try
-            {
-                linearRing = gf.CreateLinearRing(coo);
-                return true;
-            }
-            catch
-            {
-                linearRing = gf.CreateLinearRing();
-                return false;
-            }
-        }
-
-        private static bool ToNTSPolygon(in D2.LinearRingCollection linearRingCollection, out NTS.Polygon polygon)
-        {
-            if (ToNTSLinearRing(linearRingCollection.Exteriors[0], out var exterior))
-            {
-                var gf = NTS.GeometryFactory.Floating;
-                polygon = gf.CreatePolygon(exterior);
-                for (int i = 1; i < linearRingCollection.Exteriors.Count; i++)
-                {
-                    if (!ToNTSLinearRing(linearRingCollection.Exteriors[i], out exterior))
-                        throw new Exception("Should not happen");
-                    var union = polygon.Union(gf.CreatePolygon(exterior));
-                    if (union.GeometryType == NTS.Geometry.TypeNamePolygon)
-                        polygon = (NTS.Polygon)union;
-                    else
-                        return false;
-                }
-                foreach (var interiorlr in linearRingCollection.Interiors)
-                {
-                    if (!ToNTSLinearRing(interiorlr, out var interior, true))
-                        throw new Exception("Should not happen");
-                    var diff = polygon.Difference(gf.CreatePolygon(interior));
-                    if (diff.GeometryType == NTS.Geometry.TypeNamePolygon)
-                        polygon = (NTS.Polygon)diff;
-                    else
-                        return false;
-                }
-                return true;
-            }
-            polygon = NTS.Polygon.Empty;
-            return false;
-        }
- 
-        private static D2.LineString toLs2(in NTS.LineString lr)
-        {
-            var vertices = new D2.Vector[lr.Count];
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                var coo = lr[i];
-                vertices[i] = new D2.Vector(coo.X, coo.Y);
-            }
-            return new D2.LineString(vertices, lr.IsClosed);
-        }
-
-        private static bool ToPolygon2d(in NTS.Polygon polygon, out D2.Polygon polygon2)
-        {
-            if (!polygon.IsValid || !polygon.IsSimple)
-            {
-                polygon2 = default;
-                return false;
-            }
-
-            var ext = toLs2(polygon.ExteriorRing);
-            var ints = new List<D2.LineString>(polygon.InteriorRings.Length);
-            foreach (var ilr in polygon.InteriorRings)
-            {
-                ints.Add(toLs2(ilr));
-            }
-            return D2.Polygon.Create(ext, ints, out polygon2);
-        }
-
-        private static bool ToPolygon2d(in D3.Plane plane, in IReadOnlyCollection<D3.LineString> rings, out D2.Polygon polygon, out D3.BBox box, out double maxPlaneDist)
-        {
-            var rings2d = new D2.LinearRingCollection();
-            maxPlaneDist = 0.0;
-            box = D3.BBox.Empty;
-            foreach (var ring in rings)
-            {
-                var vertices = plane.System.ToSystem(ring, out var zs);
-                var lr = new D2.LineString(vertices, true);
-                if (rings2d.Add(lr))
-                {
-                    for (int i = 0; i < zs.Length; i++)
-                    {
-                        double az = Math.Abs(zs[i]);
-                        if (az > maxPlaneDist)
-                        {
-                            maxPlaneDist = az;
-                        }
-                        if (lr.Area > 0)
-                        {
-                            box = box.Extend(ring[i]);
-                        }
-                    }
-                }
-            }
-            if (rings2d.Exteriors.Count > 0
-                && ToNTSPolygon(rings2d, out var ntsPolygon)
-                && ToPolygon2d(ntsPolygon, out polygon))
-            {
-                return true;
-            }
-            polygon = default;
-            return false;
-        }
-
-        public static bool Create(in Id id, in ReferencePlane refPlane, in IReadOnlyCollection<D3.LineString> rings, out PlanarFace? planarFace, out double maxPlaneDist)
-        {
-            if(rings.Count < 1
-               || !ToPolygon2d(refPlane.Plane, in rings, out var polygon, out BBox bBox, out maxPlaneDist))
-            {
-                planarFace = null;
-                maxPlaneDist = double.NaN;
-                return false;
-            }
-
-            planarFace = new PlanarFace(id, refPlane, bBox, polygon);
-            return true;
-        }
-
-
-
-        public bool ChangeReferencePlane(in ReferencePlane oldPlane, in ReferencePlane newPlane)
-        {
-            if (oldPlane.Id != ReferencePlaneId)
-                return false;
-            if (oldPlane.Id != newPlane.Id)
-                return true;
-
-            Polygon = Polygon.ChangePlane(oldPlane.Plane, newPlane.Plane);
-
-            return true;
-        }
-
-        public CoordinateSystem GetDisplaySystem(in ReferencePlane referencePlane)
-        {
-            if(referencePlane.Id != ReferencePlaneId)
-            {
-                throw new Exception();
-            }
-            var x = referencePlane.Plane.PlaneX.x;
-            CoordinateSystem coo;
-            if (Math.Abs(referencePlane.Plane.Normal.z) > Constants.RSQRT2)
-            { // Ansicht von oben bzw. unten (Lokale y Achse zeigt nach Norden)
-                var z = referencePlane.Plane.PlaneX.z;
-                if (z < 0)
-                {
-                    (x, z) = (-x, -z);
-                }
-                coo = new CoordinateSystem(referencePlane.Plane.Position, referencePlane.Plane.Normal, Axes.Z, new Vector(x, 0, z));
-            }
-            else
-            { // Ansicht von der Seite (Lokale x Achse ist waagerecht)
-                var y = referencePlane.Plane.PlaneX.y;
-                if (y < 0)
-                {
-                    (x, y) = (-x, -y);
-                }
-                coo = new CoordinateSystem(referencePlane.Plane.Position, referencePlane.Plane.Normal, Axes.Z, new Vector(x, y, 0));
-            }
-            var ext2 = new D2.LineString(coo,  new D3.LineString(referencePlane.Plane, Polygon[0]));
-            var pos = coo.FromPlaneSystem(ext2.BBox.Min);
-            return new CoordinateSystem(pos, coo.Rotation);
-        }
-
-        //public D2.Polygon ToDisplaySystem(in ReferencePlane referencePlane, in CoordinateSystem displaySystem)
-        //{
-        //    if (referencePlane.Id != ReferencePlaneId)
-        //    {
-        //        throw new Exception();
-        //    }
-        //    return Polygon.ChangePlane(referencePlane.Plane, displaySystem);
-        //}
-
-        //public static IReadOnlyDictionary<Id, Plane> GetUniqueFaces(IReadOnlyCollection<PlanarFace> planarFaces, double maxDihedralAngleDiff, double maxDiffD, out IReadOnlyList<string> failedFaces)
-        //{
-        //    // finde multiple PlanarFaces (selbe Object und FaceId)
-        //    var unique = ImmutableDictionary.CreateBuilder<Id, Plane>();
-        //    var failed = ImmutableArray.CreateBuilder<string>();
-        //    foreach (var pf in planarFaces)
-        //    {
-        //        if (unique.TryGetValue(pf.Id, out var plane))
-        //        {
-        //            pf.Plane.Difference(plane, out var dA, out var dD);
-        //            if (dA > maxDihedralAngleDiff || dD > maxDiffD)
-        //            {
-        //                failed.Add($"PlanarFace {pf.Id} hat einen Winkelfehler von {dA}rad und eine Differenz (D) von {dD}m");
-        //                unique.Remove(pf.Id);
-        //                continue;
-        //            }
-        //        }
-        //        else
-        //        {
-        //            unique[pf.Id] = pf.Plane;
-        //        }
-        //    }
-        //    failedFaces = failed.ToImmutable();
-        //    return unique.ToImmutable();
-        //}
-
-        public const string CsvHeader = "StateId;ObjectGuid;FaceId;PlaneId;BtmLft;BtmRgt;TopRgt;TopLft;BBoxMin;BBoxMax;Polygon";
-
-        public const string ShortCsvHeader = "StateId;ObjectGuid;FaceId;Polygon";
-
-        public const int LineCount = 11;
-
-        public const int ShortLineCount = 4;
-
-        public string ToCsvString()
-        {
-            var line = new string[LineCount];
-            line[0] = Id.StateId;
-            line[1] = Id.ObjectId;
-            line[2] = Id.PartId == 0 ? $"{Id.FaceId}" : $"{Id.FaceId}_{Id.PartId}";
-            line[3] = ReferencePlaneId;
-            line[4] = PlanarBtmLft.ToWktString();
-            line[5] = PlanarBtmRgt.ToWktString();
-            line[6] = PlanarTopRgt.ToWktString();
-            line[7] = PlanarTopLft.ToWktString();
-            line[8] = BBox.Min.ToWktString();
-            line[9] = BBox.Max.ToWktString();
-            line[10] = "POLYGON";
-            return string.Join(";", line);
-        }
-
-        public static bool TryParseCsvLine(string line, out PlanarFace? planarFace, out string error)
-        {
-            if (string.IsNullOrEmpty(line))
-            {
-                error = "PlanarFace.ParseCsvLine: Input string is null or empty";
-                planarFace = null;
-                return false;
-            }
-            var strings = line.Split(new[] { ';' });
-            if (strings.Length == LineCount
-                && Vector.TryParseWkt(strings[4], out var btmLft)
-                && Vector.TryParseWkt(strings[5], out var btmRgt)
-                && Vector.TryParseWkt(strings[6], out var topRgt)
-                && Vector.TryParseWkt(strings[7], out var topLft)
-                && Vector.TryParseWkt(strings[8], out var boxMin)
-                && Vector.TryParseWkt(strings[9], out var boxMax)
-                && D2.Polygon.TryParseWkt(strings[10], out var polygon))
-            {
-                error = string.Empty;
-                planarFace = new PlanarFace(new Id(strings[0], strings[1], strings[2]), strings[3], btmLft, btmRgt, topRgt, topLft, new BBox(boxMin, boxMax), polygon);
-                return true;
-            }
-            error = $"PlanarFace.ParseCsvLine: Line: \r\n{line}\r\n is not readable";
-            planarFace = default;
-            return false;
-        }
-
-        public static bool TryParseShortCsvLine(string line, out PlanarFace? planarFace, out ReferencePlane? referencePlane, out double maxPlaneDist, out string error)
-        {
-            if (string.IsNullOrEmpty(line))
-            {
-                error = "PlanarFace.ParseCsvLine: Input string is null or empty";
-                planarFace = null;
-                referencePlane = null;
-                maxPlaneDist = default;
-                return false;
-            }
-            var strings = line.Split(new[] { ';' });
-            if (strings.Length == ShortLineCount
-                && D3.Polygon.TryParseWkt(strings[3], out var polygon, out maxPlaneDist))
-            {
-                error = string.Empty;
-                referencePlane = new ReferencePlane(polygon.Plane);
-                planarFace = new PlanarFace(
-                    new Id(strings[0], strings[1], strings[2]), 
-                    referencePlane.Value, 
-                    polygon.BBox,
-                    polygon.Polygon2D);
-                return true;
-            }
-            error = $"PlanarFace.ParseCsvLine: Line: \r\n{line}\r\n is not readable";
-            planarFace = null;
-            referencePlane = null;
-            maxPlaneDist = default;
-            return false;
-        }
-        public override bool Equals(object? obj) => obj is PlanarFace face && Equals(face);
-
-        public bool Equals(PlanarFace? other) => other?.Id.Equals(Id)??false;
-
-        public override int GetHashCode() => Id.GetHashCode();
-
-        public static bool operator ==(in PlanarFace left, in PlanarFace right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(in PlanarFace left, in PlanarFace right)
-        {
-            return !(left == right);
-        }
-
-        //public static IReadOnlyDictionary<Id, Plane> UniquePlanesById(in IReadOnlyCollection<PlanarFace> planarFaces)
-        //{
-        //    var facePlanes = new Dictionary<Id, Plane>(planarFaces.Count);
-        //    foreach (var pf in planarFaces)
-        //    {
-        //        facePlanes[pf.Id] = pf.Plane;
-        //    }
-        //    return facePlanes;
-        //}
-
-        public static void WriteObj(in string path, in IReadOnlyDictionary<string, ReferencePlane> planes, in IEnumerable<PlanarFace> planarFaces)
-        {
-            using var file = File.CreateText(path + ".obj");
-            var faces = new List<string>();
-            int vertexCnt = 0;
-            void AddLs(Plane plane, D2.LineString ls)
-            {
-                int first = vertexCnt;
-                var face = new StringBuilder("f");
-                for (int i = 1; i < ls.Count; i++)
-                {
-                    file.WriteLine($"v {plane.FromPlaneSystem(ls[i])}");
-                    face.AppendFormat(" {0}", first + i);
-                }
-                faces.Add(face.ToString());
-                vertexCnt += ls.Count - 1;
-            }
-            foreach (var pf in planarFaces)
-            {
-                faces.Add($"# {pf.Id}");
-                foreach (var ls in pf.Polygon)
-                {
-                    AddLs(planes[pf.ReferencePlaneId].Plane, ls);
-                }
-            }
-            foreach (var face in faces)
-            {
-                file.WriteLine(face);
-            }
-        }
-
-        public static void WriteCsv(in string path, in IReadOnlyCollection<PlanarFace> planarFaces)
-        {
-            using var csv = File.CreateText(path);
-            csv.WriteLine(CsvHeader);
-            foreach (var pf in planarFaces)
-            {
-                csv.WriteLine(pf.ToCsvString());
-            }
-        }
-
-        public static HashSet<PlanarFace> ReadCsv(in string path, out string[] lineErrors, out string error)
-        {
-            string[] lines;
-            var faces = new HashSet<PlanarFace>();
-            try
-            {
-                lines = File.ReadAllLines(path);
-            }
-            catch (Exception e)
-            {
-                lineErrors = Array.Empty<string>();
-                error = "PlanarFace.ReadCsv: " + e.Message;
-                return faces;
-            }
-            if (lines.Length > 1)
-            {
-                var errors = new List<string>();
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    if (TryParseCsvLine(lines[i], out var pf, out error))
-                    {
-                        faces.Add(pf!);
-                        continue;
-                    }
-                    errors.Add($"Line {i + 1} has Error: {error}");
-                    error = string.Empty;
-                }
-                lineErrors = errors.ToArray();
-                error = string.Empty;
-                return faces;
-            }
-            lineErrors = Array.Empty<string>();
-            error = "PlanarFace.ReadCsv: CSV-File has no data lines";
-            return faces;
-        }
-
-
-        public static HashSet<PlanarFace> ReadCsv(in string path, out Dictionary<string, ReferencePlane> referencePlanes, out Dictionary<Id, double> maxPlaneDists, out string[] lineErrors, out string error)
-        {
-            string[] lines;
-            var faces = new HashSet<PlanarFace>();
-            referencePlanes = new Dictionary<string, ReferencePlane>();
-            maxPlaneDists = new Dictionary<Id, double>();
-            try
-            {
-                lines = File.ReadAllLines(path);
-            }
-            catch (Exception e)
-            {
-                lineErrors = Array.Empty<string>();
-                error = "PlanarFace.ReadCsv: " + e.Message;
-                return faces;
-            }
-            if (lines.Length > 1)
-            {
-                var errors = new List<string>();
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    if (TryParseShortCsvLine(lines[i], out var pf, out var rp, out var mpd, out error))
-                    {
-                        faces.Add(pf!);
-                        referencePlanes[rp!.Value.Id] = rp.Value;
-                        maxPlaneDists[pf!.Id] = mpd;
-                        continue;
-                    }
-                    errors.Add($"Line {i + 1} has Error: {error}");
-                    error = string.Empty;
-                }
-                lineErrors = errors.ToArray();
-                error = string.Empty;
-                return faces;
-            }
-            lineErrors = Array.Empty<string>();
-            error = "PlanarFace.ReadCsv: CSV-File has no data lines";
-            return faces;
-        }
-
+        Id = id;
+        ReferencePlaneId = referencePlaneId;
+        PlanarBtmLft = planarBtmLft;
+        PlanarBtmRgt = planarBtmRgt;
+        PlanarTopRgt = planarTopRgt;
+        PlanarTopLft = planarTopLft;
+        BBox = bBox;
+        Polygon = polygon;
     }
+
+    private PlanarFace(in Id id, in ReferencePlane referencePlane, in BBox bBox, in Polygon polygon)
+    {
+        Id = id;
+        ReferencePlaneId = referencePlane.Id;
+        BBox = bBox;
+        PlanarBtmLft = referencePlane.Plane.FromPlaneSystem(polygon.BBox.Min);
+        PlanarBtmRgt = referencePlane.Plane.FromPlaneSystem(new D2_Vector(polygon.BBox.Min.x, polygon.BBox.Max.y));
+        PlanarTopRgt = referencePlane.Plane.FromPlaneSystem(polygon.BBox.Max);
+        PlanarTopLft = referencePlane.Plane.FromPlaneSystem(new D2_Vector(polygon.BBox.Max.x, polygon.BBox.Min.y));
+        Polygon = polygon;
+    }
+
+    public Id Id { get; }
+
+    public string ReferencePlaneId { get; }
+
+    public Vector PlanarBtmLft { get; }
+
+    public Vector PlanarBtmRgt { get; }
+
+    public Vector PlanarTopRgt { get; }
+
+    public Vector PlanarTopLft { get; }
+
+    /// <summary>
+    ///     Bounding Box, Min X Y Z + Max X Y Z
+    /// </summary>
+    public BBox BBox { get; }
+
+    public Polygon Polygon { get; private set; }
+
+    public bool Equals(PlanarFace? other)
+    {
+        return other?.Id.Equals(Id) ?? false;
+    }
+
+    private static bool ToNTSLinearRing(in LineString lineString, out NTS.LinearRing linearRing,
+        bool reverse = false)
+    {
+        NTS.GeometryFactory? gf = NTS.GeometryFactory.Floating;
+        if (!lineString.IsClosed)
+        {
+            linearRing = gf.CreateLinearRing();
+            return false;
+        }
+
+        var coo = new NTS.Coordinate[lineString.Count];
+        if (reverse)
+            for (var i = 0; i < lineString.Count; i++)
+            {
+                D2_Vector vector = lineString[i];
+                coo[lineString.Count - 1 - i] = new NTS.Coordinate(vector.x, vector.y);
+            }
+        else
+            for (var i = 0; i < lineString.Count; i++)
+            {
+                D2_Vector vector = lineString[i];
+                coo[i] = new NTS.Coordinate(vector.x, vector.y);
+            }
+
+        try
+        {
+            linearRing = gf.CreateLinearRing(coo);
+            return true;
+        }
+        catch
+        {
+            linearRing = gf.CreateLinearRing();
+            return false;
+        }
+    }
+
+    private static bool ToNTSPolygon(in LinearRingCollection linearRingCollection, out NTS.Polygon polygon)
+    {
+        if (ToNTSLinearRing(linearRingCollection.Exteriors[0], out NTS.LinearRing exterior))
+        {
+            NTS.GeometryFactory? gf = NTS.GeometryFactory.Floating;
+            polygon = gf.CreatePolygon(exterior);
+            for (var i = 1; i < linearRingCollection.Exteriors.Count; i++)
+            {
+                if (!ToNTSLinearRing(linearRingCollection.Exteriors[i], out exterior))
+                    throw new Exception("Should not happen");
+                NTS.Geometry? union = polygon.Union(gf.CreatePolygon(exterior));
+                if (union.GeometryType == NTS.Geometry.TypeNamePolygon)
+                    polygon = (NTS.Polygon)union;
+                else
+                    return false;
+            }
+
+            foreach (LineString innerRing in linearRingCollection.Interiors)
+            {
+                if (!ToNTSLinearRing(innerRing, out NTS.LinearRing interior, true))
+                    throw new Exception("Should not happen");
+                NTS.Geometry? diff = polygon.Difference(gf.CreatePolygon(interior));
+                if (diff.GeometryType == NTS.Geometry.TypeNamePolygon)
+                    polygon = (NTS.Polygon)diff;
+                else
+                    return false;
+            }
+
+            return true;
+        }
+
+        polygon = NTS.Polygon.Empty;
+        return false;
+    }
+
+    private static LineString ToLs2(in NTS.LineString lr)
+    {
+        var vertices = new D2_Vector[lr.Count];
+        for (var i = 0; i < vertices.Length; i++)
+        {
+            NTS.Coordinate? coo = lr[i];
+            vertices[i] = new D2_Vector(coo.X, coo.Y);
+        }
+
+        return new LineString(vertices, lr.IsClosed);
+    }
+
+    private static bool ToPolygon2d(in NTS.Polygon polygon, out Polygon polygon2)
+    {
+        if (!polygon.IsValid || !polygon.IsSimple)
+        {
+            polygon2 = default;
+            return false;
+        }
+
+        LineString ext = ToLs2(polygon.ExteriorRing);
+        var ints = new List<LineString>(polygon.InteriorRings.Length);
+        foreach (NTS.LineString? ilr in polygon.InteriorRings) ints.Add(ToLs2(ilr));
+        return Polygon.Create(ext, ints, out polygon2);
+    }
+
+    private static bool ToPolygon2d(in Plane plane, in IReadOnlyCollection<D3_LineString> rings,
+        out Polygon polygon, out BBox box, out double maxPlaneDist)
+    {
+        var rings2d = new LinearRingCollection();
+        maxPlaneDist = 0.0;
+        box = BBox.Empty;
+        foreach (D3_LineString ring in rings)
+        {
+            var transformed = new D2_Vector[ring.Count];
+            var zs = new double[transformed.Length];
+            for (var i1 = 0; i1 < transformed.Length; i1++)
+            {
+                transformed[i1] = plane.ToPlaneSystem(ring[i1], out double z);
+                zs[i1] = z;
+            }
+
+            var lr = new LineString(transformed, true);
+            if (rings2d.Add(lr))
+                for (var i = 0; i < zs.Length; i++)
+                {
+                    double az = Math.Abs(zs[i]);
+                    if (az > maxPlaneDist) maxPlaneDist = az;
+                    if (lr.Area > 0) box += ring[i];
+                }
+        }
+
+        if (rings2d.Exteriors.Count > 0
+            && ToNTSPolygon(rings2d, out NTS.Polygon ntsPolygon)
+            && ToPolygon2d(ntsPolygon, out polygon))
+            return true;
+        polygon = default;
+        return false;
+    }
+
+    public static bool Create(in Id id, in ReferencePlane refPlane, in IReadOnlyCollection<D3_LineString> rings,
+        out PlanarFace? planarFace, out double maxPlaneDist)
+    {
+        if (rings.Count < 1
+            || !ToPolygon2d(refPlane.Plane, in rings, out Polygon polygon, out BBox bBox, out maxPlaneDist))
+        {
+            planarFace = null;
+            maxPlaneDist = double.NaN;
+            return false;
+        }
+
+        planarFace = new PlanarFace(id, refPlane, bBox, polygon);
+        return true;
+    }
+
+
+    private string ToCsvString()
+    {
+        var line = new string[LineCount];
+        line[0] = Id.StateId;
+        line[1] = Id.ObjectId;
+        line[2] = Id.PartId == 0 ? $"{Id.FaceId}" : $"{Id.FaceId}_{Id.PartId}";
+        line[3] = ReferencePlaneId;
+        line[4] = PlanarBtmLft.ToWktString();
+        line[5] = PlanarBtmRgt.ToWktString();
+        line[6] = PlanarTopRgt.ToWktString();
+        line[7] = PlanarTopLft.ToWktString();
+        line[8] = BBox.Min.ToWktString();
+        line[9] = BBox.Max.ToWktString();
+        line[10] = "POLYGON";
+        return string.Join(";", line);
+    }
+
+    private static bool TryParseCsvLine(string line, out PlanarFace? planarFace, out string error)
+    {
+        if (string.IsNullOrEmpty(line))
+        {
+            error = "PlanarFace.ParseCsvLine: Input string is null or empty";
+            planarFace = null;
+            return false;
+        }
+
+        string[] strings = line.Split([';']);
+        if (strings.Length == LineCount
+            && Vector.TryParseWkt(strings[4], out Vector btmLft)
+            && Vector.TryParseWkt(strings[5], out Vector btmRgt)
+            && Vector.TryParseWkt(strings[6], out Vector topRgt)
+            && Vector.TryParseWkt(strings[7], out Vector topLft)
+            && Vector.TryParseWkt(strings[8], out Vector boxMin)
+            && Vector.TryParseWkt(strings[9], out Vector boxMax)
+            && Polygon.TryParseWkt(strings[10], out Polygon polygon))
+        {
+            error = string.Empty;
+            planarFace = new PlanarFace(new Id(strings[0], strings[1], strings[2]), strings[3], btmLft, btmRgt, topRgt,
+                topLft, new BBox(boxMin, boxMax), polygon);
+            return true;
+        }
+
+        error = $"PlanarFace.ParseCsvLine: Line: \r\n{line}\r\n is not readable";
+        planarFace = null;
+        return false;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is PlanarFace face && Equals(face);
+    }
+
+    public override int GetHashCode()
+    {
+        return Id.GetHashCode();
+    }
+
+    public static bool operator ==(in PlanarFace left, in PlanarFace right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(in PlanarFace left, in PlanarFace right)
+    {
+        return !(left == right);
+    }
+
+    public static void WriteObj(in string path, in IReadOnlyDictionary<string, ReferencePlane> planes,
+        in IEnumerable<PlanarFace> planarFaces)
+    {
+        using StreamWriter file = File.CreateText(path + ".obj");
+        var faces = new List<string>();
+        var vertexCnt = 0;
+
+        void AddLs(Plane plane, LineString ls)
+        {
+            int first = vertexCnt;
+            var face = new StringBuilder("f");
+            for (var i = 1; i < ls.Count; i++)
+            {
+                file.WriteLine($"v {plane.FromPlaneSystem(ls[i])}");
+                face.AppendFormat(" {0}", first + i);
+            }
+
+            faces.Add(face.ToString());
+            vertexCnt += ls.Count - 1;
+        }
+
+        foreach (PlanarFace pf in planarFaces)
+        {
+            faces.Add($"# {pf.Id}");
+            foreach (LineString ls in pf.Polygon) AddLs(planes[pf.ReferencePlaneId].Plane, ls);
+        }
+
+        foreach (string face in faces) file.WriteLine(face);
+    }
+
+    public static void WriteCsv(in string path, in IReadOnlyCollection<PlanarFace> planarFaces)
+    {
+        using var csv = File.CreateText(path);
+        csv.WriteLine(CsvHeader);
+        foreach (var pf in planarFaces) csv.WriteLine(pf.ToCsvString());
+    }
+
+    public static HashSet<PlanarFace> ReadCsv(in string path, out string[] lineErrors, out string error)
+    {
+        string[] lines;
+        var faces = new HashSet<PlanarFace>();
+        try
+        {
+            lines = File.ReadAllLines(path);
+        }
+        catch (Exception e)
+        {
+            lineErrors = [];
+            error = "PlanarFace.ReadCsv: " + e.Message;
+            return faces;
+        }
+
+        if (lines.Length > 1)
+        {
+            var errors = new List<string>();
+            for (var i = 1; i < lines.Length; i++)
+            {
+                if (TryParseCsvLine(lines[i], out PlanarFace? pf, out error))
+                {
+                    faces.Add(pf!);
+                    continue;
+                }
+
+                errors.Add($"Line {i + 1} has Error: {error}");
+                error = string.Empty;
+            }
+
+            lineErrors = errors.ToArray();
+            error = string.Empty;
+            return faces;
+        }
+
+        lineErrors = [];
+        error = "PlanarFace.ReadCsv: CSV-File has no data lines";
+        return faces;
+    }
+
 }

@@ -1,49 +1,62 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <OutputType>Library</OutputType>
-    <UseWindowsForms>true</UseWindowsForms>
-    <UseWPF>true</UseWPF>
-    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
-    <LangVersion>8.0</LangVersion>
-    <Platforms>x64</Platforms>
-  </PropertyGroup>
-  <ItemGroup>
-    <None Update="SettingsGreen3DScan.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Resources\addStation.png" />
-    <Content Include="Resources\bim2Face.png" />
-    <Content Include="Resources\bim2Stations.png" />
-    <Content Include="Resources\cloud.PNG" />
-    <Content Include="Resources\grid.png" />
-    <Content Include="Resources\ifc.PNG" />
-    <Content Include="Resources\loadStations.png" />
-    <Content Include="Resources\server.png" />
-    <Content Include="Resources\stations2NotVisibleFaces.png" />
-    <Content Include="Resources\stations2PointClouds.png" />
-    <Content Include="Resources\routePgm.png" />
-    <Content Include="Resources\routePgmExport.png" />
-    <Content Include="Resources\set.PNG">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Autodesk.Revit.SDK" Version="2025.0.2.419" />
-    <PackageReference Include="Nice3point.Revit.Extensions" Version="2026.0.1" />
-    <PackageReference Include="OpenCvSharp4" Version="4.11.0.20250507" />
-    <PackageReference Include="OpenCvSharp4.Windows" Version="4.11.0.20250507" />
-    <PackageReference Include="Serilog" Version="4.2.0" />
-    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageReference Include="YamlDotNet" Version="16.3.0" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\GeometryLib\GeometryLib.csproj" />
-    <ProjectReference Include="..\ScantraIO\ScantraIO.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <WCFMetadata Include="Connected Services\" />
-  </ItemGroup>
+    <PropertyGroup>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <OutputType>Library</OutputType>
+        <UseWindowsForms>true</UseWindowsForms>
+        <UseWPF>true</UseWPF>
+        <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+        <LangVersion>latest</LangVersion>
+        <Platforms>x64</Platforms>
+    </PropertyGroup>
+    <ItemGroup>
+        <None Update="SettingsGreen3DScan.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="Resources\addStation.png" />
+        <Content Include="Resources\bim2Face.png" />
+        <Content Include="Resources\bim2Stations.png" />
+        <Content Include="Resources\cloud.PNG" />
+        <Content Include="Resources\grid.png" />
+        <Content Include="Resources\ifc.PNG" />
+        <Content Include="Resources\loadStations.png" />
+        <Content Include="Resources\server.png" />
+        <Content Include="Resources\stations2NotVisibleFaces.png" />
+        <Content Include="Resources\stations2PointClouds.png" />
+        <Content Include="Resources\routePgm.png" />
+        <Content Include="Resources\routePgmExport.png" />
+        <Content Include="Resources\set.PNG">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Autodesk.Revit.SDK" Version="2025.0.2.419" />
+        <PackageReference Include="Nice3point.Revit.Extensions" Version="2026.0.1" />
+        <PackageReference Include="OpenCvSharp4" Version="4.11.0.20250507" />
+        <PackageReference Include="OpenCvSharp4.Windows" Version="4.11.0.20250507" />
+        <PackageReference Include="Serilog" Version="4.2.0" />
+        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+        <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\GeometryLib\GeometryLib.csproj" />
+        <ProjectReference Include="..\ScantraIO\ScantraIO.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <WCFMetadata Include="Connected Services\" />
+    </ItemGroup>
+    <ItemGroup>
+      <Compile Update="ResourcePng.Designer.cs">
+        <DesignTime>True</DesignTime>
+        <AutoGen>True</AutoGen>
+        <DependentUpon>ResourcePng.resx</DependentUpon>
+      </Compile>
+    </ItemGroup>
+    <ItemGroup>
+      <EmbeddedResource Update="ResourcePng.resx">
+        <Generator>ResXFileCodeGenerator</Generator>
+        <LastGenOutput>ResourcePng.Designer.cs</LastGenOutput>
+      </EmbeddedResource>
+    </ItemGroup>
 </Project>

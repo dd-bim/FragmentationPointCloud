@@ -1,187 +1,124 @@
-﻿using System;
+﻿using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using JetBrains.Annotations;
+using Serilog;
+using System;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Autodesk.Revit.Attributes;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
+using System.Windows.Forms;
+using System.Windows.Shapes;
 using Except = Autodesk.Revit.Exceptions;
-using Serilog;
+using Path = System.IO.Path;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
 namespace Revit.Green3DScan
 {
     [Transaction(TransactionMode.Manual)]
+    [UsedImplicitly]
     public class Server : IExternalCommand
     {
-        private static readonly HttpClient client = new HttpClient();
+        private const string RequestUri = "https://green3dscan.dd-bim.org/upload";
+        private const string UserUuid = "d5f3ce37-8537-45a8-a673-a1de6e6dedc1";
+        private const string OutputFolder = "10_FragmentationIFC";
+        private const string DownloadedFileName = "downloadedFile.zip";
+ 
+        private static readonly HttpClient Client = new();
 
-        #region Execute
-        string path;
-        string dateBimLastModified;
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            #region setup
-            // settings json
-            SettingsJson set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
-
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
-            try
+            if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out _, out _))
             {
-                path = Path.GetDirectoryName(doc.PathName);
-                FileInfo fileInfo = new FileInfo(path);
-                var date = fileInfo.LastWriteTime;
-                dateBimLastModified = date.Year + "-" + date.Month + "-" + date.Day + "-" + date.Hour + "-" + date.Minute;
-            }
-            catch (Exception)
-            {
-                TaskDialog.Show("Message", "The file has not been saved yet.");
+                TaskDialog.Show("Message", "The project file has not been saved yet.");
                 return Result.Failed;
             }
+            ExternalCommandHelper.InitLogger(projectPath);
+            var settings = SettingsJson.ReadSettingsJson(Constants.pathSettings);
 
-            // logger
-            string logsPath = Path.Combine(path, "00_Logs/");
-            if (!Directory.Exists(logsPath))
-            {
-                Directory.CreateDirectory(logsPath);
-            }
-            Log.Logger = new LoggerConfiguration()
-               .MinimumLevel.Debug()
-               .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
-               .CreateLogger();
             Log.Information("start server");
-            Log.Information(set.BBox_Buffer.ToString());
-            #endregion setup
+            Log.Information("BBox_Buffer: {BBox_Buffer}", settings.BBox_Buffer.ToString(CultureInfo.InvariantCulture));
 
-            string pcdPath;
-            string csvPath;
+            return DoExecute(projectPath);
+        }
 
-            string ifcBoxPath = Path.Combine(path, "10_FragmentationIFC\\");
-            string rcpOutputPath = Path.Combine(path, "10_FragmentationIFC");
+        private static Result DoExecute(string projectPath)
+        {
+            string ifcBoxPath = Path.Combine(projectPath, OutputFolder);
             if (!Directory.Exists(ifcBoxPath))
-            {
                 Directory.CreateDirectory(ifcBoxPath);
-            }
 
-            try
+            // Get the path to the PCD file from the user
+            if (!ExternalCommandHelper.GetFilePathDialog("Select PCD file!",
+                    "PCD file(*.pcd) | *.pcd", out string pcdPath))
             {
-                // step 1: select pcd
-                FileOpenDialog pcd = new FileOpenDialog("PCD file (*.pcd)|*.pcd");
-                pcd.Title = "Select PCD file!";
-                if (pcd.Show() == ItemSelectionDialogResult.Canceled)
-                {
-                    return Result.Cancelled;
-                }
-                pcdPath = ModelPathUtils.ConvertModelPathToUserVisiblePath(pcd.GetSelectedModelPath());
-
-                // step 2: select csv
-                FileOpenDialog csv = new FileOpenDialog("CSV file (*.csv)|*.csv");
-                csv.Title = "Select CSV file!";
-                if (csv.Show() == ItemSelectionDialogResult.Canceled)
-                {
-                    return Result.Cancelled;
-                }
-                csvPath = ModelPathUtils.ConvertModelPathToUserVisiblePath(csv.GetSelectedModelPath());
-            }
-            #region catch
-            catch (Except.OperationCanceledException)
-            {
-                TaskDialog.Show("Message", "Error 1: Command canceled.");
-                return Result.Failed;
-            }
-            catch (Except.ForbiddenForDynamicUpdateException)
-            {
-                TaskDialog.Show("Message", "Error 2");
-                return Result.Failed;
-            }
-            catch (Exception ex)
-            {
-                message += "Error message::" + ex.ToString();
-                TaskDialog.Show("Message", message);
+                TaskDialog.Show("Message", "No PCD file selected.");
                 return Result.Failed;
             }
 
-            try
+            // Get the path to the CSV file from the user
+            if (!ExternalCommandHelper.GetFilePathDialog("Select CSV file!",
+                    "CSV file (*.csv)|*.csv", out string csvPath))
             {
-                var userUuid = "d5f3ce37-8537-45a8-a673-a1de6e6dedc1";
-
-                UploadFileToWebApp(pcdPath, userUuid).Wait();
-                UploadFileToWebApp(csvPath, userUuid).Wait();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-
-            try
-            {
-                var userUuid = "d5f3ce37-8537-45a8-a673-a1de6e6dedc1"; // UUID setzen
-                string localSavePath = Path.Combine(path, "downloadedFile.zip"); // Lokalen Speicherpfad setzen
-
-                // Warte synchron auf den Abschluss des Downloads
-                DownloadFileFromWebApp(userUuid, localSavePath).Wait();
-
-                TaskDialog.Show("Message", "Datei erfolgreich heruntergeladen und gespeichert: " + localSavePath);
-            }
-            catch (Exception ex)
-            {
-                TaskDialog.Show("Fehler", $"Fehler beim Herunterladen: {ex.Message}");
+                TaskDialog.Show("Message", "No CSV file selected.");
                 return Result.Failed;
             }
+
+            UploadFileToWebApp(pcdPath, UserUuid).Wait();
+            UploadFileToWebApp(csvPath, UserUuid).Wait();
+
+            // Download the file from the web app
+            string localSavePath = Path.Combine(projectPath, DownloadedFileName);
+            DownloadFileFromWebApp(UserUuid, localSavePath).Wait();
 
             TaskDialog.Show("Message", "Server successful!");
             return Result.Succeeded;
-            #endregion catch
         }
-        #endregion execute
-        public async Task UploadFileToWebApp(string filePath, string userUuid)
+
+        private static async Task UploadFileToWebApp(string filePath, string userUuid)
         {
             try
             {
-                MultipartFormDataContent form = new MultipartFormDataContent();
+                var form = new MultipartFormDataContent();
                 HttpContent fileStreamContent = new StreamContent(File.OpenRead(filePath));
                 form.Add(fileStreamContent, "file", Path.GetFileName(filePath));
 
-                client.DefaultRequestHeaders.Add("Cookie", "userUuid=" + userUuid);
+                using var request = new HttpRequestMessage(HttpMethod.Post, RequestUri);
+                request.Content = form;
+                request.Headers.Add("Cookie", "userUuid=" + userUuid);
 
-                HttpResponseMessage response = await client.PostAsync("https://green3dscan.dd-bim.org/upload", form);
+                var response = await Client.SendAsync(request);
                 response.EnsureSuccessStatusCode();
                 string responseBody = await response.Content.ReadAsStringAsync();
-                TaskDialog.Show("Erfolg", "Datei hochgeladen: " + responseBody);
+                TaskDialog.Show("Success", "File uploaded: " + responseBody);
             }
             catch (HttpRequestException e)
             {
-                TaskDialog.Show("Fehler", $"Fehler beim Hochladen: {e.Message}");
+                TaskDialog.Show("Error", $"File upload failed: {e.Message}");
             }
         }
 
-        public async Task DownloadFileFromWebApp(string userUuid, string localSavePath)
+        private static async Task DownloadFileFromWebApp(string userUuid, string localSavePath)
         {
             try
             {
-                // Füge den Cookie mit der UUID hinzu, falls erforderlich
-                client.DefaultRequestHeaders.Add("Cookie", "userUuid=" + userUuid);
+                using var request = new HttpRequestMessage(HttpMethod.Get, RequestUri);
+                request.Headers.Add("Cookie", "userUuid=" + userUuid);
 
-                // Sende die GET-Anfrage an den Download-Endpunkt
-                HttpResponseMessage response = await client.GetAsync("https://green3dscan.dd-bim.org/download");
-
-                // Sicherstellen, dass die Anfrage erfolgreich war
+                var response = await Client.SendAsync(request);
                 response.EnsureSuccessStatusCode();
 
-                // Lade den Inhalt der Antwort als Stream herunter
-                using (var fileStream = new FileStream(localSavePath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    // Schreibe den Stream in die lokale Datei
+                await using (var fileStream = new FileStream(localSavePath, FileMode.Create, FileAccess.Write, FileShare.None))
                     await response.Content.CopyToAsync(fileStream);
-                }
 
-                TaskDialog.Show("Erfolg", "Datei erfolgreich heruntergeladen: " + localSavePath);
+                TaskDialog.Show("Success", "File downloaded to: " + localSavePath);
             }
             catch (HttpRequestException e)
             {
-                TaskDialog.Show("Fehler", $"Fehler beim Herunterladen: {e.Message}");
+                TaskDialog.Show("Error", $"File download failed: {e.Message}");
             }
         }
+
     }
 }

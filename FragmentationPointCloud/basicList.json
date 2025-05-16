@@ -1,5 +1,11 @@
 {
-	"includeList": [
-	"IfcWall", "IfcRoof", "IfcSlab", "IfcColumn", "IfcStair", "IfcBeam"],
-	"excludeList": []
+  "includeList": [
+    "IfcWall",
+    "IfcRoof",
+    "IfcSlab",
+    "IfcColumn",
+    "IfcStair",
+    "IfcBeam"
+  ],
+  "excludeList": []
 }
