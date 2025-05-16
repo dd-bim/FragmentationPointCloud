@@ -1,58 +1,42 @@
-﻿using System;
-using System.IO;
-using Autodesk.Revit.Attributes;
+﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Revit.Green3DScan;
 using Serilog;
+using System;
+using System.IO;
 
 namespace Revit.GUI
 {
     [Transaction(TransactionMode.Manual)]
     public class CmdShowSettings : IExternalCommand
     {
-        private string _path = "";
-        private SettingsJson _set;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            #region setup
-
-            var uiDoc = commandData.Application.ActiveUIDocument;
-            var doc = uiDoc.Document;
-            try
+            if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out _, out _))
             {
-                _path = Path.GetDirectoryName(doc.PathName) ?? throw new NullReferenceException();
-            }
-            catch (Exception)
-            {
-                TaskDialog.Show("Message", "The file has not been saved yet.");
+                TaskDialog.Show("Message", "The project file has not been saved yet.");
                 return Result.Failed;
             }
-
-            // logger
-            string logsPath = Path.Combine(_path, ResourcePng.LogsFolderName);
-            if (!Directory.Exists(logsPath)) Directory.CreateDirectory(logsPath);
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.File(Path.Combine(logsPath, ResourcePng.LogFile), rollingInterval: RollingInterval.Minute)
-                .CreateLogger();
+            ExternalCommandHelper.InitLogger(projectPath);
             Log.Information("start CmdShowSettings");
 
-            #endregion setup
 
             // settings json
+            SettingsJson settings;
             try
             {
-                _set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
+                settings = SettingsJson.ReadSettingsJson(Constants.pathSettings);
             }
             catch
             {
-                _set = SettingsJson.ReadSettingsJson(Constants.readPathSettings);
+                settings = SettingsJson.ReadSettingsJson(Constants.readPathSettings);
             }
 
             try
             {
-                var propUI = new WinSettings(_set);
+                var propUI = new WinSettings(settings);
                 propUI.ShowDialog();
 
                 if (propUI.SaveChanges)
