@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GeometryLib", "GeometryLib\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Revit", "FragmentationPointCloud\Revit.csproj", "{4C926EC8-67B0-461B-8C00-C09C59300552}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Playground", "Playground\Playground.csproj", "{16FE1248-287D-4226-8ECB-94C92E8E6955}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,10 @@ Global
 		{4C926EC8-67B0-461B-8C00-C09C59300552}.Debug|x64.Build.0 = Debug|x64
 		{4C926EC8-67B0-461B-8C00-C09C59300552}.Release|x64.ActiveCfg = Release|x64
 		{4C926EC8-67B0-461B-8C00-C09C59300552}.Release|x64.Build.0 = Release|x64
+		{16FE1248-287D-4226-8ECB-94C92E8E6955}.Debug|x64.ActiveCfg = Debug|x64
+		{16FE1248-287D-4226-8ECB-94C92E8E6955}.Debug|x64.Build.0 = Debug|x64
+		{16FE1248-287D-4226-8ECB-94C92E8E6955}.Release|x64.ActiveCfg = Release|Any CPU
+		{16FE1248-287D-4226-8ECB-94C92E8E6955}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

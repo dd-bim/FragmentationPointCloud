@@ -2,15 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using BBox = GeometryLib.D3.BBox;
-using D2_Vector = GeometryLib.D2.Vector;
-using D3_LineString = GeometryLib.D3.LineString;
-using LinearRingCollection = GeometryLib.D2.LinearRingCollection;
-using LineString = GeometryLib.D2.LineString;
-using NTS = NetTopologySuite.Geometries;
-using Plane = GeometryLib.D3.Plane;
-using Polygon = GeometryLib.D2.Polygon;
-using Vector = GeometryLib.D3.Vector;
+using Autodesk.Revit.DB;
 
 namespace Revit.Data;
 
@@ -36,15 +28,15 @@ public class PlanarFace : IEquatable<PlanarFace>
         Polygon = polygon;
     }
 
-    private PlanarFace(in Id id, in ReferencePlane referencePlane, in BBox bBox, in Polygon polygon)
+    private PlanarFace(in Id id, in ReferencePlane referencePlane, in Polygon polygon)
     {
         Id = id;
         ReferencePlaneId = referencePlane.Id;
-        BBox = bBox;
-        PlanarBtmLft = referencePlane.Plane.FromPlaneSystem(polygon.BBox.Min);
-        PlanarBtmRgt = referencePlane.Plane.FromPlaneSystem(new D2_Vector(polygon.BBox.Min.x, polygon.BBox.Max.y));
-        PlanarTopRgt = referencePlane.Plane.FromPlaneSystem(polygon.BBox.Max);
-        PlanarTopLft = referencePlane.Plane.FromPlaneSystem(new D2_Vector(polygon.BBox.Max.x, polygon.BBox.Min.y));
+        var envelope = polygon.EnvelopeInternal;
+        PlanarBtmLft = referencePlane.Plane.FromPlaneSystem(new UV(envelope.MinX, envelope.MinY));
+        PlanarBtmRgt = referencePlane.Plane.FromPlaneSystem(new UV(envelope.MinX, envelope.MaxY));
+        PlanarTopRgt = referencePlane.Plane.FromPlaneSystem(new UV(envelope.MaxX, envelope.MaxY));
+        PlanarTopLft = referencePlane.Plane.FromPlaneSystem(new UV(envelope.MaxX, envelope.MinY));
         Polygon = polygon;
     }
 
@@ -52,108 +44,105 @@ public class PlanarFace : IEquatable<PlanarFace>
 
     public string ReferencePlaneId { get; }
 
-    public Vector PlanarBtmLft { get; }
+    public XYZ PlanarBtmLft { get; }
 
-    public Vector PlanarBtmRgt { get; }
+    public XYZ PlanarBtmRgt { get; }
 
-    public Vector PlanarTopRgt { get; }
+    public XYZ PlanarTopRgt { get; }
 
-    public Vector PlanarTopLft { get; }
+    public XYZ PlanarTopLft { get; }
 
-    /// <summary>
-    ///     Bounding Box, Min X Y Z + Max X Y Z
-    /// </summary>
-    public BBox BBox { get; }
+    public Envelope Envelope => Geometry.EnvelopeInternal;
 
-    public Polygon Polygon { get; private set; }
+    public Geometry Geometry { get; private set; }
 
     public bool Equals(PlanarFace? other)
     {
         return other?.Id.Equals(Id) ?? false;
     }
 
-    private static bool ToNTSLinearRing(in LineString lineString, out NTS.LinearRing linearRing,
-        bool reverse = false)
-    {
-        NTS.GeometryFactory? gf = NTS.GeometryFactory.Floating;
-        if (!lineString.IsClosed)
-        {
-            linearRing = gf.CreateLinearRing();
-            return false;
-        }
+    //private static bool ToNTSLinearRing(in LineString lineString, out NTS.LinearRing linearRing,
+    //    bool reverse = false)
+    //{
+    //    NTS.GeometryFactory? gf = NTS.GeometryFactory.Floating;
+    //    if (!lineString.IsClosed)
+    //    {
+    //        linearRing = gf.CreateLinearRing();
+    //        return false;
+    //    }
 
-        var coo = new NTS.Coordinate[lineString.Count];
-        if (reverse)
-            for (var i = 0; i < lineString.Count; i++)
-            {
-                D2_Vector vector = lineString[i];
-                coo[lineString.Count - 1 - i] = new NTS.Coordinate(vector.x, vector.y);
-            }
-        else
-            for (var i = 0; i < lineString.Count; i++)
-            {
-                D2_Vector vector = lineString[i];
-                coo[i] = new NTS.Coordinate(vector.x, vector.y);
-            }
+    //    var coo = new NTS.Coordinate[lineString.Count];
+    //    if (reverse)
+    //        for (var i = 0; i < lineString.Count; i++)
+    //        {
+    //            D2_Vector vector = lineString[i];
+    //            coo[lineString.Count - 1 - i] = new NTS.Coordinate(vector.x, vector.y);
+    //        }
+    //    else
+    //        for (var i = 0; i < lineString.Count; i++)
+    //        {
+    //            D2_Vector vector = lineString[i];
+    //            coo[i] = new NTS.Coordinate(vector.x, vector.y);
+    //        }
 
-        try
-        {
-            linearRing = gf.CreateLinearRing(coo);
-            return true;
-        }
-        catch
-        {
-            linearRing = gf.CreateLinearRing();
-            return false;
-        }
-    }
+    //    try
+    //    {
+    //        linearRing = gf.CreateLinearRing(coo);
+    //        return true;
+    //    }
+    //    catch
+    //    {
+    //        linearRing = gf.CreateLinearRing();
+    //        return false;
+    //    }
+    //}
 
-    private static bool ToNTSPolygon(in LinearRingCollection linearRingCollection, out NTS.Polygon polygon)
-    {
-        if (ToNTSLinearRing(linearRingCollection.Exteriors[0], out NTS.LinearRing exterior))
-        {
-            NTS.GeometryFactory? gf = NTS.GeometryFactory.Floating;
-            polygon = gf.CreatePolygon(exterior);
-            for (var i = 1; i < linearRingCollection.Exteriors.Count; i++)
-            {
-                if (!ToNTSLinearRing(linearRingCollection.Exteriors[i], out exterior))
-                    throw new Exception("Should not happen");
-                NTS.Geometry? union = polygon.Union(gf.CreatePolygon(exterior));
-                if (union.GeometryType == NTS.Geometry.TypeNamePolygon)
-                    polygon = (NTS.Polygon)union;
-                else
-                    return false;
-            }
+    //private static bool ToNTSPolygon(in LinearRingCollection linearRingCollection, out NTS.Polygon polygon)
+    //{
+    //    if (ToNTSLinearRing(linearRingCollection.Exteriors[0], out NTS.LinearRing exterior))
+    //    {
+    //        NTS.GeometryFactory? gf = NTS.GeometryFactory.Floating;
+    //        polygon = gf.CreatePolygon(exterior);
+    //        for (var i = 1; i < linearRingCollection.Exteriors.Count; i++)
+    //        {
+    //            if (!ToNTSLinearRing(linearRingCollection.Exteriors[i], out exterior))
+    //                throw new Exception("Should not happen");
+    //            NTS.Geometry? union = polygon.Union(gf.CreatePolygon(exterior));
+    //            if (union.GeometryType == NTS.Geometry.TypeNamePolygon)
+    //                polygon = (NTS.Polygon)union;
+    //            else
+    //                return false;
+    //        }
 
-            foreach (LineString innerRing in linearRingCollection.Interiors)
-            {
-                if (!ToNTSLinearRing(innerRing, out NTS.LinearRing interior, true))
-                    throw new Exception("Should not happen");
-                NTS.Geometry? diff = polygon.Difference(gf.CreatePolygon(interior));
-                if (diff.GeometryType == NTS.Geometry.TypeNamePolygon)
-                    polygon = (NTS.Polygon)diff;
-                else
-                    return false;
-            }
+    //        foreach (LineString innerRing in linearRingCollection.Interiors)
+    //        {
+    //            if (!ToNTSLinearRing(innerRing, out NTS.LinearRing interior, true))
+    //                throw new Exception("Should not happen");
+    //            NTS.Geometry? diff = polygon.Difference(gf.CreatePolygon(interior));
+    //            if (diff.GeometryType == NTS.Geometry.TypeNamePolygon)
+    //                polygon = (NTS.Polygon)diff;
+    //            else
+    //                return false;
+    //        }
 
-            return true;
-        }
+    //        return true;
+    //    }
 
-        polygon = NTS.Polygon.Empty;
-        return false;
-    }
+    //    polygon = NTS.Polygon.Empty;
+    //    return false;
+    //}
 
-    private static LineString ToLs2(in NTS.LineString lr)
-    {
-        var vertices = new D2_Vector[lr.Count];
-        for (var i = 0; i < vertices.Length; i++)
-        {
-            NTS.Coordinate? coo = lr[i];
-            vertices[i] = new D2_Vector(coo.X, coo.Y);
-        }
+    //private static LineString ToLs2(in NTS.LineString lr)
+    //{
+    //    var vertices = new D2_Vector[lr.Count];
+    //    for (var i = 0; i < vertices.Length; i++)
+    //    {
+    //        NTS.Coordinate? coo = lr[i];
+    //        vertices[i] = new D2_Vector(coo.X, coo.Y);
+    //    }
 
-        return new LineString(vertices, lr.IsClosed);
-    }
+    //    return new LineString(vertices, lr.IsClosed);
+    //}
 
     private static bool ToPolygon2d(in NTS.Polygon polygon, out Polygon polygon2)
     {
@@ -169,8 +158,8 @@ public class PlanarFace : IEquatable<PlanarFace>
         return Polygon.Create(ext, ints, out polygon2);
     }
 
-    private static bool ToPolygon2d(in Plane plane, in IReadOnlyCollection<D3_LineString> rings,
-        out Polygon polygon, out BBox box, out double maxPlaneDist)
+    private static bool ToPolygon2d(in Plane plane, in XYZ[][] rings,
+        out Polygon polygo, out double maxPlaneDist)
     {
         var rings2d = new LinearRingCollection();
         maxPlaneDist = 0.0;
@@ -203,18 +192,18 @@ public class PlanarFace : IEquatable<PlanarFace>
         return false;
     }
 
-    public static bool Create(in Id id, in ReferencePlane refPlane, in IReadOnlyCollection<D3_LineString> rings,
+    public static bool Create(in Id id, in ReferencePlane refPlane, in XYZ[][] rings,
         out PlanarFace? planarFace, out double maxPlaneDist)
     {
-        if (rings.Count < 1
-            || !ToPolygon2d(refPlane.Plane, in rings, out Polygon polygon, out BBox bBox, out maxPlaneDist))
+        if (rings.Length < 1
+            || !ToPolygon2d(refPlane.Plane, in rings, out Polygon polygon, out maxPlaneDist))
         {
             planarFace = null;
             maxPlaneDist = double.NaN;
             return false;
         }
 
-        planarFace = new PlanarFace(id, refPlane, bBox, polygon);
+        planarFace = new PlanarFace(id, refPlane, polygon);
         return true;
     }
 

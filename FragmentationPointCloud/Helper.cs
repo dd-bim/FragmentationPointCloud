@@ -19,6 +19,9 @@ namespace Revit
 {
     public static class Helper
     {
+
+
+
         /// <summary>
         ///     Conversion methods between an IFC
         ///     encoded GUID string and a .NET GUID.
