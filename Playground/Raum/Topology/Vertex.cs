@@ -1,16 +1,13 @@
 ﻿using Playground.Raum.Geometry;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Playground.Raum.Topology
 {
-    internal class Vertex : Element
+    internal class Vertex : Element, IDisposable
     {
+        private static readonly UniqueCounter _idCounter = new();
         internal HalfEdge _refHalfEdge;
 
+        public long Id { get; }
 
         public VecI? Point { get; set; }
 
@@ -28,11 +25,35 @@ namespace Playground.Raum.Topology
         {
             _refHalfEdge = halfEdge;
             Point = point;
+            Id = _idCounter.GetNextId();
         }
 
         public Vertex(HalfEdge halfEdge)
         {
             _refHalfEdge = halfEdge;
+            Id = _idCounter.GetNextId();
         }
+
+        public void Dispose()
+        {
+            _idCounter.ReleaseId(Id);
+            GC.SuppressFinalize(this);
+        }
+
+        ~Vertex()
+        {
+            _idCounter.ReleaseId(Id);
+        }
+        /// <summary>
+        /// Determines whether the half-edge from the specified source to the target is a right half-edge.
+        /// </summary>
+        /// <param name="source">The starting point of the half-edge.</param>
+        /// <param name="target">The ending point of the half-edge.</param>
+        /// <param name="right">When this method returns, contains the right half-edge if the operation is successful; otherwise, contains
+        /// the default value.</param>
+        /// <returns><see langword="true"/> if the half-edge is a right half-edge; otherwise, <see langword="false"/>.</returns>
+        public bool RightHalfEdge(in VecI source, in VecI target, out HalfEdge right) =>
+             RefHalfEdge.RightHalfEdge(in source, in target, out right);
+
     }
 }
