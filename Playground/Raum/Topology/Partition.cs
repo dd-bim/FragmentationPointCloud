@@ -30,22 +30,18 @@ internal class Partition(Epsilon epsilon)
 
     public Dictionary<VecI, Vertex> PointVertices { get; } = [];
 
-    public static void Create(Epsilon epsilon,
-        (double x, double y)[][][] multiPolygonA,
-        (double x, double y)[][][] multiPolygonB,
-        out Partition partition)
+    public static void CreateFromRegions(Epsilon epsilon, out Partition partition,
+        params (double x, double y)[][][][] multiGeometries)
     {
         partition = new Partition(epsilon);
-        
-        // Create BoundingBox
-        var box = new BoundingBox();
-        box.Extend(multiPolygonA);
-        box.Extend(multiPolygonB);
-        
-        // Create triangulation
+
+        // Create triangulation, Points gets reference ids of multi-geometry and sub-geometries
+        var ids = new (Guid multiId, (Guid subId, Guid[] subsubIds)[] subIds)[multiGeometries.Length];
         var edges = new List<(Vertex source, Vertex target)>();
-        var (multiAId, multiAPolygonIds) = AddMultiPolygon(partition, edges, multiPolygonA);
-        var (multiBId, multiBPolygonIds) = AddMultiPolygon(partition, edges, multiPolygonB);
+        for (int i = 0; i < multiGeometries.Length; i++)
+        {
+            ids[i] = partition.AddMultiEdgeGeometry(edges, multiGeometries[i]);
+        }
 
         // Reconstruct edges
         foreach (var (source, target) in edges)
@@ -59,8 +55,22 @@ internal class Partition(Epsilon epsilon)
             }
         }
 
-        // Get the facets of the rings
+        // Get the facets of the rings, if any
+        for (int i = 0; i < ids.Length; i++)
+        {
+            var (multiId, subIds) = ids[i];
+            for (int j = 0; j < subIds.Length; j++)
+            {
+                var (subId, subsubIds) = subIds[j];
+                for (int k = 0; k < subsubIds.Length; k++)
+                {
+                    var halfEdges = partition.SemanticElements[subsubIds[k]]
+                        .Where(e => e is HalfEdge).Cast<HalfEdge>().ToHashSet();
+                    var regions = EnclosedFacetRegions(halfEdges); 
+                }
 
+            }
+        }
     }
 
     #region Structure
@@ -74,7 +84,7 @@ internal class Partition(Epsilon epsilon)
     /// the existing collection of associated elements. Otherwise, a new mapping is created.</remarks>
     /// <param name="element">The element to associate with the provided reference IDs.</param>
     /// <param name="refIds">A set of reference IDs to associate with the element. Cannot be null.</param>
-    private void addSemantics(Element element, HashSet<Guid> refIds)
+    private void AddSemantics(Element element, HashSet<Guid> refIds)
     {
         element.RefIds.UnionWith(refIds);
         foreach (var refId in refIds)
@@ -105,7 +115,7 @@ internal class Partition(Epsilon epsilon)
     /// <returns>A tuple containing the created half-edge and its twin: <list type="bullet"> <item><description><c>he</c>:
     /// The half-edge originating from the source vertex.</description></item> <item><description><c>tw</c>: The
     /// twin half-edge originating from the target vertex.</description></item> </list></returns>
-    private (HalfEdge he, HalfEdge tw) addEdge(
+    private (HalfEdge he, HalfEdge tw) AddEdge(
         in VecI source, in VecI target,
         HashSet<Guid>? heRefIds,
         HashSet<Guid>? twRefIds)
@@ -136,11 +146,11 @@ internal class Partition(Epsilon epsilon)
         }
         if (heRefIds is not null)
         {
-            addSemantics(he, heRefIds);
+            AddSemantics(he, heRefIds);
         }
         if (twRefIds is not null)
         {
-            addSemantics(tw, twRefIds);
+            AddSemantics(tw, twRefIds);
         }
         return (he, tw);
     }
@@ -158,7 +168,7 @@ internal class Partition(Epsilon epsilon)
     /// <returns>A tuple containing the primary edge and its twin. The primary edge connects the <paramref name="source"/>
     /// vertex to the <paramref name="target"/> vertex, while the twin edge connects the <paramref name="target"/>
     /// vertex back to the <paramref name="source"/> vertex.</returns>
-    private (HalfEdge he, HalfEdge tw) addEdge(
+    private (HalfEdge he, HalfEdge tw) AddEdge(
         Vertex source, Vertex target,
         HashSet<Guid>? heRefIds,
         HashSet<Guid>? twRefIds)
@@ -171,11 +181,11 @@ internal class Partition(Epsilon epsilon)
         tw.RefVertex = target;
         if (heRefIds is not null)
         {
-            addSemantics(he, heRefIds);
+            AddSemantics(he, heRefIds);
         }
         if (twRefIds is not null)
         {
-            addSemantics(tw, twRefIds);
+            AddSemantics(tw, twRefIds);
         }
         return (he, tw);
     }
@@ -188,13 +198,13 @@ internal class Partition(Epsilon epsilon)
     /// <param name="point">An optional point to assign to the vertex. If provided, the vertex will be associated with this point, and
     /// the point will be mapped to the vertex.</param>
     /// <returns>The newly created vertex.</returns>
-    private Vertex addVertex(HashSet<Guid>? refIds = null, VecI? point = null)
+    private Vertex AddVertex(HashSet<Guid>? refIds = null, VecI? point = null)
     {
         var vertex = new HalfEdge().RefVertex;
         Vertices.Add(vertex);
         if (refIds is not null)
         {
-            addSemantics(vertex, refIds);
+            AddSemantics(vertex, refIds);
         }
         if (point is not null)
         {
@@ -214,13 +224,13 @@ internal class Partition(Epsilon epsilon)
     /// <param name="refIds">An optional set of semantic identifiers associated with the facet. If provided, these identifiers will be
     /// added to the facet's semantics.</param>
     /// <returns>The newly created <see cref="Facet"/> instance.</returns>
-    private Facet addFacet(HalfEdge refHalfEdge, HashSet<Guid>? refIds)
+    private Facet AddFacet(HalfEdge refHalfEdge, HashSet<Guid>? refIds)
     {
         var facet = new Facet(refHalfEdge);
         Facets.Add(facet);
         if (refIds is not null)
         {
-            addSemantics(facet, refIds);
+            AddSemantics(facet, refIds);
         }
         return facet;
     }
@@ -235,14 +245,13 @@ internal class Partition(Epsilon epsilon)
     /// <remarks>This method establishes a closed loop by linking the provided half-edges in the
     /// order: <paramref name="ab"/> → <paramref name="bc"/> → <paramref name="ca"/> → <paramref name="ab"/>.
     /// Additionally, the facet reference is assigned to the second and third half-edges.</remarks>
-    /// <param name="partition">The <see cref="Partition"/> instance to which the new facet will be added.</param>
     /// <param name="ab">The first half-edge of the triangle.</param>
     /// <param name="bc">The second half-edge of the triangle.</param>
     /// <param name="ca">The third half-edge of the triangle.</param>
     /// <returns>The newly created <see cref="Facet"/> representing the triangle.</returns>
-    private static Facet NewTriangle(Partition partition, HalfEdge ab, HalfEdge bc, HalfEdge ca)
+    private Facet NewTriangle(HalfEdge ab, HalfEdge bc, HalfEdge ca)
     {
-        var abc = partition.addFacet(ab, null);
+        var abc = AddFacet(ab, null);
         ab.Next = bc;
         bc.Next = ca;
         ca.Next = ab;
@@ -256,19 +265,18 @@ internal class Partition(Epsilon epsilon)
     /// </summary>
     /// <remarks>This method establishes the connectivity between the provided half-edges and the
     /// newly created edges, forming a complete triangle in the partition.</remarks>
-    /// <param name="partition">The partition to which the new triangle will be added.</param>
     /// <param name="ab">The half-edge representing the edge from vertex A to vertex B.</param>
     /// <param name="bc">The half-edge representing the edge from vertex B to vertex C.</param>
     /// <returns>A tuple containing the following: <list type="bullet"> <item> <description>The newly created <see
     /// cref="Facet"/> representing the triangle.</description> </item> <item> <description>The half-edge from
     /// vertex C to vertex A.</description> </item> <item> <description>The half-edge from vertex A to vertex
     /// C.</description> </item> </list></returns>
-    private static (Facet abc, HalfEdge ca, HalfEdge ac) NewTriangle(Partition partition, HalfEdge ab, HalfEdge bc)
+    private (Facet abc, HalfEdge ca, HalfEdge ac) NewTriangle(HalfEdge ab, HalfEdge bc)
     {
         var a = ab._refVertex;
         var c = bc.Twin._refVertex;
-        var (ca, ac) = partition.addEdge(c, a, null, null);
-        var abc = NewTriangle(partition, ab, bc, ca);
+        var (ca, ac) = AddEdge(c, a, null, null);
+        var abc = NewTriangle(ab, bc, ca);
         return (abc, ca, ac);
     }
 
@@ -290,32 +298,31 @@ internal class Partition(Epsilon epsilon)
     /// vertex to the edges between <paramref name="firstHe"/> and <paramref name="lastHe"/>. The resulting
     /// halfedges are associated with the exterior facet of the partition. The method ensures that the connectivity of
     /// the half-edges is updated appropriately.</remarks>
-    /// <param name="partition">The <see cref="Partition"/> instance to which the external triangles will be added.</param>
     /// <param name="v">The vertex to connect to the sequence of edges.</param>
     /// <param name="firstHe">The first <see cref="HalfEdge"/> in the sequence of edges to process.</param>
     /// <param name="lastHe">The last <see cref="HalfEdge"/> in the sequence of edges to process.</param>
     /// <returns>A <see cref="HashSet{T}"/> containing the <see cref="HalfEdge"/> instances affected by the operation.</returns>
-    private static HashSet<HalfEdge> AddExternalTriangles(Partition partition, Vertex v, HalfEdge firstHe, HalfEdge lastHe)
+    private HashSet<HalfEdge> AddExternalTriangles(Vertex v, HalfEdge firstHe, HalfEdge lastHe)
     {
         var oi = firstHe;
         var vi = oi._refVertex;
-        var (hi, hiT) = partition.addEdge(v, vi, null, null);
+        var (hi, hiT) = AddEdge(v, vi, null, null);
 
         var oiPrev = oi.Prev;
         hiT.Prev = oiPrev;
-        hiT._refFacet = partition.Exterior;
+        hiT._refFacet = Exterior;
 
         HashSet<HalfEdge> affected = [hi, oi, oiPrev];
         do
         { // create new abc
             var oiSucc = oi.Next;
-            (_, _, hi) = NewTriangle(partition, hi, oi);
+            (_, _, hi) = NewTriangle(hi, oi);
             oi = oiSucc;
             affected.UnionWith([oi, hi]);
         } while (oi != lastHe);
         lastHe.Prev = hi;
         hi.Prev = hiT;
-        hi.RefFacet = partition.Exterior;
+        hi.RefFacet = Exterior;
         return affected;
     }
 
@@ -325,17 +332,16 @@ internal class Partition(Epsilon epsilon)
     /// <remarks>This method modifies the topology of the triangle by splitting the specified edge and
     /// updating the connectivity of the surrounding edges and vertices. The new vertex is inserted along the edge,
     /// and the resulting half-edges are linked to maintain the integrity of the partition.</remarks>
-    /// <param name="partition">The geometric partition containing the triangle and its edges.</param>
     /// <param name="ab">The half-edge to be split, directed from vertex A to vertex B.</param>
     /// <param name="v">The new vertex to be inserted along the edge.</param>
     /// <returns>A tuple containing the two new half-edges: <list type="bullet"> <item><description>The half-edge directed
     /// from the new vertex to vertex B.</description></item> <item><description>The twin half-edge directed from
     /// vertex B to the new vertex.</description></item> </list></returns>
-    private static (HalfEdge he, HalfEdge tw) TriangleEdgeSplit(Partition partition, HalfEdge ab, Vertex v)
+    private (HalfEdge he, HalfEdge tw) TriangleEdgeSplit(HalfEdge ab, Vertex v)
     {
         var ba = ab.Twin;
         var b = ab.Twin._refVertex;
-        var (vb, bv) = partition.addEdge(v, b, null, null);
+        var (vb, bv) = AddEdge(v, b, null, null);
 
         var abNext = ab.Next;
         var baPrev = ba.Prev;
@@ -376,11 +382,10 @@ internal class Partition(Epsilon epsilon)
     /// given half-edge and adding a new vertex. It updates the connectivity of the edges and facets to reflect the
     /// split. If the triangle shares an edge with another triangle, the adjacent triangle is also
     /// updated.</remarks>
-    /// <param name="partition">The <see cref="Partition"/> instance representing the geometric structure.</param>
     /// <param name="ab">The half-edge representing one side of the triangle to be split.</param>
     /// <param name="v">The new vertex to be added to the triangle.</param>
     /// <returns>A <see cref="HashSet{T}"/> containing the half-edges affected by the split operation.</returns>
-    private static HashSet<HalfEdge> TriangleSplitSide(Partition partition, HalfEdge ab, Vertex v)
+    private HashSet<HalfEdge> TriangleSplitSide(HalfEdge ab, Vertex v)
     {   // define/save old values
         var bc = ab.Next;
         var ca = ab.Prev;
@@ -389,32 +394,32 @@ internal class Partition(Epsilon epsilon)
         // new sides to v
         var av = ab;
 
-        var (vb, bv) = TriangleEdgeSplit(partition, ab, v);
-        var (vc, cv) = partition.addEdge(v, c, null, null);
+        var (vb, bv) = TriangleEdgeSplit(ab, v);
+        var (vc, cv) = AddEdge(v, c, null, null);
 
         av.Next = vc;
 
         vc.Next = ca;
         vc.RefFacet = av._refFacet;
 
-        _ = NewTriangle(partition, vb, bc, cv);
+        _ = NewTriangle(vb, bc, cv);
 
         HashSet<HalfEdge> affected = [av, vb, bc, ca, vc];
 
         var va = av.Twin;
-        if (va.RefFacet != partition.Exterior)
+        if (va.RefFacet != Exterior)
         {
             var ad = va.Next;
             var db = ad.Next;
             var d = db._refVertex;
-            var (vd, dv) = partition.addEdge(v, d, null, null);
+            var (vd, dv) = AddEdge(v, d, null, null);
 
             ad.Next = dv;
             va.Prev = dv;
 
             dv.RefFacet = va._refFacet;
 
-            _ = NewTriangle(partition, bv, vd, db);
+            _ = NewTriangle(bv, vd, db);
 
             affected.UnionWith([ad, db, dv]);
         }
@@ -429,11 +434,10 @@ internal class Partition(Epsilon epsilon)
     /// <remarks>This method modifies the provided partition by adding new edges and updating the
     /// connectivity of the original facet. The original triangle is split into three smaller triangles, each
     /// sharing the new vertex as a common point.</remarks>
-    /// <param name="partition">The <see cref="Partition"/> instance to which the facet and edges belong.</param>
     /// <param name="abc">The triangular facet to be split.</param>
     /// <param name="v">The new vertex to be connected to the vertices of the original triangle.</param>
     /// <returns>A <see cref="HashSet{T}"/> containing the half-edges created during the split operation.</returns>
-    private static HashSet<HalfEdge> TriangleSplit(Partition partition, Facet abc, Vertex v)
+    private HashSet<HalfEdge> TriangleSplit(Facet abc, Vertex v)
     {
         var ab = abc.RefHalfEdge;
         var bc = ab.Next;
@@ -442,9 +446,9 @@ internal class Partition(Epsilon epsilon)
         var b = bc.RefVertex;
         var c = ca.RefVertex;
 
-        var (va, av) = partition.addEdge(v, a, null, null);
-        var (vb, bv) = partition.addEdge(v, b, null, null);
-        var (vc, cv) = partition.addEdge(v, c, null, null);
+        var (va, av) = AddEdge(v, a, null, null);
+        var (vb, bv) = AddEdge(v, b, null, null);
+        var (vc, cv) = AddEdge(v, c, null, null);
 
         var abv = abc;
         ab.Next = bv;
@@ -454,9 +458,9 @@ internal class Partition(Epsilon epsilon)
         bv._refFacet = abv;
         va._refFacet = abv;
 
-        _ = NewTriangle(partition, bc, cv, vb); ;
+        _ = NewTriangle(bc, cv, vb); ;
 
-        _ = NewTriangle(partition, ca, av, vc);
+        _ = NewTriangle(ca, av, vc);
 
         return [va, vb, vc, ab, bc, ca];
     }
@@ -520,17 +524,15 @@ internal class Partition(Epsilon epsilon)
     /// <remarks>This method iteratively examines and flips edges in the triangulation to enforce the
     /// Delaunay condition,  which ensures that no point lies inside the circumcircle of any triangle. Edges
     /// connected to the exterior  of the partition are excluded from processing.</remarks>
-    /// <param name="partition">The geometric partition containing the triangulation to be processed.</param>
     /// <param name="affected">A set of half-edges that are initially affected and may require processing.  This set is updated during the
     /// operation as additional edges are identified for flipping.</param>
-    private static void Delaunay(Partition partition, HashSet<HalfEdge> affected)
+    private void Delaunay(HashSet<HalfEdge> affected)
     {
-        var exterior = partition.Exterior;
         Queue<HalfEdge> queue = new(affected);
         while (queue.Count > 0)
         {
             var h = queue.Dequeue();
-            if (h.RefFacet == exterior || h.Twin.RefFacet == exterior)
+            if (h.RefFacet == Exterior || h.Twin.RefFacet == Exterior)
             {
                 continue;
             }
@@ -542,7 +544,7 @@ internal class Partition(Epsilon epsilon)
             {
                 foreach (var t in TriangleFlip(h))
                 {
-                    if (t.RefFacet != exterior && t.Twin.RefFacet != exterior
+                    if (t.RefFacet != Exterior && t.Twin.RefFacet != Exterior
                         && !affected.Contains(t.Twin) && affected.Add(t))
                     {
                         queue.Enqueue(t);
@@ -559,30 +561,29 @@ internal class Partition(Epsilon epsilon)
     /// Depending on the point's position relative to the existing triangulation, it may create new triangles, split
     /// existing edges, or extend the partition's range. If the point already exists in the partition, its semantics are
     /// updated instead.</remarks>
-    /// <param name="partition">The <see cref="Partition"/> instance to which the point will be added.</param>
     /// <param name="point">The point to add, represented as a <see cref="VecI"/> structure.</param>
     /// <param name="refIds">A set of reference IDs associated with the point, used to track semantics or metadata.</param>
     /// <returns>The newly created or updated <see cref="Vertex"/> instance representing the point.</returns>
     /// <exception cref="Exception"></exception>
-    private static Vertex AddPoint(Partition partition, in VecI point, HashSet<Guid> refIds)
+    private Vertex AddPoint(in VecI point, HashSet<Guid> refIds)
     {
-        if (partition.PointVertices.TryGetValue(point, out var vertex))
+        if (PointVertices.TryGetValue(point, out var vertex))
         { // Point already inserted
-            partition.addSemantics(vertex, refIds);
+            AddSemantics(vertex, refIds);
             return vertex;
         }
 
         // extend range
-        partition.Min = partition.Min.Min(point);
-        partition.Max = partition.Max.Max(point);
+        Min = Min.Min(point);
+        Max = Max.Max(point);
 
         // new vertex
-        vertex = partition.addVertex(refIds, point);
-        var exterior = partition.Exterior;
-        if (partition.Facets.Count > 0)
+        vertex = AddVertex(refIds, point);
+        var exterior = Exterior;
+        if (Facets.Count > 0)
         { // Triangulation has at least one triangle
           // start halfEdge
-            var ab = partition.HalfEdges[0];
+            var ab = HalfEdges[0];
             int abSign = sideSign(in point, ab);
             if (abSign < 0)
             {
@@ -607,7 +608,7 @@ internal class Partition(Epsilon epsilon)
                     { // search firstHe non convex side
                         last = last.NextNotBehind;
                     }
-                    Delaunay(partition, AddExternalTriangles(partition, vertex, first, last));
+                    Delaunay(AddExternalTriangles(vertex, first, last));
                     break;
                 }
                 else
@@ -621,19 +622,19 @@ internal class Partition(Epsilon epsilon)
                     {
                         if (abSign == 0)
                         { // point is on oi
-                            Delaunay(partition, TriangleSplitSide(partition, ab, vertex));
+                            Delaunay(TriangleSplitSide(ab, vertex));
                         }
                         else if (bcSign == 0)
                         { // point is on bc
-                            Delaunay(partition, TriangleSplitSide(partition, bc, vertex));
+                            Delaunay(TriangleSplitSide(bc, vertex));
                         }
                         else if (caSign == 0)
                         { // point is on hi
-                            Delaunay(partition, TriangleSplitSide(partition, ca, vertex));
+                            Delaunay(TriangleSplitSide(ca, vertex));
                         }
                         else
                         { // point is inside abc
-                            Delaunay(partition, TriangleSplit(partition, ab.RefFacet, vertex));
+                            Delaunay(TriangleSplit(ab.RefFacet, vertex));
                         }
                         break;
                     }
@@ -653,13 +654,12 @@ internal class Partition(Epsilon epsilon)
                 }
             }
         }
-        else if (partition.HalfEdges.Count > 0)
+        else if (HalfEdges.Count > 0)
         {   // Triangulation has one side or multiple collinear sides
             // first HalfEdge with no predecessor
-            var first = partition.HalfEdges.First(h => h.Prev == h.Twin);
+            var first = HalfEdges.First(h => h.Prev == h.Twin);
             // last HalfEdge with no successor
-            var last = partition.HalfEdges.Count == 2 ? first
-                : partition.HalfEdges
+            var last = HalfEdges.Count == 2 ? first : HalfEdges
                     .First(h => h != first && h != first.Twin && h.Next == h.Twin);
             var firstP = first.RefVertex.Point!.Value;
             var lastP = last.Twin.RefVertex.Point!.Value;
@@ -679,7 +679,7 @@ internal class Partition(Epsilon epsilon)
 
                 if (lesser(point, firstP))
                 { // point is left/below of the firstHe side
-                    var (he, tw) = partition.addEdge(vertex, first.RefVertex, null, null);
+                    var (he, tw) = AddEdge(vertex, first.RefVertex, null, null);
                     he.Next = first;
                     he.RefFacet = exterior;
                     tw.Prev = first.Twin;
@@ -687,7 +687,7 @@ internal class Partition(Epsilon epsilon)
                 }
                 else if (lesser(lastP, point))
                 { // point is right/above of the lastHe side
-                    var (he, tw) = partition.addEdge(last.Twin.RefVertex, vertex, null, null);
+                    var (he, tw) = AddEdge(last.Twin.RefVertex, vertex, null, null);
                     he.Prev = last;
                     he.RefFacet = exterior;
                     tw.Next = last.Twin;
@@ -698,9 +698,9 @@ internal class Partition(Epsilon epsilon)
                     var current = last;
                     while (true)
                     {
-                        if (lesser(current.RefVertex.Point!.Value, p))
+                        if (lesser(current.RefVertex.Point!.Value, point))
                         {
-                            var (he, tw) = TriangleEdgeSplit(partition, current, vertex);
+                            var (he, tw) = TriangleEdgeSplit(current, vertex);
                             break;
                         }
 #if DEBUG
@@ -721,74 +721,56 @@ internal class Partition(Epsilon epsilon)
                     (first, last) = (last, first);
                 }
                 // delaunay not necessary, because of just three corner points, others are collinear
-                _ = AddExternalTriangles(partition, vertex, first, last);
+                _ = AddExternalTriangles(vertex, first, last);
             }
         }
-        else if (partition.PointVertices.Count > 1) // Attention: PointVertices.Count is +1, because point is inserted earlier
+        else if (PointVertices.Count > 1) // Attention: PointVertices.Count is +1, because point is inserted earlier
         { // Triangulation has only one point
             // add new edge between the first point and the new point
-            var other = partition.Vertices[0];
-            var (he, tw) = partition.addEdge(other, vertex, null, null);
+            var other = Vertices[0];
+            var (he, tw) = AddEdge(other, vertex, null, null);
             he.RefFacet = exterior;
             tw._refFacet = exterior;
         }
         return vertex;
     }
 
-    /// <summary>
-    /// Adds a multi-polygon to the specified partition and generates unique identifiers for its components.
-    /// </summary>
-    /// <remarks>This method generates unique identifiers for the multi-polygon, its polygons, and
-    /// their respective rings. Each point within the rings is processed and added to the partition with references to
-    /// its associated identifiers.</remarks>
-    /// <param name="partition">The partition to which the multi-polygon will be added.</param>
-    /// <param name="edges">A list of edges to be updated with the new connections created by the multi-polygon.</param>
-    /// <param name="multiPolygon">A three-dimensional array representing the multi-polygon. The first dimension represents individual
-    /// polygons, the second dimension represents the rings within each polygon, and the third dimension contains
-    /// the points (as (x, y) coordinates) within each ring.</param>
-    /// <returns>A tuple containing the following: <list type="bullet"> <item> <description> <see cref="Guid"/> representing
-    /// the unique identifier for the multi-polygon. </description> </item> <item> <description> An array of tuples,
-    /// where each tuple contains: <list type="bullet"> <item> <description> A <see cref="Guid"/> representing the
-    /// unique identifier for a polygon. </description> </item> <item> <description> An array of <see cref="Guid"/>
-    /// values representing the unique identifiers for the rings within the polygon. </description> </item> </list>
-    /// </description> </item> </list></returns>
-    private static (Guid multiId, (Guid, Guid[])[] polyIds) AddMultiPolygon(Partition partition, List<(Vertex source, Vertex target)> edges, (double x, double y)[][][] multiPolygon)
+
+    private (Guid multiId, (Guid subId, Guid[] subsubIds)[] subIds) AddMultiEdgeGeometry(List<(Vertex source, Vertex target)> edges, (double x, double y)[][][] multiGeometry)
     {
         var multiId = Guid.NewGuid();
-        var polyIds = new (Guid, Guid[])[multiPolygon.Length];
-        for (int i = 0; i < multiPolygon.Length; i++)
+        var subIds = new (Guid, Guid[])[multiGeometry.Length];
+        for (int i = 0; i < multiGeometry.Length; i++)
         {
-            var polyId = Guid.NewGuid();
-            var polygon = multiPolygon[i];
-            var ringIds = new Guid[polygon.Length];
-            polyIds[i] = (polyId, ringIds);
-            for (int j = 0; j < polygon.Length; j++)
+            var subIdsi = Guid.NewGuid();
+            var geometry = multiGeometry[i];
+            var refIds = new HashSet<Guid> { multiId, subIdsi };
+            var subsubIds = new Guid[geometry.Length];
+            for (int j = 0; j < geometry.Length; j++)
             {
-                var ring = polygon[j];
-                ringIds[j] = Guid.NewGuid();
-                var refIds = new HashSet<Guid> { multiId, polyId, ringIds[j] };
+                subsubIds[j] = Guid.NewGuid();
+                var region = geometry[j];
                 Vertex? last = null;
-                for (int k = 0; k < ring.Length; k++)
+                for (int k = 0; k < region.Length; k++)
                 {
-                    var (x, y) = ring[k];
-                    var point = partition.Epsilon.Convert(x, y);
-                    var curr = AddPoint(partition, in point, refIds);
-                    if(last is not null)
-                    {
+                    var (x, y) = region[k];
+                    var point = Epsilon.Convert(x, y);
+                    var curr = AddPoint(in point, refIds);
+                    if (last is not null)
                         edges.Add((last, curr));
-                    }
                     last = curr;
                 }
             }
+            subIds[i] = (subIdsi, subsubIds);
         }
-        return (multiId, polyIds);
+        return (multiId, subIds);
     }
 
 
     #endregion
 
     #region Reconstruction
-    
+
     /// <summary>
     /// Splits the specified half-edge at a given position, creating two new half-edges and updating the mesh
     /// structure accordingly.
@@ -813,7 +795,7 @@ internal class Partition(Epsilon epsilon)
         var abBehind = ab.Behind;
         var baInFront = ba.InFront;
 
-        var (vb, bv) = addEdge(v, ba.RefVertex, ab.RefIds, ba.RefIds);
+        var (vb, bv) = AddEdge(v, ba.RefVertex, ab.RefIds, ba.RefIds);
 
         var av = ab;
         var va = ba;
@@ -898,7 +880,7 @@ internal class Partition(Epsilon epsilon)
         return trans.Twin.Position.Reverse() == transPos;
     }
 
-    
+
     /// <summary>
     /// Reconstructs an edge between the specified source and target vertices, ensuring that all necessary
     /// connections and references are established or updated.
@@ -951,10 +933,10 @@ internal class Partition(Epsilon epsilon)
                 // Move to lastHe HalfEdge on edge, and add all RefIds to the halfEdges
                 do
                 {
-                    addSemantics(right, refIds);
-                    if(bothSides)
+                    AddSemantics(right, refIds);
+                    if (bothSides)
                     {
-                        addSemantics(right.Twin, refIds);
+                        AddSemantics(right.Twin, refIds);
                     }
                 } while (nextOnEdge(ref right));
                 current = right.Twin.RefVertex; // new Start
@@ -991,7 +973,7 @@ internal class Partition(Epsilon epsilon)
                 else
                 {
                     // Halbkante teilen
-                    var v = addVertex(null);
+                    var v = AddVertex(null);
                     var (ntrans, _) = sideSplit(trans, in transPos, v);
                     transverses.Add((right, ntrans));
                     right = trans.Twin;
@@ -1000,7 +982,7 @@ internal class Partition(Epsilon epsilon)
             }
             // neue Kante erstellen
             var twinRefIds = bothSides ? refIds : null;
-            var (he, tw) = addEdge(current, nextCurrent, refIds, twinRefIds);
+            var (he, tw) = AddEdge(current, nextCurrent, refIds, twinRefIds);
             foreach (var (rgt, lft) in transverses)
             {
                 // Teilen?
@@ -1020,7 +1002,7 @@ internal class Partition(Epsilon epsilon)
                 tw.Next = rgt;
 
                 // Flächen
-                var heFacet = addFacet(he, rgt.RefFacet.RefIds);
+                var heFacet = AddFacet(he, rgt.RefFacet.RefIds);
                 var curr = he.Next;
                 do
                 {
@@ -1076,7 +1058,7 @@ internal class Partition(Epsilon epsilon)
                         continue;
 
                     // Wenn die Nachbar-Facet das Exterior ist, ist die Region offen
-                    if (the.Twin.RefFacet.Id == ExteriorId )
+                    if (the.Twin.RefFacet.Id == ExteriorId)
                     {
                         isClosed = false;
                         break;
@@ -1108,18 +1090,33 @@ internal class Partition(Epsilon epsilon)
     }
 
 
-    public static bool IsClosedInterior(in HashSet<HalfEdge> boundary)
+    public static bool IsClosedInterior(in HashSet<HalfEdge> boundary, bool halfEdgesInside = true)
     {
         if (boundary.Count < 3)
             return false;
         var region = new HashSet<Facet>();
+        var queue = new Queue<Facet>();
         foreach (var he in boundary)
         {
-            if (he.RefFacet.Id == null || he.Twin.RefFacet == null)
-                return false;
-            region.Add(he.RefFacet);
-            region.Add(he.Twin.RefFacet);
+            var facet = halfEdgesInside ? he.RefFacet : he.Twin.RefFacet;
+            region.Add(facet);
+            queue.Enqueue(facet);
         }
+        while (queue.Count > 0)
+        {
+            var facet = queue.Dequeue();
+            foreach (var he in facet.Boundary())
+            {
+                if (halfEdgesInside ? boundary.Contains(he) : boundary.Contains(he.Twin))
+                    continue;
+                if (he.Twin.RefFacet.Id == ExteriorId)
+                    return false;
+                if (region.Add(he.Twin.RefFacet))
+                    queue.Enqueue(he.Twin.RefFacet);
+            }
+
+        }
+        return true;
     }
 
 
@@ -1141,28 +1138,43 @@ internal class Partition(Epsilon epsilon)
         // Sortiere die Kanten in der Reihenfolge, in der sie die Region umgeben
         // der Erste Rand in der Liste ist der Äußere Rand, evtl. andere sind Löcher
 
-        var boundaryList = new List<HalfEdge[]>(boundarySet.Count);
-        
-        
-        var first = boundarySet.First();
-        boundaryList.Add(first);
-        boundarySet.Remove(first);
-        var tail = first.Twin.RefVertex;
+        var boundaryList = new List<HalfEdge[]>();
         while (boundarySet.Count > 0)
         {
-            foreach (var he in boundarySet)
+            var tail = boundarySet.First();
+            var ring = new List<HalfEdge>(boundarySet.Count);
+            boundarySet.Remove(tail);
+            ring.Add(tail);
+            while (boundarySet.Count > 0)
             {
-                if (he.RefVertex == tail)
+                foreach (var he in boundarySet)
                 {
-                    boundaryList.Add(he);
-                    boundarySet.Remove(he);
-                    tail = he.Twin.RefVertex;
-                    break;
+                    if (he.RefVertex == tail.Twin.RefVertex)
+                    {
+                        ring.Add(he);
+                        tail = he;
+                        break;
+                    }
                 }
             }
-
+            if (ring.Count > 2 && ring[0].RefVertex == tail.Twin.RefVertex)
+                boundaryList.Add([.. ring]);
+            else throw new ArithmeticException("Error in structure.");
         }
-        return [.. boundaryList];
+        // Ein Ring muss aussen liegen! An den Anfang bringen. Alle anderen sind Löcher mit Grenze in Richtung Exterior 
+        for (int i = 0; i < boundaryList.Count; i++)
+        {
+            var ringSet = new HashSet<HalfEdge>(boundaryList[i]);
+            if (IsClosedInterior(ringSet))
+            {
+                if (i > 0)
+                {
+                    (boundaryList[0], boundaryList[i]) = (boundaryList[i], boundaryList[0]);
+                }
+                return [.. boundaryList];
+            }
+        }
+        throw new ArithmeticException("Error in structure.");
     }
 
 
@@ -1283,6 +1295,6 @@ internal class Partition(Epsilon epsilon)
         _ = sb.AppendLine("</g>");
         _ = sb.AppendLine("</svg>");
         File.WriteAllText(filename + ".svg", sb.ToString());
-    } 
+    }
     #endregion
 }
