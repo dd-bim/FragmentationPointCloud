@@ -2,6 +2,6 @@
 {
     internal abstract class Element
     {
-        public HashSet<Guid> RefIds { get; } = new HashSet<Guid>();
+        public HashSet<Guid> RefIds { get; } = [];
     }
 }

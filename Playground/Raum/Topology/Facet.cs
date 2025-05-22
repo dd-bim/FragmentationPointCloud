@@ -20,10 +20,11 @@ namespace Playground.Raum.Topology
         }
 
 
-        internal Facet(HalfEdge halfEdge)
+        internal Facet(HalfEdge halfEdge, long? id = null)
         {
             _refHalfEdge = halfEdge;
-            Id = _idCounter.GetNextId();
+            halfEdge._refFacet = this;
+            Id = id ?? _idCounter.GetNextId();
         }
 
         public void Dispose()
@@ -36,6 +37,9 @@ namespace Playground.Raum.Topology
         {
             _idCounter.ReleaseId(Id);
         }
+
+        public override string ToString() => $"Facet {Id}: RefHalfEdge {RefHalfEdge.Id}";
+
 
         public IEnumerable<HalfEdge> Boundary()
         {

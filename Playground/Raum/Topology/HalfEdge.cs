@@ -1,5 +1,7 @@
 ﻿using Playground.Raum.Geometry;
 
+using System.Diagnostics;
+
 namespace Playground.Raum.Topology
 {
     internal class HalfEdge : Element, IDisposable
@@ -95,11 +97,11 @@ namespace Playground.Raum.Topology
 
         public HalfEdge Left => Prev.Twin;
 
-        public HalfEdge()
+        public HalfEdge(long? refFacetId = null)
         {
             Position = Fraction.Zero;
             _refVertex = new Vertex(this);
-            _refFacet = new Facet(this);
+            _refFacet = new Facet(this, refFacetId);
             _twin = new HalfEdge(_refVertex, _refFacet, this);
             _prev = _twin;
             _next = _twin;
@@ -127,6 +129,19 @@ namespace Playground.Raum.Topology
         {
             _idCounter.ReleaseId(Id);
         }
+
+        public override string ToString() => $"HalfEdge {Id}: Position {Position}, RefVertex {RefVertex.Id}, RefFacet {RefFacet.Id}, Twin {Twin.Id}, Next {Next.Id}{(InFront is HalfEdge hi ? $", InFront {hi.Id}" : "")}{(Behind is HalfEdge hb ? $", Behind {hb.Id}" : "")}";
+
+        public IEnumerable<HalfEdge> RightStar()
+        {
+            var cur = this;
+            do
+            {
+                yield return cur;
+                cur = cur.Right;
+            } while (cur != this);
+        }
+
 
         /// <summary>
         /// Gets the source point of the edge along the half-edge.
@@ -185,20 +200,19 @@ namespace Playground.Raum.Topology
             }
         }
 
-        /// <summary>
-        /// Determines whether the specified half-edge is behind the current half-edge.
-        /// </summary>
-        /// <remarks>A half-edge is considered behind if it satisfies specific geometric conditions
-        /// relative to the current half-edge, including vertex alignment and edge orientation.</remarks>
-        /// <param name="he">The half-edge to compare against the current half-edge.</param>
-        /// <returns><see langword="true"/> if the specified half-edge is considered behind the current half-edge; otherwise,
-        /// <see langword="false"/>.</returns>
-        public bool IsBehind(in HalfEdge he) =>
-            (_behind is not null && _behind == he)
-            || (he.Twin != this
-                && Twin.RefVertex == he.RefVertex
-                && he.RefVertex.Point is not null
-                && EdgeSource.SideSign(EdgeTarget, he.EdgeTarget) == 0);
+        public bool IsBehind(in HalfEdge he)
+        {
+            if(_behind is null)
+            {
+                if(Twin != he && EdgeSource.SideSign(EdgeTarget, he.EdgeTarget) == 0)
+                {
+                    Behind = he;
+                    return true;
+                }
+                return false;
+            }
+            return _behind == he;
+        }
 
 
         /// <summary>

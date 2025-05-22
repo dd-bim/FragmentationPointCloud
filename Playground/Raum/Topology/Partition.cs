@@ -1,7 +1,11 @@
 ﻿using Playground.Raum.Geometry;
+using Playground.Raum.Topology;
 
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Xml.Schema;
 
@@ -12,7 +16,9 @@ internal class Partition(Epsilon epsilon)
     static readonly Random RandomInstance = new(1); // Random seed for reproducibility
     public static bool RandomNext => RandomInstance.Next(2) == 0;
 
-    public const long ExteriorId = 1;
+    public const long ExteriorId = 0;
+
+    public bool HasReconstruction { get; private set; } = false;
 
     public Epsilon Epsilon { get; init; } = epsilon;
 
@@ -20,139 +26,261 @@ internal class Partition(Epsilon epsilon)
 
     public VecI Max { get; private set; } = new(long.MinValue, long.MinValue);
 
-    public Facet Exterior { get; } = new HalfEdge().RefFacet; // should always be the first facet, to assure the id 1
+    public Facet Exterior { get; } = new HalfEdge(0).RefFacet;
 
     public List<Facet> Facets { get; } = [];
     public List<Vertex> Vertices { get; } = [];
     public List<HalfEdge> HalfEdges { get; } = [];
 
-    public Dictionary<Guid, HashSet<Element>> SemanticElements { get; } = [];
+    public Dictionary<Guid, HashSet<Vertex>> SemanticVertices { get; } = [];
+
+    public Dictionary<Guid, HashSet<HalfEdge>> SemanticHalfEdges { get; } = [];
+
+    public Dictionary<Guid, HashSet<Facet>> SemanticFacets { get; } = [];
 
     public Dictionary<VecI, Vertex> PointVertices { get; } = [];
 
-    public static void CreateFromRegions(Epsilon epsilon, out Partition partition,
-        params (double x, double y)[][][][] multiGeometries)
+    public static (Feature[] features, (double x, double y)[][][][] multiPolygons) CreateFromRegions(
+        Partition partition, params (double x, double y)[][][][] multiPolygons)
     {
-        partition = new Partition(epsilon);
-
         // Create triangulation, Points gets reference ids of multi-geometry and sub-geometries
-        var ids = new (Guid multiId, (Guid subId, Guid[] subsubIds)[] subIds)[multiGeometries.Length];
+        var features = new Feature[multiPolygons.Length];
         var edges = new List<(Vertex source, Vertex target)>();
-        for (int i = 0; i < multiGeometries.Length; i++)
+        for (int i = 0; i < multiPolygons.Length; i++)
         {
-            ids[i] = partition.AddMultiEdgeGeometry(edges, multiGeometries[i]);
+            features[i] = partition.AddMultiPolygon(edges, multiPolygons[i]);
         }
+        //#if DEBUG
+        //        foreach (string error in partition.IsValid())
+        //            Console.WriteLine(error);
+        //        partition.WriteSvg("1_triangulation");
+        //#endif
 
         // Reconstruct edges
         foreach (var (source, target) in edges)
         {
-            var refIds = new HashSet<Guid>(source.RefIds);
-            refIds.IntersectWith(target.RefIds);
             // assign both sides of the edge the same reference IDs, for a robust polygon reconstruction
-            if (!partition.ReconstructEdge(refIds, true, source, target))
+            if (!partition.ReconstructEdge(source.RefIds.ToImmutableHashSet().Intersect(target.RefIds), true, source, target))
             {
                 throw new Exception($"Failed to reconstruct edge between {source} and {target}.");
             }
         }
+        //#if DEBUG
+        //        foreach (string error in partition.IsValid())
+        //            Console.WriteLine(error);
+        //        partition.WriteSvg("2_reconstruction");
+        //#endif
 
-        // Get the facets of the rings, if any
-        for (int i = 0; i < ids.Length; i++)
-        {
-            var (multiId, subIds) = ids[i];
-            for (int j = 0; j < subIds.Length; j++)
-            {
-                var (subId, subsubIds) = subIds[j];
-                for (int k = 0; k < subsubIds.Length; k++)
-                {
-                    var halfEdges = partition.SemanticElements[subsubIds[k]]
-                        .Where(e => e is HalfEdge).Cast<HalfEdge>().ToHashSet();
-                    var regions = EnclosedFacetRegions(halfEdges); 
+        // Determine and assign the facets of the multi-polygons,
+        // remove the reference IDs from the half-edges
+        for (int i = 0; i < features.Length; i++)
+        {   // Multi-polygon
+            var multi = features[i];
+            var multiRegions = new List<HashSet<Facet>>();
+            for (int j = 0; j < multi.SubFeatures.Length; j++)
+            {   // Polygon
+                var poly = multi.SubFeatures[j];
+                var polyIds = ImmutableHashSet.Create<Guid>(multi.Id, poly.Id);
+                for (int k = 0; k < poly.SubFeatures.Length; k++)
+                {   // Ring
+                    var ring = poly.SubFeatures[k];
+                    var halfEdges = partition.GetHalfEdgesWithRefId(ring.Id);
+                    var regions = EnclosedFacetRegions(halfEdges);
+                    multiRegions.AddRange(regions);
+                    // remove the reference IDs from the original half-edges
+                    var refIds = polyIds.Add(ring.Id);
+                    foreach (var halfEdge in halfEdges)
+                    {
+                        partition.RemoveSemantics(halfEdge, refIds);
+                    }
                 }
-
+            }
+            var validRegions = MakeValidRegions(multiRegions);
+            foreach (var region in validRegions)
+            {
+                foreach (var facet in region)
+                {   // set only the reference ID of the multi-polygon to the facets
+                    partition.AddSemantics(facet, multi.Id);
+                }
             }
         }
+        //#if DEBUG
+        //        foreach (string error in partition.IsValid())
+        //            Console.WriteLine(error);
+        //        partition.WriteSvg("3_beforeRevision");
+        //#endif
+
+        // Get and assign the revised boundaries of the multi-polygons 
+        var revisedMultiPolygons = new (double x, double y)[multiPolygons.Length][][][];
+        var revisedFeatures = new Feature[multiPolygons.Length];
+        for (int i = 0; i < multiPolygons.Length; i++)
+        {
+            var multiId = features[i].Id;
+            var facets = partition.GetFacetsWithRefId(multiId);
+            var regions = GetRegions(facets);
+            var multiPolygon = revisedMultiPolygons[i] = new (double x, double y)[regions.Count][][];
+            var polys = new Feature[regions.Count];
+            revisedFeatures[i] = new Feature(multiId, polys);
+            for (int j = 0; j < regions.Count; j++)
+            {
+                var polyId = Guid.NewGuid();
+                var polyRefIds = ImmutableHashSet.Create<Guid>(multiId, polyId);
+                var region = regions[j];
+                var boundary = RegionBoundary(region);
+                var polygon = multiPolygon[j] = new (double x, double y)[boundary.Count][];
+                var rings = new Feature[boundary.Count];
+                polys[j] = new Feature(polyId, rings);
+                for (int k = 0; k < boundary.Count; k++)
+                {
+                    var ringId = Guid.NewGuid();
+                    var refIds = polyRefIds.Add(ringId);
+                    rings[k] = new Feature(ringId, []);
+                    var halfEdges = boundary[k];
+                    if (!PointsOfHalfEdgeChain(partition.Epsilon, halfEdges, out var ring))
+                    {
+                        throw new Exception($"Failed to get points of half-edge chain for ring {k}.");
+                    }
+                    polygon[k] = ring;
+                    foreach (var he in halfEdges)
+                    {
+                        partition.AddSemantics(he, refIds);
+                    }
+                }
+            }
+        }
+
+        return (revisedFeatures, revisedMultiPolygons);
     }
 
     #region Structure
 
-    /// <summary>
-    /// Associates the specified element with a set of reference IDs and updates the semantic mapping accordingly.
-    /// </summary>
-    /// <remarks>This method updates the <paramref name="element"/>'s reference ID collection by
-    /// adding the provided IDs. It also ensures that the semantic mapping is updated, associating each reference ID
-    /// with the given element. If a reference ID already exists in the semantic mapping, the element is added to
-    /// the existing collection of associated elements. Otherwise, a new mapping is created.</remarks>
-    /// <param name="element">The element to associate with the provided reference IDs.</param>
-    /// <param name="refIds">A set of reference IDs to associate with the element. Cannot be null.</param>
-    private void AddSemantics(Element element, HashSet<Guid> refIds)
+    private void AddSemantics(Element element, IReadOnlySet<Guid> refIds)
     {
         element.RefIds.UnionWith(refIds);
-        foreach (var refId in refIds)
+        switch (element)
         {
-            if (SemanticElements.TryGetValue(refId, out var value))
-            {
-                value.Add(element);
-            }
-            else
-            {
-                SemanticElements[refId] = [element];
-            }
+            case Vertex vertex:
+                foreach (var refId in refIds)
+                {
+                    if (SemanticVertices.TryGetValue(refId, out var value))
+                    {
+                        value.Add(vertex);
+                    }
+                    else
+                    {
+                        SemanticVertices[refId] = [vertex];
+                    }
+                }
+                break;
+            case HalfEdge halfEdge:
+                foreach (var refId in refIds)
+                {
+                    if (SemanticHalfEdges.TryGetValue(refId, out var value))
+                    {
+                        value.Add(halfEdge);
+                    }
+                    else
+                    {
+                        SemanticHalfEdges[refId] = [halfEdge];
+                    }
+                }
+                break;
+            case Facet facet:
+                foreach (var refId in refIds)
+                {
+                    if (SemanticFacets.TryGetValue(refId, out var value))
+                    {
+                        value.Add(facet);
+                    }
+                    else
+                    {
+                        SemanticFacets[refId] = [facet];
+                    }
+                }
+                break;
         }
     }
 
     /// <summary>
-    /// Creates a directed edge between two vertices, represented as a pair of half-edges.
+    /// Associates the specified element with a reference ID and updates the semantic mapping accordingly.
     /// </summary>
-    /// <remarks>If the source or target vertex does not already exist in the vertex collection, it is
-    /// created and added. The method ensures that the half-edge and its twin are properly linked to their
-    /// respective vertices.</remarks>
-    /// <param name="source">The source vertex of the edge, represented as a <see cref="VecI"/>.</param>
-    /// <param name="target">The target vertex of the edge, represented as a <see cref="VecI"/>.</param>
-    /// <param name="heRefIds">An optional set of semantic identifiers to associate with the half-edge originating from the source vertex.
-    /// If <see langword="null"/>, no semantics are added to this half-edge.</param>
-    /// <param name="twRefIds">An optional set of semantic identifiers to associate with the twin half-edge originating from the target
-    /// vertex. If <see langword="null"/>, no semantics are added to this twin half-edge.</param>
-    /// <returns>A tuple containing the created half-edge and its twin: <list type="bullet"> <item><description><c>he</c>:
-    /// The half-edge originating from the source vertex.</description></item> <item><description><c>tw</c>: The
-    /// twin half-edge originating from the target vertex.</description></item> </list></returns>
-    private (HalfEdge he, HalfEdge tw) AddEdge(
-        in VecI source, in VecI target,
-        HashSet<Guid>? heRefIds,
-        HashSet<Guid>? twRefIds)
+    /// <remarks>This method updates the <paramref name="element"/>'s reference ID collection by
+    /// adding the provided ID. It also ensures that the semantic mapping is updated, associating the reference ID
+    /// with the given element. If the reference ID already exists in the semantic mapping, the element is added to
+    /// the existing collection of associated elements. Otherwise, a new mapping is created.</remarks>
+    /// <param name="element">The element to associate with the provided reference ID.</param>
+    /// <param name="refId">The reference ID to associate with the element. Cannot be null.</param>
+    private void AddSemantics(Element element, Guid refId)
     {
-        var he = new HalfEdge();
-        var tw = he.Twin;
-        HalfEdges.Add(he);
-        HalfEdges.Add(tw);
-        if (PointVertices.TryGetValue(source, out var sourceVertex))
+        element.RefIds.Add(refId);
+        switch (element)
         {
-            he.RefVertex = sourceVertex;
+            case Vertex vertex:
+                if (SemanticVertices.TryGetValue(refId, out var vvalue))
+                {
+                    vvalue.Add(vertex);
+                }
+                else
+                {
+                    SemanticVertices[refId] = [vertex];
+                }
+                break;
+            case HalfEdge halfEdge:
+                if (SemanticHalfEdges.TryGetValue(refId, out var hvalue))
+                {
+                    hvalue.Add(halfEdge);
+                }
+                else
+                {
+                    SemanticHalfEdges[refId] = [halfEdge];
+                }
+                break;
+            case Facet facet:
+                if (SemanticFacets.TryGetValue(refId, out var fvalue))
+                {
+                    fvalue.Add(facet);
+                }
+                else
+                {
+                    SemanticFacets[refId] = [facet];
+                }
+                break;
         }
-        else
+    }
+
+    private void RemoveSemantics(Element element, IReadOnlySet<Guid> refIds)
+    {
+        element.RefIds.ExceptWith(refIds);
+        switch (element)
         {
-            he.RefVertex.Point = source;
-            Vertices.Add(he.RefVertex);
-            PointVertices[source] = he.RefVertex;
+            case Vertex vertex:
+                foreach (var refId in refIds)
+                {
+                    if (SemanticVertices.TryGetValue(refId, out var value))
+                    {
+                        value.Remove(vertex);
+                    }
+                }
+                break;
+            case HalfEdge halfEdge:
+                foreach (var refId in refIds)
+                {
+                    if (SemanticHalfEdges.TryGetValue(refId, out var value))
+                    {
+                        value.Remove(halfEdge);
+                    }
+                }
+                break;
+            case Facet facet:
+                foreach (var refId in refIds)
+                {
+                    if (SemanticFacets.TryGetValue(refId, out var value))
+                    {
+                        value.Remove(facet);
+                    }
+                }
+                break;
         }
-        if (PointVertices.TryGetValue(target, out var targetVertex))
-        {
-            tw.RefVertex = targetVertex;
-        }
-        else
-        {
-            tw.RefVertex.Point = target;
-            Vertices.Add(tw.RefVertex);
-            PointVertices[target] = tw.RefVertex;
-        }
-        if (heRefIds is not null)
-        {
-            AddSemantics(he, heRefIds);
-        }
-        if (twRefIds is not null)
-        {
-            AddSemantics(tw, twRefIds);
-        }
-        return (he, tw);
     }
 
     /// <summary>
@@ -170,8 +298,8 @@ internal class Partition(Epsilon epsilon)
     /// vertex back to the <paramref name="source"/> vertex.</returns>
     private (HalfEdge he, HalfEdge tw) AddEdge(
         Vertex source, Vertex target,
-        HashSet<Guid>? heRefIds,
-        HashSet<Guid>? twRefIds)
+        IReadOnlySet<Guid>? heRefIds,
+        IReadOnlySet<Guid>? twRefIds)
     {
         var he = new HalfEdge();
         var tw = he.Twin;
@@ -195,21 +323,14 @@ internal class Partition(Epsilon epsilon)
     /// </summary>
     /// <param name="refIds">An optional set of reference IDs to associate with the vertex. If provided, the vertex will be linked to
     /// these IDs.</param>
-    /// <param name="point">An optional point to assign to the vertex. If provided, the vertex will be associated with this point, and
-    /// the point will be mapped to the vertex.</param>
     /// <returns>The newly created vertex.</returns>
-    private Vertex AddVertex(HashSet<Guid>? refIds = null, VecI? point = null)
+    private Vertex AddVertex(IReadOnlySet<Guid>? refIds = null)
     {
         var vertex = new HalfEdge().RefVertex;
         Vertices.Add(vertex);
         if (refIds is not null)
         {
             AddSemantics(vertex, refIds);
-        }
-        if (point is not null)
-        {
-            vertex.Point = point;
-            PointVertices[point.Value] = vertex;
         }
         return vertex;
     }
@@ -224,7 +345,7 @@ internal class Partition(Epsilon epsilon)
     /// <param name="refIds">An optional set of semantic identifiers associated with the facet. If provided, these identifiers will be
     /// added to the facet's semantics.</param>
     /// <returns>The newly created <see cref="Facet"/> instance.</returns>
-    private Facet AddFacet(HalfEdge refHalfEdge, HashSet<Guid>? refIds)
+    private Facet AddFacet(HalfEdge refHalfEdge, IReadOnlySet<Guid>? refIds)
     {
         var facet = new Facet(refHalfEdge);
         Facets.Add(facet);
@@ -345,16 +466,17 @@ internal class Partition(Epsilon epsilon)
 
         var abNext = ab.Next;
         var baPrev = ba.Prev;
-        var abBehind = ab.Behind;
-        var baInFront = ba.InFront;
+        // Behind und InFront nicht setzen, da flip möglich
+        //var abBehind = ab.Behind;
+        //var baInFront = ba.InFront;
 
         var av = ab;
         var va = ba;
 
         av.Next = vb;
-        av.Behind = vb;
+        //av.Behind = vb;
         va.Prev = bv;
-        va.InFront = bv;
+        //va.InFront = bv;
         va.RefVertex = v;
 
         if (abNext != ba)
@@ -565,7 +687,7 @@ internal class Partition(Epsilon epsilon)
     /// <param name="refIds">A set of reference IDs associated with the point, used to track semantics or metadata.</param>
     /// <returns>The newly created or updated <see cref="Vertex"/> instance representing the point.</returns>
     /// <exception cref="Exception"></exception>
-    private Vertex AddPoint(in VecI point, HashSet<Guid> refIds)
+    private Vertex AddPoint(in VecI point, IReadOnlySet<Guid> refIds)
     {
         if (PointVertices.TryGetValue(point, out var vertex))
         { // Point already inserted
@@ -578,7 +700,10 @@ internal class Partition(Epsilon epsilon)
         Max = Max.Max(point);
 
         // new vertex
-        vertex = AddVertex(refIds, point);
+        vertex = AddVertex(refIds);
+        vertex.Point = point;
+        PointVertices[point] = vertex;
+
         var exterior = Exterior;
         if (Facets.Count > 0)
         { // Triangulation has at least one triangle
@@ -735,20 +860,21 @@ internal class Partition(Epsilon epsilon)
         return vertex;
     }
 
-
-    private (Guid multiId, (Guid subId, Guid[] subsubIds)[] subIds) AddMultiEdgeGeometry(List<(Vertex source, Vertex target)> edges, (double x, double y)[][][] multiGeometry)
+    // TODO CTeste auf geschlossenen Ring schließe automatisch! baue alles auf Polygone um
+    private Feature AddMultiPolygon(List<(Vertex source, Vertex target)> edges, (double x, double y)[][][] multiGeometry)
     {
         var multiId = Guid.NewGuid();
-        var subIds = new (Guid, Guid[])[multiGeometry.Length];
+        var subIds = new Feature[multiGeometry.Length];
         for (int i = 0; i < multiGeometry.Length; i++)
         {
-            var subIdsi = Guid.NewGuid();
+            var subIdi = Guid.NewGuid();
             var geometry = multiGeometry[i];
-            var refIds = new HashSet<Guid> { multiId, subIdsi };
-            var subsubIds = new Guid[geometry.Length];
+            var subsubIds = new Feature[geometry.Length];
+            var refIdsi = ImmutableHashSet.Create(multiId, subIdi);
             for (int j = 0; j < geometry.Length; j++)
             {
-                subsubIds[j] = Guid.NewGuid();
+                subsubIds[j] = new Feature(Guid.NewGuid(), []);
+                var refIds = refIdsi.Add(subsubIds[j].Id);
                 var region = geometry[j];
                 Vertex? last = null;
                 for (int k = 0; k < region.Length; k++)
@@ -761,9 +887,9 @@ internal class Partition(Epsilon epsilon)
                     last = curr;
                 }
             }
-            subIds[i] = (subIdsi, subsubIds);
+            subIds[i] = new Feature(subIdi, subsubIds);
         }
-        return (multiId, subIds);
+        return new Feature(multiId, subIds);
     }
 
 
@@ -786,7 +912,7 @@ internal class Partition(Epsilon epsilon)
     /// <item><description><c>vb</c>: The half-edge from the new vertex to the original destination vertex of
     /// <paramref name="ab"/>.</description></item> <item><description><c>bv</c>: The twin half-edge from the
     /// original destination vertex back to the new vertex.</description></item> </list></returns>
-    private (HalfEdge vb, HalfEdge bv) sideSplit(HalfEdge ab, in Fraction position, Vertex v)
+    private (HalfEdge vb, HalfEdge bv) SplitHalfEdgeAt(HalfEdge ab, in Fraction position, Vertex v)
     {
         var ba = ab.Twin;
         var abNext = ab.Next;
@@ -902,7 +1028,7 @@ internal class Partition(Epsilon epsilon)
     /// langword="false"/> if the operation could not be completed due to invalid input or state.</returns>
     /// <exception cref="Exception">Thrown if unexpected conditions are encountered during the reconstruction process, such as algorithmic 
     /// inconsistencies or invalid graph states.</exception>
-    internal bool ReconstructEdge(in HashSet<Guid> refIds, bool bothSides, Vertex source, Vertex target)
+    internal bool ReconstructEdge(in IReadOnlySet<Guid> refIds, bool bothSides, Vertex source, Vertex target)
     {
         if (source == target)
         {
@@ -914,6 +1040,21 @@ internal class Partition(Epsilon epsilon)
         {
             //Logger?.LogError("ReconstructFeatureEdge: source or target vertex has no point");
             return false;
+        }
+
+        // Check if edge already exists
+        var chain = source.GetHalfEdgeChainTo(target);
+        if (chain.Count > 0)
+        {
+            foreach (var he in chain)
+            {
+                AddSemantics(he, refIds);
+                if (bothSides)
+                {
+                    AddSemantics(he.Twin, refIds);
+                }
+            }
+            return true;
         }
 
         var current = source;
@@ -933,6 +1074,7 @@ internal class Partition(Epsilon epsilon)
                 // Move to lastHe HalfEdge on edge, and add all RefIds to the halfEdges
                 do
                 {
+                    chain.Add(right);
                     AddSemantics(right, refIds);
                     if (bothSides)
                     {
@@ -945,6 +1087,7 @@ internal class Partition(Epsilon epsilon)
 
             // New edge necessary, search intersections until known point
             // List off crossing halfedges, firstHe is right of edge source other is lft of edge target
+            HasReconstruction = true;
             var transverses = new List<(HalfEdge right, HalfEdge left)>();
             var currentPoint = current.Point!.Value;
             Vertex nextCurrent;
@@ -974,7 +1117,7 @@ internal class Partition(Epsilon epsilon)
                 {
                     // Halbkante teilen
                     var v = AddVertex(null);
-                    var (ntrans, _) = sideSplit(trans, in transPos, v);
+                    var (ntrans, _) = SplitHalfEdgeAt(trans, in transPos, v);
                     transverses.Add((right, ntrans));
                     right = trans.Twin;
                 }
@@ -983,6 +1126,7 @@ internal class Partition(Epsilon epsilon)
             // neue Kante erstellen
             var twinRefIds = bothSides ? refIds : null;
             var (he, tw) = AddEdge(current, nextCurrent, refIds, twinRefIds);
+            chain.Add(he);
             foreach (var (rgt, lft) in transverses)
             {
                 // Teilen?
@@ -991,9 +1135,10 @@ internal class Partition(Epsilon epsilon)
                 if (lft.RefVertex != tw.RefVertex)
                 {
                     var (otherSource, otherTarget) = lft.Edge;
-                    (heNext, twNext) = sideSplit(he,
+                    (heNext, twNext) = SplitHalfEdgeAt(he,
                         currentPoint.IntersectEdge(in nextCurrentPoint, in otherSource, in otherTarget),
                         lft.RefVertex);
+                    chain.Add(heNext);
                 }
                 // Verknüpfen
                 he.Prev = rgt.Prev;
@@ -1016,192 +1161,606 @@ internal class Partition(Epsilon epsilon)
             current = nextCurrent;
             continue;
         }
+        // set behind and inFront of the new halfedges to speedup the next searches
+        for (int i = 1; i < chain.Count; i++)
+        {
+            var infront = chain[i - 1];
+            var behind = chain[i];
+            infront.Behind = behind;
+            behind.Twin.Behind = infront.Twin;
+        }
         return true;
     }
 
+    #endregion
+
+    #region Requests
+
+    /// <summary>
+    /// Retrieves a set of <see cref="HalfEdge"/> instances associated with the specified reference ID.
+    /// </summary>
+    /// <remarks>This method filters elements associated with the given reference ID to include only those of
+    /// type <see cref="HalfEdge"/>.</remarks>
+    /// <param name="refId">The reference ID used to locate the associated <see cref="HalfEdge"/> instances.</param>
+    /// <returns>A <see cref="HashSet{T}"/> containing the <see cref="HalfEdge"/> instances associated with the specified
+    /// reference ID. Returns an empty set if no matching elements are found or if the reference ID is not present.</returns>
+    public HashSet<HalfEdge> GetHalfEdgesWithRefId(in Guid refId)
+    {
+        if (!SemanticHalfEdges.TryGetValue(refId, out var elements) || elements.Count == 0)
+            return [];
+
+        var set = new HashSet<HalfEdge>();
+        foreach (var e in elements)
+        {
+            if (e is HalfEdge he)
+                set.Add(he);
+        }
+        return set;
+    }
+
+    /// <summary>
+    /// Retrieves a set of <see cref="Vertex"/> instances associated with the specified reference ID.
+    /// </summary>
+    /// <remarks>This method filters elements associated with the given reference ID to include only those of
+    /// type <see cref="Vertex"/>.</remarks>
+    /// <param name="refId">The reference ID used to locate the associated <see cref="Vertex"/> instances.</param>
+    /// <returns>A <see cref="HashSet{T}"/> containing the <see cref="Vertex"/> instances associated with the specified
+    /// reference ID. Returns an empty set if no matching elements are found or if the reference ID is not present.</returns>
+    public HashSet<Vertex> GetVerticesWithRefId(in Guid refId)
+    {
+        if (!SemanticVertices.TryGetValue(refId, out var elements) || elements.Count == 0)
+            return [];
+
+        var set = new HashSet<Vertex>();
+        foreach (var e in elements)
+        {
+            if (e is Vertex v)
+                set.Add(v);
+        }
+        return set;
+    }
+
+
+    /// <summary>
+    /// Retrieves a set of <see cref="Facet"/> instances associated with the specified reference ID.
+    /// </summary>
+    /// <remarks>This method filters elements associated with the given reference ID to include only those of
+    /// type <see cref="Facet"/>.</remarks>
+    /// <param name="refId">The reference ID used to locate the associated <see cref="Facet"/> instances.</param>
+    /// <returns>A <see cref="HashSet{T}"/> containing the <see cref="Facet"/> instances associated with the specified
+    /// reference ID. Returns an empty set if no matching elements are found or if the reference ID is not present.</returns>
+    public HashSet<Facet> GetFacetsWithRefId(in Guid refId)
+    {
+        if (!SemanticFacets.TryGetValue(refId, out var elements) || elements.Count == 0)
+            return [];
+
+        var set = new HashSet<Facet>();
+        foreach (var e in elements)
+        {
+            if (e is Facet f)
+                set.Add(f);
+        }
+        return set;
+    }
+
+    public HashSet<HalfEdge> GetHalfEdgesWithRefIds(IReadOnlyCollection<Guid> refIds)
+    {
+        var result = new HashSet<HalfEdge>();
+        foreach (var refId in refIds)
+        {
+            if (SemanticHalfEdges.TryGetValue(refId, out var elements))
+                result.UnionWith(elements);
+        }
+        return result;
+    }
+
+    public HashSet<Vertex> GetVerticesWithRefIds(IReadOnlyCollection<Guid> refIds)
+    {
+        var result = new HashSet<Vertex>();
+        foreach (var refId in refIds)
+        {
+            if (SemanticVertices.TryGetValue(refId, out var elements))
+                result.UnionWith(elements);
+        }
+        return result;
+    }
+
+    public HashSet<Facet> GetFacetsWithRefIds(IReadOnlyCollection<Guid> refIds)
+    {
+        var result = new HashSet<Facet>();
+        foreach (var refId in refIds)
+        {
+            if (SemanticFacets.TryGetValue(refId, out var elements))
+                result.UnionWith(elements);
+        }
+        return result;
+    }
 
     #endregion
 
     #region Topology Methods
 
-    /// <summary>
-    /// Identifies and returns all enclosed regions of facets within a given set of half-edges.
-    /// </summary>
-    /// <remarks>An enclosed region is defined as a group of facets that are fully surrounded by the provided
-    /// half-edges without any connection to the exterior or other ambiguous boundaries. Facets that are part of open or
-    /// ambiguous regions are excluded from the result.</remarks>
-    /// <param name="halfEdges">A read-only set of half-edges that define the boundaries to evaluate for enclosed regions.</param>
-    /// <returns>An array of <see cref="HashSet{T}"/> objects, where each set contains the facets that form a single enclosed
-    /// region. If no enclosed regions are found, the array will be empty.</returns>
-    public static HashSet<Facet>[] EnclosedFacetRegions(in IReadOnlySet<HalfEdge> halfEdges)
+    private static List<HashSet<Facet>> EnclosedFacetRegions(in HashSet<HalfEdge> halfEdges)
     {
         var visitedFacets = new HashSet<Facet>();
-        var visitedHalfEdges = new HashSet<HalfEdge>();
         var regions = new List<HashSet<Facet>>();
 
         foreach (var he in halfEdges)
         {
-            if (!visitedHalfEdges.Add(he) || !visitedFacets.Add(he.RefFacet))
+            var startFacet = he.RefFacet;
+            if (startFacet.Id == ExteriorId)
+                continue;
+            if (visitedFacets.Contains(startFacet))
                 continue;
 
+            var region = new HashSet<Facet> { startFacet };
             var queue = new Queue<Facet>();
-            queue.Enqueue(he.RefFacet);
-            var region = new HashSet<Facet> { he.RefFacet };
-            bool isClosed = true;
+            queue.Enqueue(startFacet);
+            bool isOpen = false;
 
-            while (queue.TryDequeue(out var facet))
+            while (queue.Count > 0 && !isOpen)
             {
-                foreach (var the in facet.Boundary())
+                var facet = queue.Dequeue();
+                foreach (var edge in facet.Boundary())
                 {
-                    // Wenn die Kante Teil der Boundary ist, ist das die Grenze der Region
-                    if (halfEdges.Contains(the))
+                    if (halfEdges.Contains(edge))
                         continue;
 
-                    // Wenn die Nachbar-Facet das Exterior ist, ist die Region offen
-                    if (the.Twin.RefFacet.Id == ExteriorId)
+                    var neighbor = edge.Twin.RefFacet;
+                    if (neighbor.Id == ExteriorId)
                     {
-                        isClosed = false;
+                        isOpen = true;
                         break;
                     }
-
-                    // Wenn das Twin Teil der Boundary ist,
-                    // ist die Region nicht eindeutig abgetrennt (anliegende Regionen)
-                    if (halfEdges.Contains(the.Twin))
+                    if (region.Add(neighbor))
                     {
-                        isClosed = false;
-                        break;
+                        queue.Enqueue(neighbor);
                     }
-
-                    // Wenn die Kante oder das Facet schon besucht wurde, weiter
-                    if (!visitedHalfEdges.Add(the.Twin) || !visitedFacets.Add(the.Twin.RefFacet))
-                        continue;
-
-                    region.Add(the.Twin.RefFacet);
-                    queue.Enqueue(the.Twin.RefFacet);
                 }
-                if (!isClosed)
-                    break;
             }
 
-            if (isClosed)
+            // Markiere alle Facetten der Region als besucht, damit sie nicht erneut geprüft werden
+            visitedFacets.UnionWith(region);
+
+            if (!isOpen)
                 regions.Add(region);
         }
-        return [.. regions];
+        return regions;
     }
 
-
-    public static bool IsClosedInterior(in HashSet<HalfEdge> boundary, bool halfEdgesInside = true)
+    private static bool IsClosedInterior(in HashSet<HalfEdge> boundary, bool halfEdgesInside = true)
     {
         if (boundary.Count < 3)
             return false;
-        var region = new HashSet<Facet>();
+
+        // Set für bereits besuchte Facetten
+        var visitedFacets = new HashSet<Facet>();
+        // Queue für BFS
         var queue = new Queue<Facet>();
+
+        // Initialisiere mit allen Facetten, die an der Boundary liegen
         foreach (var he in boundary)
         {
             var facet = halfEdgesInside ? he.RefFacet : he.Twin.RefFacet;
-            region.Add(facet);
-            queue.Enqueue(facet);
+            if (visitedFacets.Add(facet))
+                queue.Enqueue(facet);
         }
+
         while (queue.Count > 0)
         {
             var facet = queue.Dequeue();
             foreach (var he in facet.Boundary())
             {
-                if (halfEdgesInside ? boundary.Contains(he) : boundary.Contains(he.Twin))
+                // Prüfe, ob diese Kante zur Boundary gehört (je nach Orientierung)
+                bool isBoundary = halfEdgesInside ? boundary.Contains(he) : boundary.Contains(he.Twin);
+                if (isBoundary)
                     continue;
+
+                // Wenn die Nachbar-Facette das Exterior ist, ist der Bereich offen
                 if (he.Twin.RefFacet.Id == ExteriorId)
                     return false;
-                if (region.Add(he.Twin.RefFacet))
+
+                // Wenn die Nachbar-Facette noch nicht besucht wurde, weiter traversieren
+                if (visitedFacets.Add(he.Twin.RefFacet))
                     queue.Enqueue(he.Twin.RefFacet);
             }
-
         }
+
+        // Wenn alle erreichbaren Facetten von der Boundary eingeschlossen sind und kein Exterior erreicht wurde, ist der Bereich geschlossen
         return true;
     }
 
-
-    public static HalfEdge[][] RegionBoundary(in HashSet<Facet> region)
+    private static List<List<HalfEdge>> RegionBoundary(in HashSet<Facet> region)
     {
-        // Finde alle Kanten, die die Region umgeben, etferne die Kanten, die in der Region sind
+        // 1. Finde alle Begrenzungskanten (nur die, die nicht innerhalb der Region liegen)
         var boundarySet = new HashSet<HalfEdge>();
         foreach (var f in region)
         {
             foreach (var he in f.Boundary())
             {
                 if (!boundarySet.Remove(he.Twin))
-                {
                     boundarySet.Add(he);
-                }
             }
         }
-        // Eine Region kann Löcher haben, deshalb sind mehrere Boundaries möglich
-        // Sortiere die Kanten in der Reihenfolge, in der sie die Region umgeben
-        // der Erste Rand in der Liste ist der Äußere Rand, evtl. andere sind Löcher
 
-        var boundaryList = new List<HalfEdge[]>();
-        while (boundarySet.Count > 0)
+        // 2. Baue ein Dictionary für schnellen Zugriff: Startpunkt -> HalfEdge
+        var startDict = boundarySet.ToDictionary(he => he.RefVertex);
+
+        // 3. Finde und sortiere alle Ringe
+        var boundaryList = new List<List<HalfEdge>>();
+        var used = new HashSet<HalfEdge>();
+        while (used.Count < boundarySet.Count)
         {
-            var tail = boundarySet.First();
-            var ring = new List<HalfEdge>(boundarySet.Count);
-            boundarySet.Remove(tail);
-            ring.Add(tail);
-            while (boundarySet.Count > 0)
+            // Finde eine noch nicht verwendete Kante als Start
+            var start = boundarySet.First(he => !used.Contains(he));
+            var ring = new List<HalfEdge>();
+            var current = start;
+            do
             {
-                foreach (var he in boundarySet)
-                {
-                    if (he.RefVertex == tail.Twin.RefVertex)
-                    {
-                        ring.Add(he);
-                        tail = he;
-                        break;
-                    }
-                }
-            }
-            if (ring.Count > 2 && ring[0].RefVertex == tail.Twin.RefVertex)
-                boundaryList.Add([.. ring]);
-            else throw new ArithmeticException("Error in structure.");
+                ring.Add(current);
+                used.Add(current);
+                // Nächste Kante suchen: Startpunkt = Endpunkt der aktuellen Kante
+                var nextVertex = current.Twin.RefVertex;
+                if (!startDict.TryGetValue(nextVertex, out var next))
+                    throw new ArithmeticException("RegionBoundary: Fehler beim Finden des nächsten Ringschritts.");
+                current = next;
+            } while (current != start);
+
+            if (ring.Count > 2)
+                boundaryList.Add(ring);
+            else
+                throw new ArithmeticException("RegionBoundary: Ring zu kurz oder nicht geschlossen.");
         }
-        // Ein Ring muss aussen liegen! An den Anfang bringen. Alle anderen sind Löcher mit Grenze in Richtung Exterior 
+
+        // 4. Äußeren Umring an den Anfang
         for (int i = 0; i < boundaryList.Count; i++)
         {
             var ringSet = new HashSet<HalfEdge>(boundaryList[i]);
             if (IsClosedInterior(ringSet))
             {
                 if (i > 0)
-                {
                     (boundaryList[0], boundaryList[i]) = (boundaryList[i], boundaryList[0]);
-                }
-                return [.. boundaryList];
+                break;
             }
         }
-        throw new ArithmeticException("Error in structure.");
+        return boundaryList;
     }
 
+    private static List<HashSet<Facet>> GetRegions(in HashSet<Facet> facets)
+    {
+        var regions = new List<HashSet<Facet>>();
+        var visited = new HashSet<Facet>();
+
+        foreach (var start in facets)
+        {
+            if (visited.Contains(start))
+                continue;
+
+            var region = new HashSet<Facet>();
+            var queue = new Queue<Facet>();
+            queue.Enqueue(start);
+            visited.Add(start);
+
+            while (queue.Count > 0)
+            {
+                var facet = queue.Dequeue();
+                region.Add(facet);
+
+                foreach (var he in facet.Boundary())
+                {
+                    var neighbor = he.Twin.RefFacet;
+                    if (facets.Contains(neighbor) && !visited.Contains(neighbor))
+                    {
+                        visited.Add(neighbor);
+                        queue.Enqueue(neighbor);
+                    }
+                }
+            }
+            if (region.Count > 0)
+                regions.Add(region);
+        }
+        return regions;
+    }
+
+    private static bool PointsOfHalfEdgeChain(Epsilon epsilon, List<HalfEdge> halfEdges, out (double x, double y)[] points)
+    {
+        points = [];
+        int n = halfEdges.Count;
+        if (n == 0)
+            return false;
+
+        bool isClosed = halfEdges[0].RefVertex == halfEdges[^1].Twin.RefVertex;
+        var pointsList = new List<(double x, double y)>(n);
+        int startIdx = -1;
+
+        // Hilfsfunktion für Punktberechnung
+        static (double x, double y) GetPoint(Epsilon eps, HalfEdge he)
+        {
+            if (!eps.Convert(he.RefVertex, out var p))
+                Console.WriteLine($"PointsOfHalfEdgeChain: Point {p} is rounded.");
+            return p;
+        }
+
+        // Hilfsfunktion für Kollinearität
+        static bool IsCollinear(HalfEdge he, HalfEdge prev)
+        {
+            if (he.RefVertex.Point is VecI c && c.SideSign(prev.EdgeSource, he.EdgeTarget) == 0)
+            {
+                he.InFront = prev;
+                return true;
+            }
+            return false;
+        }
+
+        if (!isClosed)
+        {
+            pointsList.Add(GetPoint(epsilon, halfEdges[0]));
+            startIdx = 0;
+        }
+
+        for (int i = 1; i < n; i++)
+        {
+            var he = halfEdges[i];
+            if ((he.InFront is null && IsCollinear(he, halfEdges[i - 1])) ||
+                (he.InFront == halfEdges[i - 1]))
+                continue;
+
+            if (isClosed && he.RefVertex.Point is not null)
+                startIdx = pointsList.Count;
+            pointsList.Add(GetPoint(epsilon, he));
+        }
+
+        if (isClosed)
+        {
+            if (halfEdges[0].InFront is null && !IsCollinear(halfEdges[0], halfEdges[^1]))
+            {
+                if (halfEdges[0].RefVertex.Point is not null)
+                    startIdx = pointsList.Count;
+                pointsList.Add(GetPoint(epsilon, halfEdges[0]));
+            }
+            if (pointsList.Count < 3)
+                return false;
+        }
+        else
+        {
+            pointsList.Add(GetPoint(epsilon, halfEdges[^1].Twin));
+        }
+
+        // Punkte ggf. rotieren
+        int count = pointsList.Count;
+        points = new (double x, double y)[count + (isClosed ? 1 : 0)];
+        if (startIdx > 0)
+        {
+            // Block 1: Von startIdx bis Ende
+            pointsList.CopyTo(startIdx, points, 0, count - startIdx);
+            // Block 2: Von Anfang bis startIdx-1
+            pointsList.CopyTo(0, points, count - startIdx, startIdx);
+        }
+        else
+            pointsList.CopyTo(points, 0);
+
+        if (isClosed)
+            points[^1] = points[0];
+
+        return true;
+    }
+
+    private static List<HashSet<Facet>> MakeValidRegions(List<HashSet<Facet>> regions)
+    {
+        // 1. Echte Teilmengen entfernen
+        var filtered = new List<HashSet<Facet>>(regions.Count);
+        var holes = new HashSet<Facet>();
+        for (int i = 0; i < regions.Count; i++)
+        {
+            bool isSubset = false;
+            for (int j = 0; j < regions.Count; j++)
+            {
+                if (i == j) continue;
+                if (regions[j].IsSupersetOf(regions[i]) && regions[j].Count > regions[i].Count)
+                {
+                    isSubset = true;
+                    holes.UnionWith(regions[i]);
+                    break;
+                }
+            }
+            if (!isSubset)
+                filtered.Add(regions[i]);
+        }
+        // Entferne die Löcher aus den Regionen
+        for (int i = 0; i < filtered.Count; i++)
+        {
+            filtered[i].ExceptWith(holes);
+        }
+
+        // 2. Überlappende Regionen vereinigen (Union-Find-Algorithmus)
+        var result = new List<HashSet<Facet>>();
+        bool[] visited = new bool[filtered.Count];
+
+        for (int i = 0; i < filtered.Count; i++)
+        {
+            if (visited[i]) continue;
+            var union = new HashSet<Facet>(filtered[i]);
+            visited[i] = true;
+            bool merged;
+            do
+            {
+                merged = false;
+                for (int j = 0; j < filtered.Count; j++)
+                {
+                    if (visited[j]) continue;
+                    if (union.Overlaps(filtered[j]))
+                    {
+                        union.UnionWith(filtered[j]);
+                        visited[j] = true;
+                        merged = true;
+                    }
+                }
+            } while (merged);
+            result.Add(union);
+        }
+
+        return result;
+    }
+
+
+    public IEnumerable<string> IsValid()
+    {
+        var errors = new List<string>();
+
+        // 1. Vertex.RefHalfEdge gesetzt und RefHalfEdge.RefVertex == Ausgangsvertex
+        foreach (var v in Vertices)
+        {
+            if (v.RefHalfEdge == null)
+            {
+                errors.Add($"Vertex {v.Id}: RefHalfEdge is null.");
+                continue;
+            }
+            if (v.RefHalfEdge.RefVertex != v)
+            {
+                errors.Add($"Vertex {v.Id}: RefHalfEdge.RefVertex != Vertex.");
+            }
+        }
+
+        // 2. Facet.RefHalfEdge gesetzt und RefHalfEdge.RefFacet == Ausgangsfacet
+        foreach (var f in Facets)
+        {
+            if (f.RefHalfEdge == null)
+            {
+                errors.Add($"Facet {f.Id}: RefHalfEdge is null.");
+                continue;
+            }
+            if (f.RefHalfEdge.RefFacet != f)
+            {
+                errors.Add($"Facet {f.Id}: RefHalfEdge.RefFacet != Facet.");
+            }
+        }
+
+        // 3. Für alle Facet.Boundary(): he.RefFacet == Ausgangsfacet
+        foreach (var f in Facets)
+        {
+            foreach (var he in f.Boundary())
+            {
+                if (he.RefFacet != f)
+                {
+                    errors.Add($"Facet {f.Id}: Boundary HalfEdge {he.Id} RefFacet != Facet.");
+                }
+            }
+        }
+
+        // 4. HalfEdge-Referenzen: Twin, Next/Prev, InFront/Behind
+        foreach (var he in HalfEdges)
+        {
+            // Twin
+            if (he.Twin == null)
+            {
+                errors.Add($"HalfEdge {he.Id}: Twin is null.");
+            }
+            else if (he.Twin.Twin != he)
+            {
+                errors.Add($"HalfEdge {he.Id}: Twin.Twin != this.");
+            }
+
+            // Next/Prev
+            if (he.Next == null)
+            {
+                errors.Add($"HalfEdge {he.Id}: Next is null.");
+            }
+            else if (he.Next.Prev != he)
+            {
+                errors.Add($"HalfEdge {he.Id}: Next.Prev != this.");
+            }
+            if (he.Prev == null)
+            {
+                errors.Add($"HalfEdge {he.Id}: Prev is null.");
+            }
+            else if (he.Prev.Next != he)
+            {
+                errors.Add($"HalfEdge {he.Id}: Prev.Next != this.");
+            }
+
+            // InFront/Behind (optional)
+            if (he.InFront != null && he.InFront.Behind != he)
+            {
+                errors.Add($"HalfEdge {he.Id}: InFront.Behind != this.");
+            }
+            if (he.Behind != null && he.Behind.InFront != he)
+            {
+                errors.Add($"HalfEdge {he.Id}: Behind.InFront != this.");
+            }
+
+            // RefFacet/RefVertex referenziert
+            if (he.RefFacet == null)
+            {
+                errors.Add($"HalfEdge {he.Id}: RefFacet is null.");
+            }
+            if (he.RefVertex == null)
+            {
+                errors.Add($"HalfEdge {he.Id}: RefVertex is null.");
+            }
+        }
+
+        // 5. Optional: Prüfe auf doppelte IDs (kann auf Fehler im UniqueCounter hindeuten)
+        if (Vertices.Select(v => v.Id).Distinct().Count() != Vertices.Count)
+            errors.Add("Duplicate Vertex IDs found.");
+        if (Facets.Select(f => f.Id).Distinct().Count() != Facets.Count)
+            errors.Add("Duplicate Facet IDs found.");
+        if (HalfEdges.Select(he => he.Id).Distinct().Count() != HalfEdges.Count)
+            errors.Add("Duplicate HalfEdge IDs found.");
+
+        // 6. Optional: Prüfe, ob alle referenzierten Vertices, Facets, HalfEdges in den Listen enthalten sind
+        foreach (var he in HalfEdges)
+        {
+            if (!Vertices.Contains(he.RefVertex))
+                errors.Add($"HalfEdge {he.Id}: RefVertex {he.RefVertex.Id} not in Vertices list.");
+            if (he.RefFacet != Exterior && !Facets.Contains(he.RefFacet))
+                errors.Add($"HalfEdge {he.Id}: RefFacet {he.RefFacet.Id} not in Facets list.");
+        }
+        foreach (var v in Vertices)
+        {
+            if (!HalfEdges.Contains(v.RefHalfEdge))
+                errors.Add($"Vertex {v.Id}: RefHalfEdge {v.RefHalfEdge.Id} not in HalfEdges list.");
+        }
+        foreach (var f in Facets)
+        {
+            if (!HalfEdges.Contains(f.RefHalfEdge))
+                errors.Add($"Facet {f.Id}: RefHalfEdge {f.RefHalfEdge.Id} not in HalfEdges list.");
+        }
+
+        return errors;
+    }
+
+    // Optional: Kurzform für bool
+    public bool IsValidTopology() => !IsValid().Any();
 
     #endregion
 
     #region IO
-    public static readonly ImmutableArray<string> ColorPalette = ["#ba495b", "#56ae6c", "#8960b3", "#b0923b"]; // maroon, navy, orange, lavender (light purple) ["blue", "cyan", "green", "yellow", "red", "purple"]
 
+    public static readonly ImmutableArray<string> ColorPalette = ["#377eb8", "#ff7f00", "#4daf4a", "#e41a1c"];
+
+
+    /// <summary>
+    /// Generates an SVG representation of the current geometric structure and writes it to a file.
+    /// </summary>
+    /// <remarks>This method creates an SVG file that visually represents the vertices, edges, and facets of
+    /// the geometric structure.  It includes styling for hover effects and uses a greedy coloring algorithm to assign
+    /// colors to facets.  The generated SVG is written to the specified file, overwriting it if it already exists.  The
+    /// method assumes that the geometric structure is well-defined, with valid vertices, edges, and facets.</remarks>
+    /// <param name="filename">The base name of the file to which the SVG content will be written. The method appends the ".svg" extension to
+    /// this name.</param>
     public void WriteSvg(string filename)
     {
         var getPoint = new Func<Vertex, (string x, string y)>(v =>
         {
             if (v.Point is VecI c)
-            {
-                return (
-                c.X.ToString(CultureInfo.InvariantCulture),
-                (-c.Y).ToString(CultureInfo.InvariantCulture));
-            }
+                return (c.X.ToString(CultureInfo.InvariantCulture), (-c.Y).ToString(CultureInfo.InvariantCulture));
             var he = v.RefHalfEdge;
             var (src, tgt) = he.Edge;
             double posScale = he.Position.Value;
             var diff = tgt - src;
             double x = src.X + (posScale * diff.X);
             double y = src.Y + (posScale * diff.Y);
-            return (
-                x.ToString(CultureInfo.InvariantCulture),
-                (-y).ToString(CultureInfo.InvariantCulture));
+            return (x.ToString(CultureInfo.InvariantCulture), (-y).ToString(CultureInfo.InvariantCulture));
         });
         var vertices = Vertices.ToDictionary(v => v, getPoint);
 
@@ -1209,92 +1768,92 @@ internal class Partition(Epsilon epsilon)
         double viewBoxWidth = double.Max(10d, range.X);
         double viewBoxHeight = double.Max(10d, range.Y);
         double scale = double.Max(viewBoxWidth, viewBoxHeight);
-        string bstrokeWidth = (scale * 0.002).ToString(CultureInfo.InvariantCulture); // Adjust these values as needed
-        string strokeWidth = (scale * 0.001).ToString(CultureInfo.InvariantCulture); // Adjust these values as needed
-        string pointRadius = (scale * 0.004).ToString(CultureInfo.InvariantCulture); // Adjust these values as needed
+        string bstrokeWidth = (scale * 0.002).ToString(CultureInfo.InvariantCulture);
+        string strokeWidth = (scale * 0.001).ToString(CultureInfo.InvariantCulture);
+        string pointRadius = (scale * 0.004).ToString(CultureInfo.InvariantCulture);
         string hoverWidth = pointRadius;
         string hoverRadius = (scale * 0.008).ToString(CultureInfo.InvariantCulture);
 
-        // Calculate the margin as 5% of the width and height
         double margin = scale * 0.05;
 
-        // Create an SVG document with a viewBox that fits the PointValues and has a proportional margin
         StringBuilder sb = new(FormattableString.Invariant($"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{Min.X - margin} {-Max.Y - margin} {viewBoxWidth + margin + margin} {viewBoxHeight + margin + margin}\">"));
         _ = sb.AppendLine();
         _ = sb.AppendLine("<style type=\"text/css\">" +
             $"path:hover {{stroke:red;stroke-width:{hoverWidth};fill-opacity:1;}} " +
             $"line:hover {{stroke:red;stroke-width:{hoverWidth};}} " +
             $"circle:hover {{fill:red; r:{hoverRadius};}}</style>");
-        // Draw Paths
+
+        // --- Greedy Coloring ---
         var faceColors = new Dictionary<Facet, string>();
+        string[] palette = [.. ColorPalette];
+        foreach (var f in Facets)
+        {
+            if (f == Exterior)
+                continue;
+
+            // Nachbarfarben sammeln
+            var neighborColors = new HashSet<string>();
+            foreach (var he in f.Boundary())
+            {
+                if (faceColors.TryGetValue(he.Twin.RefFacet, out string? col))
+                    neighborColors.Add(col);
+            }
+            // Erste freie Farbe wählen
+            string color = palette.FirstOrDefault(c => !neighborColors.Contains(c)) ?? palette[0];
+            faceColors[f] = color;
+        }
+
+        // Draw Paths (Facets)
         _ = sb.AppendLine($"<g stroke=\"black\" stroke-width=\"{strokeWidth}\" stroke-linejoin=\"round\" fill-rule=\"evenodd\" fill-opacity=\"0.3\">");
         foreach (var f in Facets)
         {
             if (f == Exterior)
-            {
                 continue;
-            }
 
-            var sbf = new StringBuilder();
-            var colors = ColorPalette.ToList();
-            foreach (var he in f.Boundary())
-            {
-                if (faceColors.TryGetValue(he.Twin.RefFacet, out string? col))
-                {
-                    _ = colors.Remove(col);
-                }
-                var (x, y) = vertices[he.RefVertex];
-                _ = sbf.Append($" {x} {y} L");
-            }
-            _ = sbf.Remove(sbf.Length - 1, 1);
-            string fc = colors[RandomInstance.Next(colors.Count)];
-            faceColors[f] = fc;
-            _ = sb.AppendLine($"<path fill=\"{fc}\" d=\"M{sbf.ToString()}Z\" >");
-            //_ = sb.AppendLine($"<title>{f}\r\n{f.Id}\r\n{String.Join(',', FacetSemantics[f.Id])}</title>");
+            string[] pathPoints = [.. f.Boundary()
+                .Select(he => vertices[he.RefVertex])
+                .Select(p => $"{p.x} {p.y}")];
+
+            string fc = faceColors[f];
+            _ = sb.AppendLine($"<path fill=\"{fc}\" d=\"M{string.Join(" L", pathPoints)}Z\" >");
+            _ = sb.AppendLine($"<title>{f}\r\n{f.Id}\r\n{string.Join(',', f.RefIds)}</title>");
             _ = sb.AppendLine("</path>");
         }
         _ = sb.AppendLine("</g>");
+
         // Draw edges
         _ = sb.AppendLine(FormattableString.Invariant($"<g stroke=\"black\" stroke-width=\"{strokeWidth}\" fill=\"none\">"));
         var doneHe = new HashSet<HalfEdge>();
         foreach (var he in HalfEdges)
         {
-            if (doneHe.Contains(he))
-            {
+            if (!doneHe.Add(he) || !doneHe.Add(he.Twin))
                 continue;
-            }
-
-            doneHe.Add(he.Twin);
 
             var a = he.RefVertex;
             var b = he.Twin.RefVertex;
-
             var (x1, y1) = vertices[a];
             var (x2, y2) = vertices[b];
-            if (he.RefFacet == Exterior || he.Twin.RefFacet == Exterior)
-            {
-                _ = sb.AppendLine(FormattableString.Invariant($"<line stroke=\"green\" stroke-width=\"{bstrokeWidth}\" x1=\"{x1}\" y1=\"{y1}\" x2=\"{x2}\" y2=\"{y2}\">"));
-            }
-            else
-            {
-                _ = sb.AppendLine(FormattableString.Invariant($"<line x1=\"{x1}\" y1=\"{y1}\" x2=\"{x2}\" y2=\"{y2}\">"));
-            }
-            //_ = sb.AppendLine(FormattableString.Invariant($"<title>{he}\r\n{he.Id}|{he.Twin.Id}\r\n{String.Join(',', HalfEdgeSemantics[he.Id])}\r\n{String.Join(',', HalfEdgeSemantics[he.Twin.Id])}</title>"));
+            _ = he.RefFacet == Exterior || he.Twin.RefFacet == Exterior
+                ? sb.AppendLine(FormattableString.Invariant($"<line stroke=\"green\" stroke-width=\"{bstrokeWidth}\" x1=\"{x1}\" y1=\"{y1}\" x2=\"{x2}\" y2=\"{y2}\">"))
+                : sb.AppendLine(FormattableString.Invariant($"<line x1=\"{x1}\" y1=\"{y1}\" x2=\"{x2}\" y2=\"{y2}\">"));
+            _ = sb.AppendLine(FormattableString.Invariant($"<title>{he}\r\n{he.Twin}\r\n{string.Join(',', he.RefIds)}\r\n{string.Join(',', he.Twin.RefIds)}</title>"));
             _ = sb.AppendLine("</line>");
         }
         _ = sb.AppendLine("</g>");
-        // draw points
+
+        // Draw points
         _ = sb.AppendLine("<g stroke=\"none\" >");
         foreach (var v in Vertices)
         {
             var (x, y) = vertices[v];
             _ = sb.AppendLine(FormattableString.Invariant($"<circle fill=\"{(v.Point is null ? "blue" : "black")}\" cx=\"{x}\" cy=\"{y}\" r=\"{pointRadius}\">"));
-            //_ = sb.AppendLine(FormattableString.Invariant($"<title>{v}\r\n{v.Id}\r\n{String.Join(',', VertexSemantics[v.Id])}</title>"));
+            _ = sb.AppendLine(FormattableString.Invariant($"<title>{v}\r\n{v.Id}\r\n{string.Join(',', v.RefIds)}</title>"));
             _ = sb.AppendLine("</circle>");
         }
         _ = sb.AppendLine("</g>");
         _ = sb.AppendLine("</svg>");
         File.WriteAllText(filename + ".svg", sb.ToString());
     }
+
     #endregion
 }
