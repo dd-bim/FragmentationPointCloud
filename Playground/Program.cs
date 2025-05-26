@@ -1,20 +1,20 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
-using Playground;
-using Playground.Raum2D.Features;
-using Playground.Raum2D.Geometry;
-using Playground.Raum2D.Topology;
+using Raum2D;
+using Raum2D.Features;
+using Raum2D.Geometry;
+using Raum2D.Topology;
 
 string[] wkts =
 [
     "POLYGON ((35 10, 45 45, 15 40, 10 20, 35 10),(20 30, 35 35, 30 20,20 30))",
-    "POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))",
-    "LINESTRING (30 10, 10 30, 40 40)",
-    "POINT (30 10)",
-    "MULTIPOINT ((10 40), (40 30), (20 20), (30 10))",
-    "MULTIPOINT (10 40, 40 30, 20 20, 30 10)",
-    "MULTILINESTRING ((10 10, 20 20, 10 40),\r\n(40 40, 30 30, 40 20, 30 10))",
-    "MULTIPOLYGON (((30 10, 45 40, 10 40, 30 10)),\r\n((15 5, 40 10, 10 20, 5 10, 15 5)))",
+    //"POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))",
+    //"LINESTRING (30 10, 10 30, 40 40)",
+    //"POINT (30 10)",
+    //"MULTIPOINT ((10 40), (40 30), (20 20), (30 10))",
+    //"MULTIPOINT (10 40, 40 30, 20 20, 30 10)",
+    //"MULTILINESTRING ((10 10, 20 20, 10 40),\r\n(40 40, 30 30, 40 20, 30 10))",
+    //"MULTIPOLYGON (((30 10, 45 40, 10 40, 30 10)),\r\n((15 5, 40 10, 10 20, 5 10, 15 5)))",
     "MULTIPOLYGON (((40 40, 20 45, 45 30, 40 40)),\r\n((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),\r\n(30 20, 20 15, 20 25, 30 20)))",
 ];
 var features = new OgcSf[wkts.Length];
@@ -32,6 +32,46 @@ for (int i = 0; i < wkts.Length; i++)
     Console.WriteLine(feature);
 }
 OgcSf.WriteSVG("result", features);
+
+if(Operation.Create(out var operations, features))
+{
+    // Perform union operation
+    if (operations.Union(0, 1, out var union))
+    {
+        Console.WriteLine("Union Result:");
+        Console.WriteLine(union);
+        OgcSf.WriteSVG("union", union);
+    }
+
+    // Perform intersection operation
+    if (operations.Intersection(0, 1, out var intersection))
+    {
+        Console.WriteLine("Intersection Result:");
+        Console.WriteLine(intersection);
+        OgcSf.WriteSVG("intersection", intersection);
+    }
+
+    // Perform difference operation
+    if (operations.Difference(0, 1, out var difference))
+    {
+        Console.WriteLine("Difference Result:");
+        Console.WriteLine(difference);
+        OgcSf.WriteSVG("difference", difference);
+    }
+
+    // Perform XOR operation
+    if (operations.Xor(0, 1, out var xor))
+    {
+        Console.WriteLine("XOR Result:");
+        Console.WriteLine(xor);
+        OgcSf.WriteSVG("xor", xor);
+    }
+
+}
+else
+{
+    Console.WriteLine("Failed to create operations.");
+}
 
 //static void WriteCollection((double x, double y)[][][][] collection)
 //{

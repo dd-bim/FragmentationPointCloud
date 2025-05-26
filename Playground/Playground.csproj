@@ -9,4 +9,8 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\..\Raum2D\Raum2D\Raum2D.csproj" />
+	</ItemGroup>
+
 </Project>
