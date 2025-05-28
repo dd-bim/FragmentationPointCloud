@@ -32,30 +32,15 @@ public readonly struct ReferencePlane : IEquatable<ReferencePlane>
         Id = $"0 {max.c} {(lokD < 0 ? '+' : '-')} {double.Round(-lokD, digits)} {hc}";
     }
 
-    public bool Equals(ReferencePlane other)
-    {
-        return Id == other.Id;
-    }
+    public bool Equals(ReferencePlane other) => Id == other.Id;
 
-    public override bool Equals(object? obj)
-    {
-        return obj is ReferencePlane rp && Equals(rp);
-    }
+    public override bool Equals(object? obj) => obj is ReferencePlane rp && Equals(rp);
 
-    public override int GetHashCode()
-    {
-        return Id.GetHashCode();
-    }
+    public override int GetHashCode() => Id.GetHashCode();
 
-    public static bool operator ==(ReferencePlane left, ReferencePlane right)
-    {
-        return Equals(left, right);
-    }
+    public static bool operator ==(ReferencePlane left, ReferencePlane right) => Equals(left, right);
 
-    public static bool operator !=(ReferencePlane left, ReferencePlane right)
-    {
-        return !Equals(left, right);
-    }
+    public static bool operator !=(ReferencePlane left, ReferencePlane right) => !Equals(left, right);
 
 
     private const string CsvHeader = "Id;Position;Normal;PlaneX;";
@@ -121,7 +106,7 @@ public readonly struct ReferencePlane : IEquatable<ReferencePlane>
         if (lines.Length > 1)
         {
             var errors = new List<string>();
-            for (var i = 1; i < lines.Length; i++)
+            for (int i = 1; i < lines.Length; i++)
             {
                 if (TryParseCsvLine(lines[i], out ReferencePlane rp, out error))
                 {
@@ -130,10 +115,9 @@ public readonly struct ReferencePlane : IEquatable<ReferencePlane>
                 }
 
                 errors.Add($"Line {i + 1} has Error: {error}");
-                error = string.Empty;
             }
 
-            lineErrors = errors.ToArray();
+            lineErrors = [.. errors];
             error = string.Empty;
             return planes;
         }
@@ -145,8 +129,9 @@ public readonly struct ReferencePlane : IEquatable<ReferencePlane>
 
     public static void WriteCsv(in string path, in IEnumerable<ReferencePlane> referencePlanes)
     {
-        using StreamWriter csv = File.CreateText(path);
+        using var csv = File.CreateText(path);
         csv.WriteLine(CsvHeader);
-        foreach (ReferencePlane rp in referencePlanes.ToImmutableHashSet()) csv.WriteLine(rp.ToCsvString());
+        foreach (var rp in referencePlanes.ToImmutableHashSet()) 
+            csv.WriteLine(rp.ToCsvString());
     }
 }

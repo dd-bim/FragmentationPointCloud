@@ -4,6 +4,9 @@ using System.IO;
 using System.Text;
 using Autodesk.Revit.DB;
 
+using Raum2D.Features;
+using Raum2D.Geometry;
+
 namespace Revit.Data;
 
 public class PlanarFace : IEquatable<PlanarFace>
@@ -52,14 +55,11 @@ public class PlanarFace : IEquatable<PlanarFace>
 
     public XYZ PlanarTopLft { get; }
 
-    public Envelope Envelope => Geometry.EnvelopeInternal;
+    public BoundingBoxXY BoundingBox2D => FaceFeature2D.BoundingBox;
 
-    public Geometry Geometry { get; private set; }
+    public SimpleFeature FaceFeature2D { get; private set; }
 
-    public bool Equals(PlanarFace? other)
-    {
-        return other?.Id.Equals(Id) ?? false;
-    }
+    public bool Equals(PlanarFace? other) => other?.Id.Equals(Id) ?? false;
 
     //private static bool ToNTSLinearRing(in LineString lineString, out NTS.LinearRing linearRing,
     //    bool reverse = false)
@@ -255,25 +255,13 @@ public class PlanarFace : IEquatable<PlanarFace>
         return false;
     }
 
-    public override bool Equals(object? obj)
-    {
-        return obj is PlanarFace face && Equals(face);
-    }
+    public override bool Equals(object? obj) => obj is PlanarFace face && Equals(face);
 
-    public override int GetHashCode()
-    {
-        return Id.GetHashCode();
-    }
+    public override int GetHashCode() => Id.GetHashCode();
 
-    public static bool operator ==(in PlanarFace left, in PlanarFace right)
-    {
-        return left.Equals(right);
-    }
+    public static bool operator ==(in PlanarFace left, in PlanarFace right) => left.Equals(right);
 
-    public static bool operator !=(in PlanarFace left, in PlanarFace right)
-    {
-        return !(left == right);
-    }
+    public static bool operator !=(in PlanarFace left, in PlanarFace right) => !(left == right);
 
     public static void WriteObj(in string path, in IReadOnlyDictionary<string, ReferencePlane> planes,
         in IEnumerable<PlanarFace> planarFaces)

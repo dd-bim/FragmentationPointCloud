@@ -275,7 +275,7 @@ namespace Revit.Green3DScan.SimulatePointCloud
             return Result.Succeeded;
         }
 
-        private static List<LineString> CurveLoops(Face face, Transform trans)
+        private static List<LineString> CurveLoops(PlanarFace face, Transform trans)
         {
             var rings = new List<LineString>();
             var curveLoops = face.GetEdgesAsCurveLoops();

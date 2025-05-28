@@ -7,13 +7,8 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.ExtensibleStorage;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
-using GeometryLib.D3;
 using Serilog;
-using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
-using S = Revit.Data;
-using Direction = GeometryLib.D3.Direction;
-using Sys = System.Globalization.CultureInfo;
-using Vector = GeometryLib.D3.Vector;
+using Revit.Data;
 
 namespace Revit
 {
@@ -43,7 +38,7 @@ namespace Revit
         /// <param name="settings"></param>
         /// <param name="crs"></param>
         /// <returns></returns>
-        internal static Transform GetTransformation(in Document document, in SettingsJson settings, out CoordinateSystem crs)
+        internal static Transform GetTransformation(in Document document, in SettingsJson settings)
         {
             var projectLocation = document.ActiveProjectLocation;
             var positionData = projectLocation.GetProjectPosition(XYZ.Zero);
@@ -58,11 +53,6 @@ namespace Revit
             var translation = Transform.CreateTranslation(origin);
             var transformation = translation.Multiply(rotation);
 
-            crs = new CoordinateSystem(
-                new Vector(easting, northing, elevation),
-                new Direction(angle, GeometryLib.Constants.HALFPI), 
-                Axes.X,
-                new Direction(angle + GeometryLib.Constants.HALFPI, GeometryLib.Constants.HALFPI));
             return transformation;
         }
 
@@ -70,12 +60,16 @@ namespace Revit
         {
             try
             {
-                var processInfo = new ProcessStartInfo(exeGreen3DPath, command);
-                processInfo.UseShellExecute = false;
-                processInfo.RedirectStandardOutput = true;
-                processInfo.CreateNoWindow = true;
-                var process = new Process();
-                process.StartInfo = processInfo;
+                var processInfo = new ProcessStartInfo(exeGreen3DPath, command)
+                {
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+                var process = new Process
+                {
+                    StartInfo = processInfo
+                };
 
                 process.Start();
 
@@ -130,11 +124,13 @@ namespace Revit
                     FileName = "cmd.exe"
                 };
 
-                var cmd = new Process();
-                cmd.StartInfo = cmdInfo;
+                var cmd = new Process
+                {
+                    StartInfo = cmdInfo
+                };
                 cmd.Start();
 
-                StreamWriter inStream = cmd.StandardInput;
+                var inStream = cmd.StandardInput;
                 inStream.WriteLine(Constants.directory);
                 inStream.WriteLine(Constants.lineDecap);
 
@@ -172,22 +168,22 @@ namespace Revit
 
         public static string ToIfcGuid(Guid guid)
         {
-            var num = new uint[6];
-            var str = new char[22];
+            uint[] num = new uint[6];
+            char[] str = new char[22];
             byte[] b = guid.ToByteArray();
 
             // Creation of six 32 Bit integers from the components of the GUID structure
             num[0] = BitConverter.ToUInt32(b, 0) / 16777216;
             num[1] = BitConverter.ToUInt32(b, 0) % 16777216;
-            num[2] = (uint)(BitConverter.ToUInt16(b, 4) * 256 + BitConverter.ToUInt16(b, 6) / 256);
-            num[3] = (uint)(BitConverter.ToUInt16(b, 6) % 256 * 65536 + b[8] * 256 + b[9]);
-            num[4] = (uint)(b[10] * 65536 + b[11] * 256 + b[12]);
-            num[5] = (uint)(b[13] * 65536 + b[14] * 256 + b[15]);
+            num[2] = (uint)((BitConverter.ToUInt16(b, 4) * 256) + (BitConverter.ToUInt16(b, 6) / 256));
+            num[3] = (uint)((BitConverter.ToUInt16(b, 6) % 256 * 65536) + (b[8] * 256) + b[9]);
+            num[4] = (uint)((b[10] * 65536) + (b[11] * 256) + b[12]);
+            num[5] = (uint)((b[13] * 65536) + (b[14] * 256) + b[15]);
 
             // Conversion of the numbers into a system using a base of 64
-            var n = 2;
-            var pos = 0;
-            for (var i = 0; i < 6; i++)
+            int n = 2;
+            int pos = 0;
+            for (int i = 0; i < 6; i++)
             {
                 CvTo64(num[i], ref str, pos, n);
                 pos += n;
@@ -199,17 +195,18 @@ namespace Revit
 
         public static Guid ToGuid(string uniqueId)
         {
-            if (uniqueId.Length != 45) throw new Exception("the given string isn't revit unique id");
-            var elementId = int.Parse(uniqueId.Substring(37), NumberStyles.AllowHexSpecifier);
-            var tempId = int.Parse(uniqueId.Substring(28, 8), NumberStyles.AllowHexSpecifier);
+            var uid = uniqueId.AsSpan();
+            if (uid.Length != 45) throw new Exception("the given string isn't revit unique id");
+            int elementId = int.Parse(uid[37..], NumberStyles.AllowHexSpecifier);
+            int tempId = int.Parse(uid.Slice(28, 8), NumberStyles.AllowHexSpecifier);
             int xor = tempId ^ elementId;
-            return new Guid(uniqueId.Substring(0, 28) + xor.ToString("x8"));
+            return new Guid(string.Concat(uid[..28], xor.ToString("x8")));
         }
 
         public static Schema GetSchemaByName(string schemaName)
         {
             var schemaList = Schema.ListSchemas();
-            foreach (Schema schema in schemaList)
+            foreach (var schema in schemaList)
             {
                 if (schema.SchemaName == schemaName)
                     return schema;
@@ -223,28 +220,28 @@ namespace Revit
             var mat = new ElementId[12];
             using var trans = new Transaction(doc, "Read Materials");
             trans.Start();
-            Schema ppSchema = GetSchemaByName("Green3DScanMaterials");
+            var ppSchema = GetSchemaByName("Green3DScanMaterials");
 
             var collector = new FilteredElementCollector(doc);
             var dataStorageList = collector.OfClass(typeof(DataStorage)).ToElements();
 
-            foreach (Element ds in dataStorageList)
+            foreach (var ds in dataStorageList)
             {
-                Entity ent = ds.GetEntity(ppSchema);
+                var ent = ds.GetEntity(ppSchema);
                 if (ent.IsValid())
                 {
-                    ElementId m0 = ent.Get<ElementId>(ppSchema.GetField("M0"));
-                    ElementId m1 = ent.Get<ElementId>(ppSchema.GetField("M1"));
-                    ElementId m2 = ent.Get<ElementId>(ppSchema.GetField("M2"));
-                    ElementId m3 = ent.Get<ElementId>(ppSchema.GetField("M3"));
-                    ElementId m4 = ent.Get<ElementId>(ppSchema.GetField("M4"));
-                    ElementId m5 = ent.Get<ElementId>(ppSchema.GetField("M5"));
-                    ElementId m6 = ent.Get<ElementId>(ppSchema.GetField("M6"));
-                    ElementId m7 = ent.Get<ElementId>(ppSchema.GetField("M7"));
-                    ElementId m8 = ent.Get<ElementId>(ppSchema.GetField("M8"));
-                    ElementId m9 = ent.Get<ElementId>(ppSchema.GetField("M9"));
-                    ElementId m10 = ent.Get<ElementId>(ppSchema.GetField("M10"));
-                    ElementId m11 = ent.Get<ElementId>(ppSchema.GetField("M11"));
+                    var m0 = ent.Get<ElementId>(ppSchema.GetField("M0"));
+                    var m1 = ent.Get<ElementId>(ppSchema.GetField("M1"));
+                    var m2 = ent.Get<ElementId>(ppSchema.GetField("M2"));
+                    var m3 = ent.Get<ElementId>(ppSchema.GetField("M3"));
+                    var m4 = ent.Get<ElementId>(ppSchema.GetField("M4"));
+                    var m5 = ent.Get<ElementId>(ppSchema.GetField("M5"));
+                    var m6 = ent.Get<ElementId>(ppSchema.GetField("M6"));
+                    var m7 = ent.Get<ElementId>(ppSchema.GetField("M7"));
+                    var m8 = ent.Get<ElementId>(ppSchema.GetField("M8"));
+                    var m9 = ent.Get<ElementId>(ppSchema.GetField("M9"));
+                    var m10 = ent.Get<ElementId>(ppSchema.GetField("M10"));
+                    var m11 = ent.Get<ElementId>(ppSchema.GetField("M11"));
 
                     trans.Commit();
                     mat[0] = m0;
@@ -287,68 +284,68 @@ namespace Revit
 
             // materials
 
-            ElementId matDRed = Material.Create(doc, "CPM_darkred");
+            var matDRed = Material.Create(doc, "CPM_darkred");
             var mat0 = doc.GetElement(matDRed) as Material;
             mat0.Color = dRed;
             colorArr[0] = matDRed;
 
-            ElementId matRed = Material.Create(doc, "CPM_red");
+            var matRed = Material.Create(doc, "CPM_red");
             var mat1 = doc.GetElement(matRed) as Material;
             mat1.Color = red;
             colorArr[1] = matRed;
 
-            ElementId matLRed = Material.Create(doc, "CPM_lightred");
+            var matLRed = Material.Create(doc, "CPM_lightred");
             var mat2 = doc.GetElement(matLRed) as Material;
             mat2.Color = lRed;
             colorArr[2] = matLRed;
 
-            ElementId matDOra = Material.Create(doc, "CPM_darkorange");
+            var matDOra = Material.Create(doc, "CPM_darkorange");
             var mat3 = doc.GetElement(matDOra) as Material;
             mat3.Color = dOra;
             colorArr[3] = matDOra;
 
-            ElementId matOra = Material.Create(doc, "CPM_orange");
+            var matOra = Material.Create(doc, "CPM_orange");
             var mat4 = doc.GetElement(matOra) as Material;
             mat4.Color = ora;
             colorArr[4] = matOra;
 
-            ElementId matLOra = Material.Create(doc, "CPM_ligthorange");
+            var matLOra = Material.Create(doc, "CPM_ligthorange");
             var mat5 = doc.GetElement(matLOra) as Material;
             mat5.Color = yel;
             colorArr[5] = matLOra;
 
-            ElementId matYel = Material.Create(doc, "CPM_yellow");
+            var matYel = Material.Create(doc, "CPM_yellow");
             var mat6 = doc.GetElement(matYel) as Material;
             mat6.Color = yelGre;
             colorArr[6] = matYel;
 
-            ElementId matYelGre = Material.Create(doc, "CPM_yellowgreen");
+            var matYelGre = Material.Create(doc, "CPM_yellowgreen");
             var mat7 = doc.GetElement(matYelGre) as Material;
             mat7.Color = gre;
             colorArr[7] = matYelGre;
 
-            ElementId matGre = Material.Create(doc, "CPM_green");
+            var matGre = Material.Create(doc, "CPM_green");
             var mat8 = doc.GetElement(matGre) as Material;
             mat8.Color = dGre;
             colorArr[8] = matGre;
 
-            ElementId matDGre = Material.Create(doc, "CPM_darkgreen");
+            var matDGre = Material.Create(doc, "CPM_darkgreen");
             var mat9 = doc.GetElement(matDGre) as Material;
             mat9.Color = ddGre;
             colorArr[9] = matDGre;
 
-            ElementId matGrey = Material.Create(doc, "CPM_grey");
+            var matGrey = Material.Create(doc, "CPM_grey");
             var mat10 = doc.GetElement(matGrey) as Material;
             mat10.Color = grey;
             colorArr[10] = matGrey;
 
-            ElementId matBlue = Material.Create(doc, "CPM_blue");
+            var matBlue = Material.Create(doc, "CPM_blue");
             var mat11 = doc.GetElement(matBlue) as Material;
             mat11.Color = blue;
             colorArr[11] = matBlue;
 
             //DataStorage
-            Schema progressPatchMaterials = GetSchemaByName("Green3DScanMaterials");
+            var progressPatchMaterials = GetSchemaByName("Green3DScanMaterials");
 
             if (progressPatchMaterials == null)
             {
@@ -409,9 +406,9 @@ namespace Revit
                         string[] columns = line.Split(';');
 
                         if (columns.Length == 3)
-                            list.Add(new XYZ(double.Parse(columns[0], Sys.InvariantCulture),
-                                double.Parse(columns[1], Sys.InvariantCulture),
-                                double.Parse(columns[2], Sys.InvariantCulture)));
+                            list.Add(new XYZ(double.Parse(columns[0], CultureInfo.InvariantCulture),
+                                double.Parse(columns[1], CultureInfo.InvariantCulture),
+                                double.Parse(columns[2], CultureInfo.InvariantCulture)));
                         else
                             TaskDialog.Show("Message", "Incorrect line: " + line);
                     }
@@ -429,7 +426,7 @@ namespace Revit
 
         public static void CreateSphereFamily(UIApplication uiapp, double radius, string familyPath)
         {
-            Document familyDoc = uiapp.Application.NewFamilyDocument(
+            var familyDoc = uiapp.Application.NewFamilyDocument(
                 $@"C:\ProgramData\Autodesk\RVT {Constants.year}\Family Templates\English\Metric Generic Model.rft");
 
             using (var t = new Transaction(familyDoc, "Create Sphere"))
@@ -437,12 +434,12 @@ namespace Revit
                 t.Start();
 
                 // Define the base point and radius
-                XYZ basePoint = XYZ.Zero;
+                var basePoint = XYZ.Zero;
 
                 // Create profile for the sphere
                 var profile = new List<Curve>();
-                XYZ profilePlus = basePoint + new XYZ(0, radius, 0);
-                XYZ profileMinus = basePoint - new XYZ(0, radius, 0);
+                var profilePlus = basePoint + new XYZ(0, radius, 0);
+                var profileMinus = basePoint - new XYZ(0, radius, 0);
 
                 profile.Add(Line.CreateBound(profilePlus, profileMinus));
                 profile.Add(Arc.Create(profileMinus, profilePlus, basePoint + new XYZ(radius, 0, 0)));
@@ -454,7 +451,7 @@ namespace Revit
                 var frame = new Frame(basePoint, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
                 if (Frame.CanDefineRevitGeometry(frame))
                 {
-                    Solid sphere =
+                    var sphere =
                         GeometryCreationUtilities.CreateRevolvedGeometry(frame, new[] { curveLoop }, 0, 2 * Math.PI,
                             options);
 
@@ -484,7 +481,7 @@ namespace Revit
                 {
                     var collector = new FilteredElementCollector(doc);
                     ICollection<Element> familyInstances = collector.OfClass(typeof(Family)).ToElements();
-                    foreach (Element element in familyInstances)
+                    foreach (var element in familyInstances)
                     {
                         var loadedFamily = element as Family;
                         if (loadedFamily.Name == "ScanStation")
@@ -495,7 +492,7 @@ namespace Revit
                     }
                 }
 
-                foreach (ElementId id in family.GetFamilySymbolIds())
+                foreach (var id in family.GetFamilySymbolIds())
                 {
                     familySymbol = doc.GetElement(id) as FamilySymbol;
                     break;
@@ -523,7 +520,7 @@ namespace Revit
         {
             var listStations = new List<XYZ>();
             // Step 1: Get the Family object by name
-            Family family = GetFamilyByName(doc, familyName);
+            var family = GetFamilyByName(doc, familyName);
             if (family == null)
             {
                 TaskDialog.Show("Message", $"Family {familyName} not found.");
@@ -532,7 +529,7 @@ namespace Revit
 
             // Step 2: Get all instances of the Family
             var familyInstances = GetFamilyInstances(doc, family.Id);
-            foreach (FamilyInstance item in familyInstances)
+            foreach (var item in familyInstances)
             {
                 if (item.Location is LocationPoint locationPoint)
                     listStations.Add(trans.OfPoint(locationPoint.Point) * Constants.feet2Meter);
@@ -621,9 +618,9 @@ namespace Revit
 
         public class Paint
         {
-            public static void ColourFace(Document doc, List<S.Id> ids, ElementId colourId)
+            public static void ColourFace(Document doc, List<Id> ids, ElementId colourId)
             {
-                foreach (S.Id id in ids)
+                foreach (var id in ids)
                 {
                     // letzte Stelle entfernen, oder schon vorher entfernen, wenn ergebnisse zusammengefasst werden
                     var refFace = Reference.ParseFromStableRepresentation(doc, id.FaceId);
@@ -631,12 +628,10 @@ namespace Revit
 
                     try
                     {
-                        using (var t1 = new Transaction(doc, "Painting"))
-                        {
-                            t1.Start();
-                            doc.Paint(refFace.ElementId, face, colourId);
-                            t1.Commit();
-                        }
+                        using var t1 = new Transaction(doc, "Painting");
+                        t1.Start();
+                        doc.Paint(refFace.ElementId, face, colourId);
+                        t1.Commit();
                     }
                     catch
                     {

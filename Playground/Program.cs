@@ -5,6 +5,7 @@ using Raum2D.Features;
 using Raum2D.Geometry;
 using Raum2D.Topology;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 
 
 // Update the logger initialization to use the correct method
@@ -13,6 +14,8 @@ Raum2D.Common.Logger = LoggerFactory
     {
         options.SingleLine = true;
         options.TimestampFormat = "HH:mm:ss ";
+        options.ColorBehavior = LoggerColorBehavior.Enabled;
+        options.IncludeScopes = true;
     }))
     .CreateLogger("Raum2D");
 
@@ -88,7 +91,7 @@ else
 wkts =
 [
     "LineSTRING (1 1, 4 2, 1 3, 4 4)",
-    "lineSTRINg   (3 1, 3 2, 2 2, 2 3,4 3 , 2.5 3.5)",
+    "lineSTRINg   (3 1, 3 2, 2 2, 2 3,4 3.0000 , 2.5 3.5)",
 ];
 features = new SimpleFeature[wkts.Length];
 for (int i = 0; i < wkts.Length; i++)

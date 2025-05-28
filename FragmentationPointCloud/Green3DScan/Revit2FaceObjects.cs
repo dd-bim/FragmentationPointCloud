@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using D3 = GeometryLib.D3;
 using Document = Autodesk.Revit.DB.Document;
 using Except = Autodesk.Revit.Exceptions;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;

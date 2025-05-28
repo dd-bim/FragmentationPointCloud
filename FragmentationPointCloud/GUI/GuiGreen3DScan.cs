@@ -6,7 +6,7 @@ using System.Windows.Media.Imaging;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.UI;
 using Nice3point.Revit.Extensions;
-using Revit.Green3DScan.Fragmentation;
+//using Revit.Green3DScan.Fragmentation;
 
 namespace Revit.GUI
 {
@@ -28,55 +28,55 @@ namespace Revit.GUI
             settings.ToolTip = "Management of the basic setting, such as bounding box buffer.";
             settings.LargeImage = GetBitmapFromResx(ResourcePng.set);
 
-            var selectPointCloud = panel1.AddItem(new PushButtonData("2", "Select\npoint cloud", thisAssemblyPath,
-                "Revit.Green3DScan.SelectPointCloud")) as PushButton;
-            selectPointCloud.ToolTip = "Select the point cloud.";
-            selectPointCloud.LargeImage = GetBitmapFromResx(ResourcePng.cloud);
+            //var selectPointCloud = panel1.AddItem(new PushButtonData("2", "Select\npoint cloud", thisAssemblyPath,
+            //    "Revit.Green3DScan.SelectPointCloud")) as PushButton;
+            //selectPointCloud.ToolTip = "Select the point cloud.";
+            //selectPointCloud.LargeImage = GetBitmapFromResx(ResourcePng.cloud);
 
-            var oBBox = panel1.AddItem(new PushButtonData("3", "1.OBBoxXY", thisAssemblyPath,
-                "Revit.Green3DScan.Revit2OBBox")) as PushButton;
-            oBBox.ToolTip = "Export the bounding boxes and oriented bounding boxes.";
-            oBBox.LargeImage = GetBitmapFromResx(ResourcePng.oBBoxXY);
+            //var oBBox = panel1.AddItem(new PushButtonData("3", "1.OBBoxXY", thisAssemblyPath,
+            //    "Revit.Green3DScan.Revit2OBBox")) as PushButton;
+            //oBBox.ToolTip = "Export the bounding boxes and oriented bounding boxes.";
+            //oBBox.LargeImage = GetBitmapFromResx(ResourcePng.oBBoxXY);
 
-            PulldownButton segButton = panel1.AddPullDownButton("4", "2.Fragmentation");
-            segButton.LargeImage = GetBitmapFromResx(ResourcePng.fragment);
-            segButton.AddPushButton<FragmentationBBox>("BBox");
-            segButton.AddPushButton<FragmentationVoxel>("Voxel");
+            //PulldownButton segButton = panel1.AddPullDownButton("4", "2.Fragmentation");
+            //segButton.LargeImage = GetBitmapFromResx(ResourcePng.fragment);
+            //segButton.AddPushButton<FragmentationBBox>("BBox");
+            //segButton.AddPushButton<FragmentationVoxel>("Voxel");
 
-            PulldownButton loadButton = panel1.AddPullDownButton("5", "3.Load fragment\npoint cloud");
-            loadButton.LargeImage = GetBitmapFromResx(ResourcePng.loadFragmentation);
-            loadButton.AddPushButton<LoadFragmentationBBox>("BBox");
-            loadButton.AddPushButton<LoadFragmentationVoxel>("Voxel");
-            loadButton.AddPushButton<LoadFragmentationIFC>("IFC");
+            //PulldownButton loadButton = panel1.AddPullDownButton("5", "3.Load fragment\npoint cloud");
+            //loadButton.LargeImage = GetBitmapFromResx(ResourcePng.loadFragmentation);
+            //loadButton.AddPushButton<LoadFragmentationBBox>("BBox");
+            //loadButton.AddPushButton<LoadFragmentationVoxel>("Voxel");
+            //loadButton.AddPushButton<LoadFragmentationIFC>("IFC");
 
-            PushButton oBBoxComplete = panel1.AddItem(new PushButtonData("6", "OBBox\ncomplete", thisAssemblyPath,
-                "Revit.Green3DScan.FragmentationBBoxComplete")) as PushButton;
-            oBBoxComplete.ToolTip = "Export the bounding boxes and oriented bounding boxes.";
-            oBBoxComplete.LargeImage = GetBitmapFromResx(ResourcePng.oBBoxXY);
+            //PushButton oBBoxComplete = panel1.AddItem(new PushButtonData("6", "OBBox\ncomplete", thisAssemblyPath,
+            //    "Revit.Green3DScan.FragmentationBBoxComplete")) as PushButton;
+            //oBBoxComplete.ToolTip = "Export the bounding boxes and oriented bounding boxes.";
+            //oBBoxComplete.LargeImage = GetBitmapFromResx(ResourcePng.oBBoxXY);
 
-            var sectionBoxComplete = panel1.AddItem(new PushButtonData("7", "SectionBox\ncomplete", thisAssemblyPath,
-                "Revit.Green3DScan.FragmentationSectionBoxComplete")) as PushButton;
-            sectionBoxComplete.ToolTip = "Export the section box and fragmented the point cloud.";
-            sectionBoxComplete.LargeImage = GetBitmapFromResx(ResourcePng.oBBoxXY);
+            //var sectionBoxComplete = panel1.AddItem(new PushButtonData("7", "SectionBox\ncomplete", thisAssemblyPath,
+            //    "Revit.Green3DScan.FragmentationSectionBoxComplete")) as PushButton;
+            //sectionBoxComplete.ToolTip = "Export the section box and fragmented the point cloud.";
+            //sectionBoxComplete.LargeImage = GetBitmapFromResx(ResourcePng.oBBoxXY);
 
-            var fragmentationIFC = panel1.AddItem(new PushButtonData("8", "Fragmentation IFC", thisAssemblyPath,
-                "Revit.Green3DScan.FragmentationIFC")) as PushButton;
-            fragmentationIFC.ToolTip =
-                "Use IFC to calculate the oriented bounding boxes and fragmented the point cloud.";
-            fragmentationIFC.LargeImage = GetBitmapFromResx(ResourcePng.ifc);
+            //var fragmentationIFC = panel1.AddItem(new PushButtonData("8", "Fragmentation IFC", thisAssemblyPath,
+            //    "Revit.Green3DScan.FragmentationIFC")) as PushButton;
+            //fragmentationIFC.ToolTip =
+            //    "Use IFC to calculate the oriented bounding boxes and fragmented the point cloud.";
+            //fragmentationIFC.LargeImage = GetBitmapFromResx(ResourcePng.ifc);
 
             RibbonPanel panel2 = application.CreateRibbonPanel(tabName, "Routing");
 
-            var route = panel2.AddItem(new PushButtonData("9", "RoutePgm", thisAssemblyPath,
-                "Revit.Green3DScan.RoutePgm")) as PushButton;
-            route.ToolTip = "Export plan as Portable Grey Map.";
-            route.LargeImage = GetBitmapFromResx(ResourcePng.routePgm);
+            //var route = panel2.AddItem(new PushButtonData("9", "RoutePgm", thisAssemblyPath,
+            //    "Revit.Green3DScan.RoutePgm")) as PushButton;
+            //route.ToolTip = "Export plan as Portable Grey Map.";
+            //route.LargeImage = GetBitmapFromResx(ResourcePng.routePgm);
 
-            var route2 =
-                panel2.AddItem(new PushButtonData("10", "RoutePgmExport", thisAssemblyPath,
-                    "Revit.Green3DScan.RoutePgmExport")) as PushButton;
-            route2.ToolTip = "Export plan as Portable Grey Map.";
-            route2.LargeImage = GetBitmapFromResx(ResourcePng.routePgmExport);
+            //var route2 =
+            //    panel2.AddItem(new PushButtonData("10", "RoutePgmExport", thisAssemblyPath,
+            //        "Revit.Green3DScan.RoutePgmExport")) as PushButton;
+            //route2.ToolTip = "Export plan as Portable Grey Map.";
+            //route2.LargeImage = GetBitmapFromResx(ResourcePng.routePgmExport);
 
             RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "Stations and PointClouds");
 
@@ -123,25 +123,25 @@ namespace Revit.GUI
 
             RibbonPanel panel4 = application.CreateRibbonPanel(tabName, "Server");
 
-            var server =
-                panel4.AddItem(new PushButtonData("18", "Server", thisAssemblyPath, "Revit.Green3DScan.Server")) as
-                    PushButton;
-            server.ToolTip = "Creates a connection to the server for point cloud fragments.";
-            server.LargeImage = GetBitmapFromResx(ResourcePng.server);
+            //var server =
+            //    panel4.AddItem(new PushButtonData("18", "Server", thisAssemblyPath, "Revit.Green3DScan.Server")) as
+            //        PushButton;
+            //server.ToolTip = "Creates a connection to the server for point cloud fragments.";
+            //server.LargeImage = GetBitmapFromResx(ResourcePng.server);
 
             RibbonPanel panel5 = application.CreateRibbonPanel(tabName, "Tools");
 
-            var pcd2E57 =
-                panel5.AddItem(new PushButtonData("19", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as
-                    PushButton;
-            pcd2E57.ToolTip = "Converts PCD to E57.";
-            pcd2E57.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+            //var pcd2E57 =
+            //    panel5.AddItem(new PushButtonData("19", "Pcd2E57", thisAssemblyPath, "Revit.Green3DScan.Pcd2E57")) as
+            //        PushButton;
+            //pcd2E57.ToolTip = "Converts PCD to E57.";
+            //pcd2E57.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
-            var e572pcd =
-                panel5.AddItem(new PushButtonData("20", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as
-                    PushButton;
-            e572pcd.ToolTip = "Converts E57 to PCD.";
-            e572pcd.LargeImage = GetBitmapFromResx(ResourcePng.tool);
+            //var e572pcd =
+            //    panel5.AddItem(new PushButtonData("20", "E572pcd", thisAssemblyPath, "Revit.Green3DScan.E572Pcd")) as
+            //        PushButton;
+            //e572pcd.ToolTip = "Converts E57 to PCD.";
+            //e572pcd.LargeImage = GetBitmapFromResx(ResourcePng.tool);
 
             return Result.Succeeded;
         }

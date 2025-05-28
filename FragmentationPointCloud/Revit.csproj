@@ -10,9 +10,6 @@
 		<nullable>true</nullable>
     </PropertyGroup>
     <ItemGroup>
-      <None Remove="Resources\gpc.dll" />
-    </ItemGroup>
-    <ItemGroup>
         <None Update="SettingsGreen3DScan.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
@@ -39,17 +36,12 @@
         <PackageReference Include="Nice3point.Revit.Extensions" Version="2026.0.1" />
         <PackageReference Include="OpenCvSharp4" Version="4.11.0.20250507" />
         <PackageReference Include="OpenCvSharp4.Windows" Version="4.11.0.20250507" />
-        <PackageReference Include="Serilog" Version="4.2.0" />
+        <PackageReference Include="Serilog" Version="4.3.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="YamlDotNet" Version="16.3.0" />
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\GeometryLib\GeometryLib.csproj" />
-    </ItemGroup>
-    <ItemGroup>
-      <Resource Include="Resources\gpc.dll">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Resource>
+      <ProjectReference Include="..\..\Raum2D\Raum2D\Raum2D.csproj" />
     </ItemGroup>
     <ItemGroup>
         <WCFMetadata Include="Connected Services\" />
