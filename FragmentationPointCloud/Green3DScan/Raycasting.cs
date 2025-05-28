@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Revit.Data;
-using D2_Direction = GeometryLib.D2.Direction;
-using D2_Vector = GeometryLib.D2.Vector;
-using D3_Direction = GeometryLib.D3.Direction;
-using Plane = GeometryLib.D3.Plane;
-using D3_Vector = GeometryLib.D3.Vector;
+//using D2_Direction = GeometryLib.D2.Direction;
+//using D2_Vector = GeometryLib.D2.Vector;
+//using D3_Direction = GeometryLib.D3.Direction;
+//using Plane = GeometryLib.D3.Plane;
+//using D3_Vector = GeometryLib.D3.Vector;
 
 namespace Revit.Green3DScan
 {

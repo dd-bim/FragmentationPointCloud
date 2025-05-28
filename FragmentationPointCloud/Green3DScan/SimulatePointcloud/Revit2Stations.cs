@@ -5,17 +5,17 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
-using GeometryLib.D3;
+//using GeometryLib.D3;
 using JetBrains.Annotations;
 using Serilog;
-using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
-using LineString = GeometryLib.D3.LineString;
+//using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
+//using LineString = GeometryLib.D3.LineString;
 using S = Revit.Data;
-using Transform = Autodesk.Revit.DB.Transform;
-using Sys = System.Globalization.CultureInfo;
-using Path = System.IO.Path;
-using Plane = GeometryLib.D3.Plane;
-using Vector = GeometryLib.D3.Vector;
+//using Transform = Autodesk.Revit.DB.Transform;
+//using Sys = System.Globalization.CultureInfo;
+//using Path = System.IO.Path;
+//using Plane = GeometryLib.D3.Plane;
+//using Vector = GeometryLib.D3.Vector;
 
 namespace Revit.Green3DScan.SimulatePointCloud
 {
