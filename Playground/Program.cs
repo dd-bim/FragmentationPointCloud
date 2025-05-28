@@ -47,7 +47,7 @@ SimpleFeature.WriteSVG("result", features);
 if (Operation.Create(out var operations, features))
 {
     // Perform union operation
-    if (operations.Boolean(Operation.BooleanType.Union, 0, 1, out var union))
+    if (operations.Boolean(Operation.BooleanType.Union, features[0], features[1], out var union))
     {
         Console.WriteLine("Union Result:");
         Console.WriteLine(union);
@@ -55,7 +55,7 @@ if (Operation.Create(out var operations, features))
     }
 
     // Perform intersection operation
-    if (operations.Boolean(Operation.BooleanType.Intersection, 0, 1, out var intersection))
+    if (operations.Boolean(Operation.BooleanType.Intersection, features[0], features[1], out var intersection))
     {
         Console.WriteLine("Intersection Result:");
         Console.WriteLine(intersection);
@@ -63,7 +63,7 @@ if (Operation.Create(out var operations, features))
     }
 
     // Perform difference operation
-    if (operations.Boolean(Operation.BooleanType.Difference, 0, 1, out var difference))
+    if (operations.Boolean(Operation.BooleanType.Difference, features[0], features[1], out var difference))
     {
         Console.WriteLine("Difference Result:");
         Console.WriteLine(difference);
@@ -71,7 +71,7 @@ if (Operation.Create(out var operations, features))
     }
 
     // Perform symmetric difference operation
-    if (operations.Boolean(Operation.BooleanType.SymDifference, 0, 1, out var symDifference))
+    if (operations.Boolean(Operation.BooleanType.SymDifference, features[0], features[1], out var symDifference))
     {
         Console.WriteLine("SymDifference Result:");
         Console.WriteLine(symDifference);
@@ -84,68 +84,68 @@ else
     Console.WriteLine("Failed to create operations.");
 }
 
-//// Check MultiLineString
-//wkts =
-//[
-//    "LineSTRING (1 1, 4 2, 1 3, 4 4)",
-//    "lineSTRINg   (3 1, 3 2, 2 2, 2 3,4 3 , 2.5 3.5)",
-//];
-//features = new SimpleFeature[wkts.Length];
-//for (int i = 0; i < wkts.Length; i++)
-//{
-//    if (SimpleFeature.TryParseWkt(wkts[i], out var feature))
-//    {
-//    }
-//    else
-//    {
-//        Console.WriteLine($"Failed to parse WKT: {wkts[i]}");
-//    }
-//    features[i] = feature;
+// Check MultiLineString
+wkts =
+[
+    "LineSTRING (1 1, 4 2, 1 3, 4 4)",
+    "lineSTRINg   (3 1, 3 2, 2 2, 2 3,4 3 , 2.5 3.5)",
+];
+features = new SimpleFeature[wkts.Length];
+for (int i = 0; i < wkts.Length; i++)
+{
+    if (SimpleFeature.TryParseWkt(wkts[i], out var feature))
+    {
+    }
+    else
+    {
+        Console.WriteLine($"Failed to parse WKT: {wkts[i]}");
+    }
+    features[i] = feature;
 
-//    Console.WriteLine(feature);
-//}
-//SimpleFeature.WriteSVG("lresult", features);
+    Console.WriteLine(feature);
+}
+SimpleFeature.WriteSVG("lresult", features);
 
 
-//if (Operation.Create(out var operations, features))
-//{
-//    // Perform union operation
-//    if (operations.Boolean(Operation.BooleanType.Union, 0, 1, out var union))
-//    {
-//        Console.WriteLine("Union Result:");
-//        Console.WriteLine(union);
-//        SimpleFeature.WriteSVG("lunion", union);
-//    }
+if (Operation.Create(out operations, features))
+{
+    // Perform union operation
+    if (operations.Boolean(Operation.BooleanType.Union, features[0], features[1], out var union))
+    {
+        Console.WriteLine("Union Result:");
+        Console.WriteLine(union);
+        SimpleFeature.WriteSVG("lunion", union);
+    }
 
-//    // Perform intersection operation
-//    if (operations.Boolean(Operation.BooleanType.Intersection, 0, 1, out var intersection))
-//    {
-//        Console.WriteLine("Intersection Result:");
-//        Console.WriteLine(intersection);
-//        SimpleFeature.WriteSVG("lintersection", intersection);
-//    }
+    // Perform intersection operation
+    if (operations.Boolean(Operation.BooleanType.Intersection, features[0], features[1], out var intersection))
+    {
+        Console.WriteLine("Intersection Result:");
+        Console.WriteLine(intersection);
+        SimpleFeature.WriteSVG("lintersection", intersection);
+    }
 
-//    // Perform difference operation
-//    if (operations.Boolean(Operation.BooleanType.Difference, 0, 1, out var difference))
-//    {
-//        Console.WriteLine("Difference Result:");
-//        Console.WriteLine(difference);
-//        SimpleFeature.WriteSVG("ldifference", difference);
-//    }
+    // Perform difference operation
+    if (operations.Boolean(Operation.BooleanType.Difference, features[0], features[1], out var difference))
+    {
+        Console.WriteLine("Difference Result:");
+        Console.WriteLine(difference);
+        SimpleFeature.WriteSVG("ldifference", difference);
+    }
 
-//    // Perform symmetric difference operation
-//    if (operations.Boolean(Operation.BooleanType.SymDifference, 0, 1, out var symDifference))
-//    {
-//        Console.WriteLine("SymDifference Result:");
-//        Console.WriteLine(symDifference);
-//        SimpleFeature.WriteSVG("lsymDifference", symDifference);
-//    }
+    // Perform symmetric difference operation
+    if (operations.Boolean(Operation.BooleanType.SymDifference, features[0], features[1], out var symDifference))
+    {
+        Console.WriteLine("SymDifference Result:");
+        Console.WriteLine(symDifference);
+        SimpleFeature.WriteSVG("lsymDifference", symDifference);
+    }
 
-//}
-//else
-//{
-//    Console.WriteLine("Failed to create operations.");
-//}
+}
+else
+{
+    Console.WriteLine("Failed to create operations.");
+}
 
 
 Console.WriteLine("fertig!");
