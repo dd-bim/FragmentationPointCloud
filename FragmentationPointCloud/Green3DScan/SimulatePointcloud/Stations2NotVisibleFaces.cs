@@ -6,12 +6,15 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using JetBrains.Annotations;
+
+using Revit.Green3DScan.SimulatePointCloud;
+
 using Serilog;
-using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
+//using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
 using S = Revit.Data;
-using Sys = System.Globalization.CultureInfo;
-using Path = System.IO.Path;
-using Vector = GeometryLib.D3.Vector;
+//using Sys = System.Globalization.CultureInfo;
+//using Path = System.IO.Path;
+//using Vector = GeometryLib.D3.Vector;
 
 namespace Revit.Green3DScan.SimulatePointCloud
 {
