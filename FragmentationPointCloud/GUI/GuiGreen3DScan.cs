@@ -81,13 +81,13 @@ namespace Revit.GUI
             RibbonPanel panel3 = application.CreateRibbonPanel(tabName, "Stations and PointClouds");
 
             var route3 = panel3.AddItem(new PushButtonData("11", "BIM2FaceObjects", thisAssemblyPath,
-                "Revit.Green3DScan.Revit2FaceObjects")) as PushButton;
+                "Revit.Green3DScan.Bim2FaceObjects")) as PushButton;
             route3.ToolTip = "Export faces from BIM.";
             route3.LargeImage = GetBitmapFromResx(ResourcePng.bim2Face);
 
             var stations =
                 panel3.AddItem(new PushButtonData("12", "BIM2Stations", thisAssemblyPath,
-                    "Revit.Green3DScan.Revit2Stations")) as PushButton;
+                    "Revit.Green3DScan.Bim2Stations")) as PushButton;
             stations.ToolTip = "Calculates stations in door centers and room centers.";
             stations.LargeImage = GetBitmapFromResx(ResourcePng.bim2Stations);
 

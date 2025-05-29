@@ -6,6 +6,9 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using JetBrains.Annotations;
+
+using Revit.Green3DScan.SimulatePointCloud;
+
 using Serilog;
 //using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
 using S = Revit.Data;

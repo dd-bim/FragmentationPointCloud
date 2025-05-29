@@ -32,12 +32,15 @@ namespace Revit
         ];
 
         /// <summary>
-        ///     transformation from internal Revit crs to user crs
+        /// Creates a transformation matrix based on the specified document's project location and settings.
         /// </summary>
-        /// <param name="document"></param>
-        /// <param name="settings"></param>
-        /// <param name="crs"></param>
-        /// <returns></returns>
+        /// <remarks>If coordinate reduction is enabled in the <paramref name="settings"/>, the
+        /// transformation will only include rotation without translation. Otherwise, the transformation includes both
+        /// rotation and translation based on the project's position data.</remarks>
+        /// <param name="document">The document containing the active project location used to calculate the transformation.</param>
+        /// <param name="settings">The settings that determine whether coordinate reduction is applied during the transformation calculation.</param>
+        /// <returns>A <see cref="Transform"/> object representing the combined translation and rotation transformation based on
+        /// the project's position and the specified settings.</returns>
         internal static Transform GetTransformation(in Document document, in SettingsJson settings)
         {
             var projectLocation = document.ActiveProjectLocation;

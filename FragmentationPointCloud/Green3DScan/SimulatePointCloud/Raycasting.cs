@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+
 using Revit.Data;
 //using D2_Direction = GeometryLib.D2.Direction;
 //using D2_Vector = GeometryLib.D2.Vector;
@@ -9,7 +10,7 @@ using Revit.Data;
 //using Plane = GeometryLib.D3.Plane;
 //using D3_Vector = GeometryLib.D3.Vector;
 
-namespace Revit.Green3DScan
+namespace Revit.Green3DScan.SimulatePointCloud
 {
     public static class RayCasting
     {
@@ -21,7 +22,7 @@ namespace Revit.Green3DScan
             countPoints = null;
             var count = new Dictionary<Id, int>();
             var pFMap = new Dictionary<Id, PlanarFace>();
-            foreach (PlanarFace pf in planarFaces) pFMap[pf.Id] = pf;
+            foreach (var pf in planarFaces) pFMap[pf.Id] = pf;
             var visibleWithPMin = new HashSet<Id>();
             var vf = new HashSet<Id>[stations.Count];
             pointClouds = new D3_Vector[vf.Length][];
@@ -67,7 +68,7 @@ namespace Revit.Green3DScan
             minPoint = default;
             minId = new Id();
 
-            foreach (Id id in octantFaces)
+            foreach (var id in octantFaces)
             {
                 Plane pfRefPlane = refPlanes[pFMap[id].ReferencePlaneId].Plane;
                 double r_ = direction.Dot(pfRefPlane.Normal);
@@ -117,9 +118,9 @@ namespace Revit.Green3DScan
             };
 
             // assigning faces to octants
-            foreach (PlanarFace pf in pfMap.Values)
+            foreach (var pf in pfMap.Values)
             {
-                Octant oct = GetOctant(pf.PlanarBtmLft - station);
+                var oct = GetOctant(pf.PlanarBtmLft - station);
                 oct |= GetOctant(pf.PlanarBtmRgt - station);
                 oct |= GetOctant(pf.PlanarTopRgt - station);
                 oct |= GetOctant(pf.PlanarTopLft - station);
@@ -137,7 +138,7 @@ namespace Revit.Green3DScan
             double beta = set.Beta_Degree * Constants.gradToRad;
 
             // faces at the poles
-            if (GetMinDist(pfMap, refPlanes, octants, station, D3_Direction.UnitZ, set, out Id minId, out D3_Vector minPoint))
+            if (GetMinDist(pfMap, refPlanes, octants, station, D3_Direction.UnitZ, set, out var minId, out var minPoint))
             {
                 double angle = Math.Acos(
                     new D3_Direction(azimuth, inclination).Dot(refPlanes[pfMap[minId].ReferencePlaneId].Plane.Normal));

@@ -1,15 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using Autodesk.Revit.DB;
+﻿using Autodesk.Revit.DB;
 
 using Raum2D.Features;
 using Raum2D.Geometry;
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+
 namespace Revit.Data;
 
-public class PlanarFace : IEquatable<PlanarFace>
+/// <summary>
+/// Represents a planar face in 3D space, defined by its bounding box, corners, and associated reference plane.
+/// </summary>
+/// <remarks>A <see cref="PlanarFace"/> is a geometric entity that describes a flat surface in 3D space. It is
+/// defined by its unique identifier, a reference plane, and its bounding box corners. The class provides methods for
+/// creating, exporting, and parsing planar faces, as well as utilities for working with their geometric data.</remarks>
+public sealed record PlanarFace : IEquatable<PlanarFace>
 {
     private const string CsvHeader =
         "StateId;ObjectGuid;FaceId;PlaneId;BtmLft;BtmRgt;TopRgt;TopLft;BBoxMin;BBoxMax;Polygon";
@@ -18,295 +24,356 @@ public class PlanarFace : IEquatable<PlanarFace>
 
     private const int LineCount = 11;
 
-    private PlanarFace(Id id, string referencePlaneId, Vector planarBtmLft, Vector planarBtmRgt,
-        Vector planarTopRgt, Vector planarTopLft, BBox bBox, Polygon polygon)
+    private PlanarFace(Id id, string referencePlaneId, XYZ btmLft, XYZ btmRgt, XYZ topRgt, XYZ topLft, XYZ bBoxMin, XYZ bBoxMax, SimpleFeature faceFeature2D)
     {
         Id = id;
         ReferencePlaneId = referencePlaneId;
-        PlanarBtmLft = planarBtmLft;
-        PlanarBtmRgt = planarBtmRgt;
-        PlanarTopRgt = planarTopRgt;
-        PlanarTopLft = planarTopLft;
-        BBox = bBox;
-        Polygon = polygon;
+        BtmLft = btmLft;
+        BtmRgt = btmRgt;
+        TopRgt = topRgt;
+        TopLft = topLft;
+        BBoxMin = bBoxMin;
+        BBoxMax = bBoxMax;
+        FaceFeature2D = faceFeature2D;
     }
 
-    private PlanarFace(in Id id, in ReferencePlane referencePlane, in Polygon polygon)
+    private PlanarFace(in Id id, ReferencePlane referencePlane, SimpleFeature polygon, in XYZ min, in XYZ max)
     {
         Id = id;
         ReferencePlaneId = referencePlane.Id;
-        var envelope = polygon.EnvelopeInternal;
-        PlanarBtmLft = referencePlane.Plane.FromPlaneSystem(new UV(envelope.MinX, envelope.MinY));
-        PlanarBtmRgt = referencePlane.Plane.FromPlaneSystem(new UV(envelope.MinX, envelope.MaxY));
-        PlanarTopRgt = referencePlane.Plane.FromPlaneSystem(new UV(envelope.MaxX, envelope.MaxY));
-        PlanarTopLft = referencePlane.Plane.FromPlaneSystem(new UV(envelope.MaxX, envelope.MinY));
-        Polygon = polygon;
+        var bbox = polygon.BoundingBox;
+        BtmLft = referencePlane.Plane.FromPlaneSystem(new UV((double)bbox.MinX, (double)bbox.MinY));
+        BtmRgt = referencePlane.Plane.FromPlaneSystem(new UV((double)bbox.MinX, (double)bbox.MaxY));
+        TopRgt = referencePlane.Plane.FromPlaneSystem(new UV((double)bbox.MaxX, (double)bbox.MaxY));
+        TopLft = referencePlane.Plane.FromPlaneSystem(new UV((double)bbox.MaxX, (double)bbox.MinY));
+        BBoxMin = min;
+        BBoxMax = max;
+        FaceFeature2D = polygon;
     }
 
+    /// <summary>
+    /// Gets the unique identifier for the entity.
+    /// </summary>
     public Id Id { get; }
 
+    /// <summary>
+    /// Gets the unique identifier of the reference plane associated with this object.
+    /// </summary>
     public string ReferencePlaneId { get; }
 
-    public XYZ PlanarBtmLft { get; }
+    /// <summary>
+    /// Gets the bottom-left corner of the planar surface in 3D space.
+    /// </summary>
+    public XYZ BtmLft { get; }
 
-    public XYZ PlanarBtmRgt { get; }
+    /// <summary>
+    /// Gets the bottom-right corner of the planar surface in 3D space.
+    /// </summary>
+    public XYZ BtmRgt { get; }
 
-    public XYZ PlanarTopRgt { get; }
+    /// <summary>
+    /// Gets the top-right corner of the planar bounding box.
+    /// </summary>
+    public XYZ TopRgt { get; }
 
-    public XYZ PlanarTopLft { get; }
+    /// <summary>
+    /// Gets the top-left corner point of the planar surface in 3D space.
+    /// </summary>
+    public XYZ TopLft { get; }
 
-    public BoundingBoxXY BoundingBox2D => FaceFeature2D.BoundingBox;
+    /// <summary>
+    /// Gets the minimum corner of the bounding box.
+    /// </summary>
+    public XYZ BBoxMin { get; }
 
+    /// <summary>
+    /// Gets the maximum corner of the bounding box in 3D space.
+    /// </summary>
+    public XYZ BBoxMax { get; }
+
+    /// <summary>
+    /// Gets the 2D facial feature data associated with the current instance.
+    /// </summary>
     public SimpleFeature FaceFeature2D { get; private set; }
 
-    public bool Equals(PlanarFace? other) => other?.Id.Equals(Id) ?? false;
+    public bool Equals(PlanarFace other) => other.Id.Equals(Id);
 
-    //private static bool ToNTSLinearRing(in LineString lineString, out NTS.LinearRing linearRing,
-    //    bool reverse = false)
-    //{
-    //    NTS.GeometryFactory? gf = NTS.GeometryFactory.Floating;
-    //    if (!lineString.IsClosed)
-    //    {
-    //        linearRing = gf.CreateLinearRing();
-    //        return false;
-    //    }
+    public override int GetHashCode() => Id.GetHashCode();
 
-    //    var coo = new NTS.Coordinate[lineString.Count];
-    //    if (reverse)
-    //        for (var i = 0; i < lineString.Count; i++)
-    //        {
-    //            D2_Vector vector = lineString[i];
-    //            coo[lineString.Count - 1 - i] = new NTS.Coordinate(vector.x, vector.y);
-    //        }
-    //    else
-    //        for (var i = 0; i < lineString.Count; i++)
-    //        {
-    //            D2_Vector vector = lineString[i];
-    //            coo[i] = new NTS.Coordinate(vector.x, vector.y);
-    //        }
-
-    //    try
-    //    {
-    //        linearRing = gf.CreateLinearRing(coo);
-    //        return true;
-    //    }
-    //    catch
-    //    {
-    //        linearRing = gf.CreateLinearRing();
-    //        return false;
-    //    }
-    //}
-
-    //private static bool ToNTSPolygon(in LinearRingCollection linearRingCollection, out NTS.Polygon polygon)
-    //{
-    //    if (ToNTSLinearRing(linearRingCollection.Exteriors[0], out NTS.LinearRing exterior))
-    //    {
-    //        NTS.GeometryFactory? gf = NTS.GeometryFactory.Floating;
-    //        polygon = gf.CreatePolygon(exterior);
-    //        for (var i = 1; i < linearRingCollection.Exteriors.Count; i++)
-    //        {
-    //            if (!ToNTSLinearRing(linearRingCollection.Exteriors[i], out exterior))
-    //                throw new Exception("Should not happen");
-    //            NTS.Geometry? union = polygon.Union(gf.CreatePolygon(exterior));
-    //            if (union.GeometryType == NTS.Geometry.TypeNamePolygon)
-    //                polygon = (NTS.Polygon)union;
-    //            else
-    //                return false;
-    //        }
-
-    //        foreach (LineString innerRing in linearRingCollection.Interiors)
-    //        {
-    //            if (!ToNTSLinearRing(innerRing, out NTS.LinearRing interior, true))
-    //                throw new Exception("Should not happen");
-    //            NTS.Geometry? diff = polygon.Difference(gf.CreatePolygon(interior));
-    //            if (diff.GeometryType == NTS.Geometry.TypeNamePolygon)
-    //                polygon = (NTS.Polygon)diff;
-    //            else
-    //                return false;
-    //        }
-
-    //        return true;
-    //    }
-
-    //    polygon = NTS.Polygon.Empty;
-    //    return false;
-    //}
-
-    //private static LineString ToLs2(in NTS.LineString lr)
-    //{
-    //    var vertices = new D2_Vector[lr.Count];
-    //    for (var i = 0; i < vertices.Length; i++)
-    //    {
-    //        NTS.Coordinate? coo = lr[i];
-    //        vertices[i] = new D2_Vector(coo.X, coo.Y);
-    //    }
-
-    //    return new LineString(vertices, lr.IsClosed);
-    //}
-
-    private static bool ToPolygon2d(in NTS.Polygon polygon, out Polygon polygon2)
+    /// <summary>
+    /// Converts a set of 3D coordinate rings into a 2D polygon representation on a specified plane.
+    /// </summary>
+    /// <remarks>This method projects 3D coordinates onto the specified plane and converts them into a 2D
+    /// polygon representation. The maximum distance of any point from the plane is calculated and returned via the
+    /// <paramref name="maxPlaneDist"/> parameter. The resulting polygon is created with the specified precision,
+    /// determined by the <paramref name="digits"/> parameter.</remarks>
+    /// <param name="plane">The plane onto which the 3D coordinates will be projected.</param>
+    /// <param name="rings">An array of coordinate rings, where each ring is an array of <see cref="XYZ"/> points.</param>
+    /// <param name="digits">The number of decimal places to retain when converting coordinates to 2D.</param>
+    /// <param name="polygon">When this method returns, contains the resulting 2D polygon as a <see cref="SimpleFeature"/> object,  or an
+    /// empty polygon if the conversion fails.</param>
+    /// <param name="maxPlaneDist">When this method returns, contains the maximum distance of any point from the plane during projection.</param>
+    /// <returns><see langword="true"/> if the resulting polygon is not empty; otherwise, <see langword="false"/>.</returns>
+    private static bool ToPolygon2d(Plane plane, XYZ[][] rings, int digits,
+       out SimpleFeature polygon,
+       out double maxPlaneDist)
     {
-        if (!polygon.IsValid || !polygon.IsSimple)
-        {
-            polygon2 = default;
-            return false;
-        }
-
-        LineString ext = ToLs2(polygon.ExteriorRing);
-        var ints = new List<LineString>(polygon.InteriorRings.Length);
-        foreach (NTS.LineString? ilr in polygon.InteriorRings) ints.Add(ToLs2(ilr));
-        return Polygon.Create(ext, ints, out polygon2);
-    }
-
-    private static bool ToPolygon2d(in Plane plane, in XYZ[][] rings,
-        out Polygon polygo, out double maxPlaneDist)
-    {
-        var rings2d = new LinearRingCollection();
+        var rings2d = new DecimalXY[rings.Length][];
         maxPlaneDist = 0.0;
-        box = BBox.Empty;
-        foreach (D3_LineString ring in rings)
+        for (int i = 0; i < rings.Length; i++)
         {
-            var transformed = new D2_Vector[ring.Count];
-            var zs = new double[transformed.Length];
-            for (var i1 = 0; i1 < transformed.Length; i1++)
+            var ring = rings[i];
+            var transformed = new DecimalXY[ring.Length];
+            for (int j = 0; j < ring.Length; j++)
             {
-                transformed[i1] = plane.ToPlaneSystem(ring[i1], out double z);
-                zs[i1] = z;
+                var xyz = ring[j];
+                plane.Project(xyz, out var uv, out double z);
+                transformed[j] = uv.ToDecimalXY(digits);
+                maxPlaneDist = double.Max(maxPlaneDist, double.Abs(z));
             }
-
-            var lr = new LineString(transformed, true);
-            if (rings2d.Add(lr))
-                for (var i = 0; i < zs.Length; i++)
-                {
-                    double az = Math.Abs(zs[i]);
-                    if (az > maxPlaneDist) maxPlaneDist = az;
-                    if (lr.Area > 0) box += ring[i];
-                }
+            rings2d[i] = transformed;
         }
 
-        if (rings2d.Exteriors.Count > 0
-            && ToNTSPolygon(rings2d, out NTS.Polygon ntsPolygon)
-            && ToPolygon2d(ntsPolygon, out polygon))
-            return true;
-        polygon = default;
-        return false;
+        polygon = SimpleFeature.Create(rings2d, SFType.POLYGON);
+        return !polygon.IsEmpty;
     }
 
-    public static bool Create(in Id id, in ReferencePlane refPlane, in XYZ[][] rings,
-        out PlanarFace? planarFace, out double maxPlaneDist)
+#nullable enable
+
+    /// <summary>
+    /// Creates a planar face from the specified reference plane and a set of 3D ring points.
+    /// </summary>
+    /// <remarks>This method projects the input 3D points onto the specified reference plane to create a 2D
+    /// polygon. If the input data is invalid or the projection fails, the method returns <see langword="false"/> and
+    /// outputs <see langword="null"/> for <paramref name="planarFace"/> and <see cref="double.NaN"/> for <paramref
+    /// name="maxPlaneDist"/>.</remarks>
+    /// <param name="id">The unique identifier associated with the planar face.</param>
+    /// <param name="refPlane">The reference plane used to define the planar face.</param>
+    /// <param name="rings">A jagged array of 3D points representing the rings that define the planar face.</param>
+    /// <param name="planarFace">When this method returns, contains the created <see cref="PlanarFace"/> if the operation succeeds; otherwise,
+    /// <see langword="null"/>.</param>
+    /// <param name="maxPlaneDist">When this method returns, contains the maximum distance of the input points from the reference plane. If the
+    /// operation fails, this will be set to <see cref="double.NaN"/>.</param>
+    /// <param name="digits2d">The number of decimal places to use for 2D precision when projecting points onto the reference plane. Defaults
+    /// to 7.</param>
+    /// <returns><see langword="true"/> if the planar face was successfully created; otherwise, <see langword="false"/>.</returns>
+    public static bool Create(in Id id, ReferencePlane refPlane, XYZ[][] rings,
+        out PlanarFace? planarFace, out double maxPlaneDist, int digits2d = 7)
     {
+        var plane = refPlane.Plane;
         if (rings.Length < 1
-            || !ToPolygon2d(refPlane.Plane, in rings, out Polygon polygon, out maxPlaneDist))
+            || !ToPolygon2d(plane, rings, digits2d, out var polygon, out maxPlaneDist))
         {
             planarFace = null;
             maxPlaneDist = double.NaN;
             return false;
         }
-
-        planarFace = new PlanarFace(id, refPlane, polygon);
+        var min = Extensions.AllMax;
+        var max = Extensions.AllMin;
+        foreach (var point in polygon.Points())
+        {
+            var uv = point.ToUV();
+            var xyz = plane.FromPlaneSystem(uv);
+            min = min.Min(xyz);
+            max = max.Max(xyz);
+        }
+        planarFace = new PlanarFace(id, refPlane, polygon, min, max);
         return true;
     }
 
 
+    /// <summary>
+    /// Converts the current object to a CSV-formatted string representation.
+    /// </summary>
+    /// <remarks>The resulting string contains the object's properties and geometric data serialized into a 
+    /// semicolon-separated format. This format is suitable for exporting or logging purposes.</remarks>
+    /// <returns>A semicolon-separated string representing the object's state and associated geometric data.</returns>
     private string ToCsvString()
     {
-        var line = new string[LineCount];
-        line[0] = Id.StateId;
-        line[1] = Id.ObjectId;
-        line[2] = Id.PartId == 0 ? $"{Id.FaceId}" : $"{Id.FaceId}_{Id.PartId}";
-        line[3] = ReferencePlaneId;
-        line[4] = PlanarBtmLft.ToWktString();
-        line[5] = PlanarBtmRgt.ToWktString();
-        line[6] = PlanarTopRgt.ToWktString();
-        line[7] = PlanarTopLft.ToWktString();
-        line[8] = BBox.Min.ToWktString();
-        line[9] = BBox.Max.ToWktString();
-        line[10] = "POLYGON";
+        string[] line =
+        [
+            Id.StateId,
+            Id.ObjectId,
+            Id.PartId == 0 ? $"{Id.FaceId}" : $"{Id.FaceId}_{Id.PartId}",
+            ReferencePlaneId,
+            BtmLft.ToFullWktString(),
+            BtmRgt.ToFullWktString(),
+            TopRgt.ToFullWktString(),
+            TopLft.ToFullWktString(),
+            BBoxMin.ToFullWktString(),
+            BBoxMax.ToFullWktString(),
+            FaceFeature2D.ToString(),
+        ];
         return string.Join(";", line);
     }
 
-    private static bool TryParseCsvLine(string line, out PlanarFace? planarFace, out string error)
+    /// <summary>
+    /// Attempts to parse a CSV-formatted line into a <see cref="PlanarFace"/> object.
+    /// </summary>
+    /// <remarks>The input line must be a non-empty, semicolon-delimited string containing the required fields
+    /// in the expected order: StateId, ObjectGuid, FaceId, PlaneId, BtmLft, BtmRgt, TopRgt, TopLft, BBoxMin, BBoxMax,
+    /// and Polygon. If any field is missing, empty, or invalid, the method will return <see langword="false"/> and
+    /// provide an error message.</remarks>
+    /// <param name="line">The input line as a <see cref="ReadOnlySpan{T}"/> of characters, representing a CSV-formatted string.</param>
+    /// <param name="planarFace">When this method returns, contains the parsed <see cref="PlanarFace"/> object if the parsing was successful;
+    /// otherwise, <see langword="null"/>.</param>
+    /// <param name="error">When this method returns, contains an error message describing why the parsing failed, if applicable.</param>
+    /// <returns><see langword="true"/> if the line was successfully parsed into a <see cref="PlanarFace"/> object; otherwise,
+    /// <see langword="false"/>.</returns>
+    private static bool TryParseCsvLine(ReadOnlySpan<char> line, out PlanarFace? planarFace, out string error)
     {
-        if (string.IsNullOrEmpty(line))
+        planarFace = null;
+        error = string.Empty;
+
+        if (line.IsEmpty)
         {
             error = "PlanarFace.ParseCsvLine: Input string is null or empty";
-            planarFace = null;
             return false;
         }
 
-        string[] strings = line.Split([';']);
-        if (strings.Length == LineCount
-            && Vector.TryParseWkt(strings[4], out Vector btmLft)
-            && Vector.TryParseWkt(strings[5], out Vector btmRgt)
-            && Vector.TryParseWkt(strings[6], out Vector topRgt)
-            && Vector.TryParseWkt(strings[7], out Vector topLft)
-            && Vector.TryParseWkt(strings[8], out Vector boxMin)
-            && Vector.TryParseWkt(strings[9], out Vector boxMax)
-            && Polygon.TryParseWkt(strings[10], out Polygon polygon))
+        // Felder per Span extrahieren (StateId;ObjectGuid;FaceId;PlaneId;BtmLft;BtmRgt;TopRgt;TopLft;BBoxMin;BBoxMax;Polygon)
+        int idx1 = line.IndexOf(';');
+        if (idx1 < 0) goto NotReadable;
+        int idx2 = line[(idx1 + 1)..].IndexOf(';');
+        if (idx2 < 0) goto NotReadable;
+        idx2 += idx1 + 1;
+        int idx3 = line[(idx2 + 1)..].IndexOf(';');
+        if (idx3 < 0) goto NotReadable;
+        idx3 += idx2 + 1;
+        int idx4 = line[(idx3 + 1)..].IndexOf(';');
+        if (idx4 < 0) goto NotReadable;
+        idx4 += idx3 + 1;
+        int idx5 = line[(idx4 + 1)..].IndexOf(';');
+        if (idx5 < 0) goto NotReadable;
+        idx5 += idx4 + 1;
+        int idx6 = line[(idx5 + 1)..].IndexOf(';');
+        if (idx6 < 0) goto NotReadable;
+        idx6 += idx5 + 1;
+        int idx7 = line[(idx6 + 1)..].IndexOf(';');
+        if (idx7 < 0) goto NotReadable;
+        idx7 += idx6 + 1;
+        int idx8 = line[(idx7 + 1)..].IndexOf(';');
+        if (idx8 < 0) goto NotReadable;
+        idx8 += idx7 + 1;
+        int idx9 = line[(idx8 + 1)..].IndexOf(';');
+        if (idx9 < 0) goto NotReadable;
+        idx9 += idx8 + 1;
+        int idx10 = line[(idx9 + 1)..].IndexOf(';');
+        if (idx10 < 0) goto NotReadable;
+        idx10 += idx9 + 1;
+
+        var stateIdSpan = line[..idx1].Trim();
+        var objectGuidSpan = line[(idx1 + 1)..idx2].Trim();
+        var faceIdSpan = line[(idx2 + 1)..idx3].Trim();
+        var planeIdSpan = line[(idx3 + 1)..idx4].Trim();
+        var btmLftSpan = line[(idx4 + 1)..idx5].Trim();
+        var btmRgtSpan = line[(idx5 + 1)..idx6].Trim();
+        var topRgtSpan = line[(idx6 + 1)..idx7].Trim();
+        var topLftSpan = line[(idx7 + 1)..idx8].Trim();
+        var bboxMinSpan = line[(idx8 + 1)..idx9].Trim();
+        var bboxMaxSpan = line[(idx9 + 1)..idx10].Trim();
+        var polygonSpan = line[(idx10 + 1)..].Trim();
+
+        if (stateIdSpan.IsEmpty || objectGuidSpan.IsEmpty || faceIdSpan.IsEmpty || planeIdSpan.IsEmpty ||
+            btmLftSpan.IsEmpty || btmRgtSpan.IsEmpty || topRgtSpan.IsEmpty || topLftSpan.IsEmpty ||
+            bboxMinSpan.IsEmpty || bboxMaxSpan.IsEmpty || polygonSpan.IsEmpty)
+            goto NotReadable;
+
+        // FaceId und PartId extrahieren
+        string faceIdStr = faceIdSpan.ToString();
+        string faceIdOnly = faceIdStr;
+        int partId = 0;
+        int underscoreIdx = faceIdStr.IndexOf('_');
+        if (underscoreIdx > 0 && underscoreIdx < faceIdStr.Length - 1)
         {
-            error = string.Empty;
-            planarFace = new PlanarFace(new Id(strings[0], strings[1], strings[2]), strings[3], btmLft, btmRgt, topRgt,
-                topLft, new BBox(boxMin, boxMax), polygon);
+            faceIdOnly = faceIdStr[..underscoreIdx];
+            _ = int.TryParse(faceIdStr[(underscoreIdx + 1)..], out partId);
+        }
+
+        if (btmLftSpan.TryParseWktXYZ(out var btmLft) &&
+            btmRgtSpan.TryParseWktXYZ(out var btmRgt) &&
+            topRgtSpan.TryParseWktXYZ(out var topRgt) &&
+            topLftSpan.TryParseWktXYZ(out var topLft) &&
+            bboxMinSpan.TryParseWktXYZ(out var boxMin) &&
+            bboxMaxSpan.TryParseWktXYZ(out var boxMax) &&
+            SimpleFeature.TryParseWkt(polygonSpan, out var polygon))
+        {
+            planarFace = new PlanarFace(
+                new Id(stateIdSpan.ToString(), objectGuidSpan.ToString(), faceIdOnly, partId),
+                planeIdSpan.ToString(),
+                btmLft, btmRgt, topRgt, topLft, boxMin, boxMax, polygon
+            );
             return true;
         }
 
-        error = $"PlanarFace.ParseCsvLine: Line: \r\n{line}\r\n is not readable";
+    NotReadable:
+        error = $"PlanarFace.ParseCsvLine: Line: \r\n{line.ToString()}\r\n is not readable";
         planarFace = null;
         return false;
     }
 
-    public override bool Equals(object? obj) => obj is PlanarFace face && Equals(face);
-
-    public override int GetHashCode() => Id.GetHashCode();
-
-    public static bool operator ==(in PlanarFace left, in PlanarFace right) => left.Equals(right);
-
-    public static bool operator !=(in PlanarFace left, in PlanarFace right) => !(left == right);
-
-    public static void WriteObj(in string path, in IReadOnlyDictionary<string, ReferencePlane> planes,
-        in IEnumerable<PlanarFace> planarFaces)
-    {
-        using StreamWriter file = File.CreateText(path + ".obj");
-        var faces = new List<string>();
-        var vertexCnt = 0;
-
-        void AddLs(Plane plane, LineString ls)
-        {
-            int first = vertexCnt;
-            var face = new StringBuilder("f");
-            for (var i = 1; i < ls.Count; i++)
-            {
-                file.WriteLine($"v {plane.FromPlaneSystem(ls[i])}");
-                face.AppendFormat(" {0}", first + i);
-            }
-
-            faces.Add(face.ToString());
-            vertexCnt += ls.Count - 1;
-        }
-
-        foreach (PlanarFace pf in planarFaces)
-        {
-            faces.Add($"# {pf.Id}");
-            foreach (LineString ls in pf.Polygon) AddLs(planes[pf.ReferencePlaneId].Plane, ls);
-        }
-
-        foreach (string face in faces) file.WriteLine(face);
-    }
-
+    /// <summary>
+    /// Writes a collection of planar faces to a CSV file at the specified path.
+    /// </summary>
+    /// <remarks>The method creates or overwrites the file at the specified path. The first line of the file 
+    /// contains a predefined header, followed by one line per planar face in the collection.</remarks>
+    /// <param name="path">The file path where the CSV file will be created. Must not be null or empty.</param>
+    /// <param name="planarFaces">A read-only collection of <see cref="PlanarFace"/> objects to be written to the CSV file.  Each face is
+    /// serialized using its <see cref="PlanarFace.ToCsvString"/> method.</param>
     public static void WriteCsv(in string path, in IReadOnlyCollection<PlanarFace> planarFaces)
     {
         using var csv = File.CreateText(path);
         csv.WriteLine(CsvHeader);
-        foreach (var pf in planarFaces) csv.WriteLine(pf.ToCsvString());
+        foreach (var pf in planarFaces) 
+            csv.WriteLine(pf.ToCsvString());
     }
 
+    /// <summary>
+    /// Reads a CSV file and parses its contents into a set of <see cref="PlanarFace"/> objects.
+    /// </summary>
+    /// <remarks>This method attempts to read and parse a CSV file where each line represents a <see
+    /// cref="PlanarFace"/> object.  The first line of the file is treated as a header and is skipped. If a line cannot
+    /// be parsed,  an error message is added to <paramref name="lineErrors"/>. If no valid data lines are found, 
+    /// <paramref name="error"/> will contain a message indicating this condition.</remarks>
+    /// <param name="path">The file path to the CSV file to be read. Must not be null or empty.</param>
+    /// <param name="lineErrors">An array of error messages for lines in the CSV file that could not be parsed.  Each entry specifies the line
+    /// number and the associated error.</param>
+    /// <param name="error">An error message describing any critical issue encountered during the reading process,  or an empty string if
+    /// the operation completes successfully.</param>
+    /// <returns>A <see cref="HashSet{T}"/> containing the successfully parsed <see cref="PlanarFace"/> objects.  The set will be
+    /// empty if no valid data lines are found or if an error occurs.</returns>
     public static HashSet<PlanarFace> ReadCsv(in string path, out string[] lineErrors, out string error)
     {
-        string[] lines;
         var faces = new HashSet<PlanarFace>();
+        var errors = new List<string>();
+        error = string.Empty;
+
         try
         {
-            lines = File.ReadAllLines(path);
+            using var reader = new StreamReader(path);
+            string? line;
+            int lineNumber = 0;
+
+            // Header überspringen
+            if ((line = reader.ReadLine()) == null)
+            {
+                lineErrors = [];
+                error = "PlanarFace.ReadCsv: CSV-File has no data lines";
+                return faces;
+            }
+
+            while ((line = reader.ReadLine()) != null)
+            {
+                lineNumber++;
+                if (TryParseCsvLine(line.AsSpan(), out var pf, out string? parseError))
+                {
+                    faces.Add(pf!);
+                }
+                else
+                {
+                    errors.Add($"Line {lineNumber + 1} has Error: {parseError}");
+                }
+            }
         }
         catch (Exception e)
         {
@@ -315,29 +382,59 @@ public class PlanarFace : IEquatable<PlanarFace>
             return faces;
         }
 
-        if (lines.Length > 1)
+        lineErrors = [.. errors];
+        error = faces.Count == 0
+            ? "PlanarFace.ReadCsv: CSV-File has no data lines"
+            : string.Empty;
+        return faces;
+    }
+
+    /// <summary>
+    /// Writes the specified planar faces and their associated reference planes to an OBJ file.
+    /// </summary>
+    /// <remarks>The method generates an OBJ file containing the vertices and faces of the provided planar
+    /// faces.  Each face is transformed using its associated reference plane, and the resulting geometry is written  in
+    /// the OBJ format. The file will be created with a ".obj" extension appended to the specified path.</remarks>
+    /// <param name="path">The file path (without extension) where the OBJ file will be created.</param>
+    /// <param name="planes">A dictionary mapping reference plane IDs to their corresponding <see cref="ReferencePlane"/> objects.</param>
+    /// <param name="planarFaces">A list of <see cref="PlanarFace"/> objects to be written to the OBJ file.</param>
+    public static void WriteObj(in string path, Dictionary<string, ReferencePlane> planes, List<PlanarFace> planarFaces)
+    {
+        using var file = File.CreateText(path + ".obj");
+        var vertices = new List<XYZ>();
+        var faces = new List<int[]>();
+
+        foreach (var pf in planarFaces)
         {
-            var errors = new List<string>();
-            for (var i = 1; i < lines.Length; i++)
+            var polygons = pf.FaceFeature2D.PointArrays();
+            for (int i = 0; i < polygons.Length; i++)
             {
-                if (TryParseCsvLine(lines[i], out PlanarFace? pf, out error))
+                file.WriteLine($"# {pf.Id}_{i}");
+                var polygon = polygons[i];
+                foreach (var ls in polygon)
                 {
-                    faces.Add(pf!);
-                    continue;
+                    var plane = planes[pf.ReferencePlaneId].Plane;
+                    int[] indices = new int[ls.Length];
+                    for (int j = 0; j < ls.Length; j++)
+                    {
+                        var xyz = plane.FromPlaneSystem(ls[j].ToUV());
+                        vertices.Add(xyz);
+                        indices[j] = vertices.Count;
+                    }
+                    faces.Add(indices);
                 }
-
-                errors.Add($"Line {i + 1} has Error: {error}");
-                error = string.Empty;
             }
-
-            lineErrors = errors.ToArray();
-            error = string.Empty;
-            return faces;
         }
 
-        lineErrors = [];
-        error = "PlanarFace.ReadCsv: CSV-File has no data lines";
-        return faces;
+        // Vertices schreiben
+        foreach (var v in vertices)
+            file.WriteLine($"v {v.X} {v.Y} {v.Z}");
+
+        // Faces schreiben
+        foreach (int[] indices in faces)
+        {
+            file.WriteLine("f " + string.Join(" ", indices));
+        }
     }
 
 }

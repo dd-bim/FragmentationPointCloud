@@ -4,7 +4,14 @@ using System.Text.Json;
 
 namespace Revit
 {
-    public class SettingsJson
+    /// <summary>
+    /// Represents the configuration settings for an application, typically loaded from or saved to a JSON file.
+    /// </summary>
+    /// <remarks>This record encapsulates various configuration parameters, such as file paths, geometric
+    /// settings,  and application-specific options. It provides methods to read settings from a JSON file and write 
+    /// settings back to a JSON file. Use this type to manage and persist application settings in a structured
+    /// way.</remarks>
+    public record SettingsJson
     {
         public double BBox_Buffer { get; set; }
         public bool OnlyPlanarFaces { get; set; }
@@ -31,10 +38,14 @@ namespace Revit
         public int GridRows { get; set; }
 
         /// <summary>
-        ///     deserialize json file
+        /// Reads a JSON file from the specified path and deserializes its content into a <see cref="SettingsJson"/>
+        /// object.
         /// </summary>
-        /// <param name="path"></param>
-        /// <returns></returns>
+        /// <remarks>This method reads the entire content of the specified JSON file into memory. Ensure
+        /// the file size is manageable to avoid excessive memory usage. The caller is responsible for ensuring the file
+        /// exists and contains valid JSON.</remarks>
+        /// <param name="path">The file path of the JSON file to read. Must be a valid, non-null, and non-empty string.</param>
+        /// <returns>A <see cref="SettingsJson"/> object containing the deserialized data from the JSON file.</returns>
         public static SettingsJson ReadSettingsJson(string path)
         {
             string jText = File.ReadAllText(path);
@@ -44,10 +55,12 @@ namespace Revit
         }
 
         /// <summary>
-        ///     serialize json file
+        /// Writes the specified <see cref="SettingsJson"/> object to a file in JSON format at the specified path.
         /// </summary>
-        /// <param name="json"></param>
-        /// <param name="path"></param>
+        /// <remarks>The JSON output is formatted with indented styling for readability. If the operation
+        /// fails, an error message is written to the console.</remarks>
+        /// <param name="json">The <see cref="SettingsJson"/> object to serialize and write to the file.</param>
+        /// <param name="path">The file path where the JSON representation of the object will be written. Must not be null or empty.</param>
         public static void WriteSettingsJson(SettingsJson json, string path)
         {
             try

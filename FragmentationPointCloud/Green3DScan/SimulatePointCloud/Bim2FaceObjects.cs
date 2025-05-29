@@ -8,16 +8,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-//using Document = Autodesk.Revit.DB.Document;
-//using Except = Autodesk.Revit.Exceptions;
-//using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-//using D = Revit.Data;
+using Autodesk.Revit.Exceptions;
+using RD = Revit.Data;
 
-namespace Revit.Green3DScan;
+namespace Revit.Green3DScan.SimulatePointCloud;
 
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
-public class Revit2FaceObjects : IExternalCommand
+public class Bim2FaceObjects : IExternalCommand
 {
     private const string RevitObjects = "RevitObjects";
     private const string BIMFacesFileName = "1_BimFaces.csv";
@@ -43,7 +41,7 @@ public class Revit2FaceObjects : IExternalCommand
         var settings = SettingsJson.ReadSettingsJson(Constants.pathSettings);
 
         Log.Information("start Revit2FaceObjects");
-        Log.Information("BBox_Buffer: {BBox_Buffer}", settings.BBox_Buffer.ToString(CultureInfo.InvariantCulture));
+        Log.Information("BBox_Buffer: {BBox_Buffer}", settings.BBox_Buffer.ToStringInvariant());
 
         // Execution
 
@@ -53,9 +51,7 @@ public class Revit2FaceObjects : IExternalCommand
         {
             pickedObjects = uiDocument.Selection.PickObjects(ObjectType.Element, "TEST Select building components whose faces are to be output.");
             if (pickedObjects.Count < 1)
-            {
                 throw new Exception();
-            }
         }
         catch
         {
@@ -64,13 +60,13 @@ public class Revit2FaceObjects : IExternalCommand
         }
 
         // Set transformation
-        var transform = Helper.GetTransformation(document, settings, out var crs);
+        var transform = Helper.GetTransformation(document, settings);
 
         // Extract PlanarFaces and ReferencePlanes from the selected building components
         int totalFailedFaces = 0;
-        List<D.PlanarFace> faces = [];
-        Dictionary<string, D.ReferencePlane> refPlanes = [];
-        List<D.Id> notAnalysedFaces = [];
+        List<RD.PlanarFace> faces = [];
+        Dictionary<string, RD.ReferencePlane> refPlanes = [];
+        List<RD.Id> notAnalysedFaces = [];
         int solids = 0;
 
         foreach (var reference in pickedObjects)
@@ -148,12 +144,12 @@ public class Revit2FaceObjects : IExternalCommand
             return Result.Succeeded;
         }
         #region catch
-        catch (Except.OperationCanceledException)
+        catch (Autodesk.Revit.Exceptions.OperationCanceledException)
         {
             TaskDialog.Show("Message", "Error 1: Command canceled.");
             return Result.Failed;
         }
-        catch (Except.ForbiddenForDynamicUpdateException)
+        catch (ForbiddenForDynamicUpdateException)
         {
             TaskDialog.Show("Message", "Error 2");
             return Result.Failed;

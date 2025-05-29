@@ -21,7 +21,7 @@ namespace Revit.Green3DScan.SimulatePointCloud
 {
     [Transaction(TransactionMode.Manual)]
     [UsedImplicitly]
-    public class Revit2Stations : IExternalCommand
+    public class Bim2Stations : IExternalCommand
     {
         public const string CsvHeader = "ObjectGuid;ElementId;East;North;Elevation";
         private string path;
@@ -81,7 +81,7 @@ namespace Revit.Green3DScan.SimulatePointCloud
             ICollection<Element> rooms = collRooms.OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
                 .ToElements();
 
-            var refPlanes = new List<S.ReferencePlane>();
+            var refPlanes = new HashSet<S.ReferencePlane>();
             var faces = new List<S.PlanarFace>();
             var totalFailedFaces = 0;
             var faceId = 0;

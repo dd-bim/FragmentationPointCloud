@@ -1,5 +1,7 @@
 ﻿using Autodesk.Revit.DB;
 
+using Raum2D.Geometry;
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -24,6 +26,8 @@ internal static class Extensions
     public static bool TryParseInvariant(this string value, out long result) => long.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out result);
 
     public static string ToFullString(this XYZ xyz) => string.Format(CultureInfo.InvariantCulture, "{0:G17} {1:G17} {2:G17}", xyz.X, xyz.Y, xyz.Z);
+    
+    public static string ToFullWktString(this XYZ xyz) => $"POLYGON Z({ToFullString(xyz)})";
 
     public static bool TryParseXYZ(this ReadOnlySpan<char> input, out XYZ xyz)
     {
@@ -92,5 +96,30 @@ internal static class Extensions
 
     public static XYZ FromPlaneSystem(this Plane plane, in UV uv) => (plane.XVec * uv.U) + (plane.YVec * uv.V) + plane.Origin;
 
+    public static UV ToUV(this DecimalXY xy) => new UV((double)xy.X, (double)xy.Y);
+
+    public static DecimalXY ToDecimalXY(this UV uv, int digits) => new(
+        decimal.Round((decimal)uv.U, digits), 
+        decimal.Round((decimal)uv.V, digits));
+
+    public static XYZ Min(this XYZ a, XYZ b)
+    {
+        return new XYZ(
+            Math.Min(a.X, b.X),
+            Math.Min(a.Y, b.Y),
+            Math.Min(a.Z, b.Z));
+    }
+
+    public static XYZ Max(this XYZ a, XYZ b)
+    {
+        return new XYZ(
+            Math.Max(a.X, b.X),
+            Math.Max(a.Y, b.Y),
+            Math.Max(a.Z, b.Z));
+    }
+
+    public static XYZ AllMax => new(double.MaxValue, double.MaxValue, double.MaxValue);
+
+    public static XYZ AllMin => new(double.MinValue, double.MinValue, double.MinValue);
 
 }
