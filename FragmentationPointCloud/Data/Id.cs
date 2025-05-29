@@ -3,10 +3,19 @@
 namespace Revit.Data;
 
 /// <summary>
-///     Unique identifier for planar faces, combined key from 3 individual IDs, equality only with Object and FaceId
+/// Represents a unique identifier for planar faces, composed of a combination of state, object, and face identifiers.
 /// </summary>
-/// /// <seealso cref="IEquatable{Id}" />
-public readonly struct Id : IEquatable<Id>
+/// <remarks>The <see cref="Id"/> struct is designed to uniquely identify planar faces in a system by combining
+/// multiple identifiers: <list type="bullet"> <item><description><see cref="StateId"/>: Represents the state of the
+/// object (e.g., phase, calculation ID, registration ID).</description></item> <item><description><see
+/// cref="ObjectId"/>: Represents the object identifier, such as a global plane ID or a station ID for local
+/// patches.</description></item> <item><description><see cref="FaceId"/>: Represents the face identifier, which may
+/// include a global plane ID or a local parameter ID.</description></item> <item><description><see cref="PartId"/>:
+/// Represents an optional part identifier extracted from the face ID, defaulting to 0 if not
+/// present.</description></item> </list> This struct implements <see cref="IEquatable{Id}"/> to allow for equality
+/// comparisons based on the <see cref="ObjectId"/>, <see cref="FaceId"/>, and <see cref="PartId"/>
+/// properties.</remarks>
+public readonly record struct Id : IEquatable<Id>
 {
     /// <summary>Id für Status (z.B. Phase, CalculationId, RegistrationID ...)</summary>
     public string StateId { get; }
@@ -17,20 +26,23 @@ public readonly struct Id : IEquatable<Id>
     /// <summary>Id des Faces bei Scantra: entweder die <c>GlobalPlaneID</c> oder die lokale <c>ParameterID</c></summary>
     public string FaceId { get; }
 
+    /// <summary>
+    /// Gets the unique identifier for the part.
+    /// </summary>
     public int PartId { get; } = 0;
 
     /// <summary>
-    ///     Initializes a new instance of the <see cref="Id" /> struct.
+    /// Initializes a new instance of the <see cref="Id"/> class with the specified state, object, and face identifiers.
     /// </summary>
-    /// <param name="stateId">
-    ///     <see cref="StateId" />
-    /// </param>
-    /// <param name="objectId">
-    ///     <see cref="ObjectId" />
-    /// </param>
-    /// <param name="faceId">
-    ///     <see cref="FaceId" />
-    /// </param>
+    /// <remarks>The constructor parses the <paramref name="faceId"/> to extract the face and part
+    /// identifiers. If the <paramref name="faceId"/> contains an underscore ('_'), the portion before the underscore is
+    /// treated as the face identifier, and the portion after the underscore is parsed as the part identifier. If
+    /// parsing fails, the part identifier defaults to 0.</remarks>
+    /// <param name="stateId">The identifier for the state. This value cannot be null or empty.</param>
+    /// <param name="objectId">The identifier for the object. This value cannot be null or empty.</param>
+    /// <param name="faceId">The identifier for the face, which may optionally include a part identifier appended with an underscore. For
+    /// example, "face_1" will set the face identifier to "face" and the part identifier to 1. If no underscore is
+    /// present, the entire value is treated as the face identifier, and the part identifier is set to 0.</param>
     public Id(string stateId, string objectId, string faceId)
     {
         StateId = stateId;
@@ -48,16 +60,20 @@ public readonly struct Id : IEquatable<Id>
     }
 
     /// <summary>
-    ///     Initializes a new instance of the <see cref="Id" /> struct.
+    /// Initializes a new instance of the <see cref="Id"/> class with the specified identifiers.
     /// </summary>
-    /// <param name="createdId"></param>
-    /// <param name="demolishedId"></param>
-    /// <param name="objectId">
-    ///     <see cref="ObjectId" />
-    /// </param>
-    /// <param name="faceId">
-    ///     <see cref="FaceId" />
-    /// </param>
+    /// <remarks>The <see cref="StateId"/> is constructed by combining the <paramref name="createdId"/> and
+    /// <paramref name="demolishedId"/>  with a pipe ('|') separator if both are provided. If <paramref
+    /// name="demolishedId"/> is null or whitespace,  the <see cref="StateId"/> is set to the value of <paramref
+    /// name="createdId"/> alone.</remarks>
+    /// <param name="createdId">The identifier for the created state. This value is always included in the <see cref="StateId"/>.</param>
+    /// <param name="demolishedId">The identifier for the demolished state. If provided, it is appended to the <paramref name="createdId"/> in the
+    /// <see cref="StateId"/>.</param>
+    /// <param name="objectId">The identifier for the associated object.</param>
+    /// <param name="faceId">The identifier for the face, which may include an optional part index.  If the <paramref name="faceId"/>
+    /// contains an underscore ('_'), the portion before the underscore is used as the <see cref="FaceId"/>,  and the
+    /// portion after the underscore is parsed as the <see cref="PartId"/>. If parsing fails, <see cref="PartId"/> is
+    /// set to 0.</param>
     public Id(string createdId, string demolishedId, string objectId, string faceId)
     {
         StateId = string.IsNullOrWhiteSpace(demolishedId) ? createdId : createdId + '|' + demolishedId;
@@ -75,19 +91,13 @@ public readonly struct Id : IEquatable<Id>
     }
 
     /// <summary>
-    ///     Initializes a new instance of the <see cref="Id" /> struct.
+    /// Initializes a new instance of the <see cref="Id"/> class with the specified identifiers.
     /// </summary>
-    /// <param name="stateId">
-    ///     <see cref="StateId" />
-    /// </param>
-    /// <param name="objectId">
-    ///     <see cref="ObjectId" />
-    /// </param>
-    /// <param name="faceId">
-    ///     <see cref="FaceId" />
-    /// </param>
-    /// <param name="partId"></param>
-    public Id(string stateId, string objectId, string faceId, int partId)
+    /// <param name="stateId">The identifier representing the state. Cannot be null or empty.</param>
+    /// <param name="objectId">The identifier representing the object. Cannot be null or empty.</param>
+    /// <param name="faceId">The identifier representing the face. Cannot be null or empty.</param>
+    /// <param name="partId">The identifier representing the part. Must be a non-negative integer.</param>
+   public Id(string stateId, string objectId, string faceId, int partId)
     {
         StateId = stateId;
         ObjectId = objectId;
@@ -96,36 +106,23 @@ public readonly struct Id : IEquatable<Id>
     }
 
     /// <summary>
-    ///     Initializes a new instance of the <see cref="Id" /> struct.
+    /// Initializes a new instance of the <see cref="Id"/> class with the specified identifiers.
     /// </summary>
-    /// <param name="createdId"></param>
-    /// <param name="demolishedId"></param>
-    /// <param name="objectId">
-    ///     <see cref="ObjectId" />
-    /// </param>
-    /// <param name="faceId">
-    ///     <see cref="FaceId" />
-    /// </param>
-    /// <param name="partId"></param>
+    /// <remarks>The <see cref="StateId"/> is constructed by combining <paramref name="createdId"/> and
+    /// <paramref name="demolishedId"/> with a '|' separator if <paramref name="demolishedId"/> is not null or
+    /// whitespace.</remarks>
+    /// <param name="createdId">The identifier for the created state. Cannot be null or whitespace.</param>
+    /// <param name="demolishedId">The identifier for the demolished state. If null or whitespace, only <paramref name="createdId"/> is used to
+    /// construct the <see cref="StateId"/>.</param>
+    /// <param name="objectId">The identifier for the associated object. Cannot be null or whitespace.</param>
+    /// <param name="faceId">The identifier for the associated face. Cannot be null or whitespace.</param>
+    /// <param name="partId">The identifier for the associated part.</param>
     public Id(string createdId, string demolishedId, string objectId, string faceId, int partId)
     {
         StateId = string.IsNullOrWhiteSpace(demolishedId) ? createdId : createdId + '|' + demolishedId;
         ObjectId = objectId;
         FaceId = faceId;
         PartId = partId;
-    }
-
-    /// <summary>
-    ///     Indicates whether this instance and a specified object are equal.
-    /// </summary>
-    /// <param name="obj">The object to compare with the current instance.</param>
-    /// <returns>
-    ///     <see langword="true" /> if <paramref name="obj" /> and this instance are the same type and represent the same
-    ///     value; otherwise, <see langword="false" />.
-    /// </returns>
-    public override bool Equals(object obj)
-    {
-        return obj is Id face && Equals(face);
     }
 
     public bool Equals(Id other)
@@ -139,30 +136,11 @@ public readonly struct Id : IEquatable<Id>
         return HashCode.Combine(ObjectId, FaceId, PartId);
     }
 
-    public static bool operator ==(Id left, Id right)
-    {
-        return left.Equals(right);
-    }
-
     /// <summary>
-    ///     Implements the operator !=.
+    /// Returns a string representation of the object, including its state, object, face, and part identifiers.
     /// </summary>
-    /// <param name="left">The left.</param>
-    /// <param name="right">The right.</param>
-    /// <returns>
-    ///     The result of the operator.
-    /// </returns>
-    public static bool operator !=(Id left, Id right)
-    {
-        return !(left == right);
-    }
-
-    /// <summary>
-    ///     Converts to string.
-    /// </summary>
-    /// <returns>
-    ///     The fully qualified type name.
-    /// </returns>
+    /// <returns>A string in the format "StateId;ObjectId;FaceId" if <see cref="PartId"/> is 0;  otherwise,
+    /// "StateId;ObjectId;FaceId_PartId".</returns>
     public override string ToString()
     {
         return PartId == 0
