@@ -147,7 +147,6 @@ public class Bim2FaceObjects : IExternalCommand
                 $"{faces.Count} faces write to csv file! {solids} building components were used. {totalFailedFaces} faces skipped."));
             return Result.Succeeded;
         }
-        #region catch
         catch (Autodesk.Revit.Exceptions.OperationCanceledException)
         {
             TaskDialog.Show("Message", "Error 1: Command canceled.");
@@ -164,7 +163,6 @@ public class Bim2FaceObjects : IExternalCommand
             TaskDialog.Show("Message", message);
             return Result.Failed;
         }
-        #endregion catch
     }
 
     private static int ProcessFaceArrays(
