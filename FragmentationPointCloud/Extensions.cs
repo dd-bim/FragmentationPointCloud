@@ -1,16 +1,13 @@
 ﻿using Autodesk.Revit.DB;
 
-using Raum2D.Geometry;
+using Revit.Data;
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace Revit;
 
@@ -166,6 +163,35 @@ internal static class Extensions
     public static UV MaxUV => new(double.MaxValue, double.MaxValue);
 
     public static UV MinUV => new(double.MinValue, double.MinValue);
+
+
+
+    public static UV ToDirection(this double angle) =>
+        // Convert angle in radians to a direction vector
+        new(double.Cos(angle), double.Sin(angle));
+
+    public static XYZ ToDirection(UV azimuth, UV inclination)
+    {
+        // U => cos
+        // V => sin
+        double x = inclination.V * azimuth.U;
+        double y = inclination.V * azimuth.V;
+        double z = inclination.U;
+        var vector = new XYZ(x, y, z);
+        // Normalize the vector to ensure it has a length of 1
+        return vector.Normalize();
+    }
+
+
+    public static Octant GetOctant(this XYZ vector)
+    {
+        var octant = vector.X < 0 ? Octant.XNeg : Octant.XPos;
+        octant |= vector.Y < 0 ? Octant.YNeg : Octant.YPos;
+        octant |= vector.Z < 0 ? Octant.ZNeg : Octant.ZPos;
+        return octant;
+    }
+
+
 
     public static Plane GetPlane(in XYZ position, in XYZ normal, in XYZ xAxis)
     {

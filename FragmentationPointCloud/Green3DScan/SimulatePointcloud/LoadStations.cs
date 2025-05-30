@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+
 using JetBrains.Annotations;
+
 using Serilog;
 //using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
 //using Transform = Autodesk.Revit.DB.Transform;
@@ -12,166 +15,76 @@ using Serilog;
 //using Path = System.IO.Path;
 //using Vector = GeometryLib.D3.Vector;
 
-namespace Revit.Green3DScan.SimulatePointCloud
+namespace Revit.Green3DScan.SimulatePointCloud;
+
+// TODO: Combine code with Bim2Stations.cs to avoid duplication of logic
+[Transaction(TransactionMode.Manual)]
+[UsedImplicitly]
+public class LoadStations : IExternalCommand
 {
-    [Transaction(TransactionMode.Manual)]
-    [UsedImplicitly]
-    public class LoadStations : IExternalCommand
+    public const string CsvHeader = "East;North;Elevation";
+    private const int LineCount = 3;
+
+    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
-        public const string CsvHeader = "East;North;Elevation";
-        private const int LineCount = 3;
-        private string _path;
-
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        // Initialization
+        if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out var document, out var uiDocument))
         {
-            #region setup
+            TaskDialog.Show("Message", "The project file has not been saved yet.");
+            return Result.Failed;
+        }
+        ExternalCommandHelper.InitLogger(projectPath);
+        var settings = SettingsJson.ReadSettingsJson(Constants.pathSettings);
 
-            // settings json
-            var set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
+        Log.Information("start LoadStations");
+        Log.Information(settings.BBox_Buffer.ToString());
 
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
-            try
-            {
-                _path = Path.GetDirectoryName(doc.PathName);
-                var fileInfo = new FileInfo(_path);
-                DateTime date = fileInfo.LastWriteTime;
-            }
-            catch (Exception)
-            {
-                TaskDialog.Show("Message", "The file has not been saved yet.");
-                return Result.Failed;
-            }
+        // Get transformation
+        var transform = Helper.GetTransformation(document, settings);
 
-            // logger
-            string logsPath = Path.Combine(_path, "00_Logs/");
-            if (!Directory.Exists(logsPath)) Directory.CreateDirectory(logsPath);
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
-                .CreateLogger();
-            Log.Information("start LoadStations");
-            Log.Information(set.BBox_Buffer.ToString());
+        Log.Information("setup");
 
-            Transform trans = Helper.GetTransformation(doc, set, out CoordinateSystem crs);
+        #region select files
 
-            #endregion setup
+        // Stations
+        var fodStations = new FileOpenDialog("CSV file (*.csv)|*.csv");
+        fodStations.Title = "Select CSV file with stations from Revit!";
+        if (fodStations.Show() == ItemSelectionDialogResult.Canceled) return Result.Cancelled;
+        string csvPathStations =
+            ModelPathUtils.ConvertModelPathToUserVisiblePath(fodStations.GetSelectedModelPath());
 
-            Log.Information("setup");
+        #endregion select files
 
-            #region select files
+        Log.Information("select files");
 
-            // Stations
-            var fodStations = new FileOpenDialog("CSV file (*.csv)|*.csv");
-            fodStations.Title = "Select CSV file with stations from Revit!";
-            if (fodStations.Show() == ItemSelectionDialogResult.Canceled) return Result.Cancelled;
-            string csvPathStations =
-                ModelPathUtils.ConvertModelPathToUserVisiblePath(fodStations.GetSelectedModelPath());
+        #region read files
 
-            #endregion select files
-
-            Log.Information("select files");
-
-            #region read files
-
-            var allStations = ReadCsv(csvPathStations, trans, out string[] lineErrors1, out string error1);
-
-            #endregion read files
-
-            Log.Information("read files");
-
-            #region ScanStation
-
-            Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(_path, "ScanStation.rfa"), allStations);
-
-            #endregion ScanStation
-
-            TaskDialog.Show("Message", allStations.Count + " ScanStations");
-            Log.Information("end Stations2NotVisibleFaces");
-            return Result.Succeeded;
+        if(!Stations.TryReadCsv(csvPathStations, transform, out var allStations, out string[] lineErrors1, out string error1)) 
+        {             
+            Log.Error("Error reading stations CSV: {Error}", error1);
+            TaskDialog.Show("Error", "Failed to read stations CSV. Please check the log for details.");
+            return Result.Failed;
         }
 
-        private static List<Vector> ReadCsv(string path, Transform trans, out string[] lineErrors, out string error)
+        #endregion read files
+
+        Log.Information("read files");
+
+        #region ScanStation
+
+        if(!Stations.TryLoadAndPlaceSphereFamily(document, projectPath, allStations))
         {
-            string[] lines;
-            var stations = new List<Vector>();
-            try
-            {
-                lines = File.ReadAllLines(path);
-            }
-            catch (Exception e)
-            {
-                lineErrors = [];
-                error = "LoadStations.ReadCsv: " + e.Message;
-                return stations;
-            }
-
-            if (lines.Length > 1)
-            {
-                var errors = new List<string>();
-                for (var i = 1; i < lines.Length; i++)
-                {
-                    if (TryParseCsvLine(lines[i], trans, out XYZ station, out error))
-                    {
-                        stations.Add(new Vector(station.X, station.Y, station.Z));
-                        continue;
-                    }
-
-                    errors.Add($"Line {i + 1} has Error: {error}");
-                    error = string.Empty;
-                }
-
-                lineErrors = errors.ToArray();
-                error = string.Empty;
-                return stations;
-            }
-
-            lineErrors = Array.Empty<string>();
-            error = "LoadStations.ReadCsv: CSV-File has no data lines";
-            return stations;
+            Log.Error("Error loading and placing ScanStation family.");
+            TaskDialog.Show("Error", "Failed to load or place ScanStation family. Please check the log for details.");
+            return Result.Failed;
         }
 
-        public static bool TryParseCsvLine(string line, Transform trans, out XYZ station, out string error)
-        {
-            if (string.IsNullOrEmpty(line))
-            {
-                error = "LoadStations.ParseCsvLine: Input string is null or empty";
-                station = default;
-                return false;
-            }
+        #endregion ScanStation
 
-            string[] strings = line.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-            if (strings.Length == LineCount)
-            {
-                error = string.Empty;
-                try
-                {
-                    var station_csv = new XYZ(
-                        double.Parse(strings[0], Sys.InvariantCulture),
-                        double.Parse(strings[1], Sys.InvariantCulture),
-                        double.Parse(strings[2], Sys.InvariantCulture)
-                    );
-
-                    station = trans.Inverse.OfPoint(station_csv * Constants.meter2Feet);
-                    return true;
-                }
-                catch (FormatException)
-                {
-                    error = "LoadStations.ParseCsvLine: One of the values is not a valid double.";
-                    station = default;
-                    return false;
-                }
-                catch (OverflowException)
-                {
-                    error = "LoadStations.ParseCsvLine: One of the values is too large or too small.";
-                    station = default;
-                    return false;
-                }
-            }
-
-            error = $"LoadStations.ParseCsvLine: Line: \r\n{line}\r\n is not readable";
-            station = default;
-            return false;
-        }
+        TaskDialog.Show("Message", allStations.Count + " ScanStations");
+        Log.Information("end LoadStations");
+        return Result.Succeeded;
     }
+
+
 }

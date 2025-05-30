@@ -15,6 +15,7 @@ using System.IO;
 using RD = Revit.Data;
 
 namespace Revit.Green3DScan.SimulatePointCloud;
+
 //checked
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
@@ -23,7 +24,6 @@ public class Bim2FaceObjects : IExternalCommand
     private const string RevitObjects = "RevitObjects";
     private const string BIMFacesFileName = "1_BimFaces.csv";
     private const string BIMPlanesFileName = "1_BimPlanes.csv";
-    private const int PlaneDigits = 2; // number of decimal places for the planes
 
     private static readonly Options GeometryOptions = new()
     {
@@ -218,7 +218,7 @@ public class Bim2FaceObjects : IExternalCommand
                       transform.OfVector(faceTrans.BasisY));
                 }
 
-                var refPlane = RD.ReferencePlane.Create(plane, PlaneDigits);
+                var refPlane = RD.ReferencePlane.Create(plane, Constants.PlaneDigits);
                 if (!RD.PlanarFace.Create(id, refPlane, mesh, transform, out var planarFace, out double maxPlaneDist)
                     || !(maxPlaneDist <= settings.MaxPlaneDist_Meter))
                 {

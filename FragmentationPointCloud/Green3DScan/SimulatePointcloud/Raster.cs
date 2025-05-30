@@ -10,106 +10,85 @@ using Serilog;
 //using Path = System.IO.Path;
 //using Vector = GeometryLib.D3.Vector;
 
-namespace Revit.Green3DScan.SimulatePointCloud
+namespace Revit.Green3DScan.SimulatePointCloud;
+
+// TODO: Combine code with Bim2Stations.cs to avoid duplication of logic
+[Transaction(TransactionMode.Manual)]
+[UsedImplicitly]
+public class Raster : IExternalCommand
 {
-    [Transaction(TransactionMode.Manual)]
-    [UsedImplicitly]
-    public class Raster : IExternalCommand
+    //public const string VisibleFacesFileName = "Revit2StationsVisibleFaces.csv";
+    //public const string VisibleFacesRefFileName = "Revit2StationsVisibleFacesRef.csv";
+
+    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
-        public const string CsvHeader = "East;North;Elevation";
-        private string path;
-
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        // Initialization
+        if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out var document, out var uiDocument))
         {
-            #region setup
-
-            // settings json
-            var set = SettingsJson.ReadSettingsJson(Constants.pathSettings);
-
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
-            UIApplication uiapp = commandData.Application;
-            try
-            {
-                path = Path.GetDirectoryName(doc.PathName);
-                var fileInfo = new FileInfo(path);
-                DateTime date = fileInfo.LastWriteTime;
-            }
-            catch (Exception)
-            {
-                TaskDialog.Show("Message", "The file has not been saved yet.");
-                return Result.Failed;
-            }
-
-            // logger
-            string logsPath = Path.Combine(path, "00_Logs/");
-            if (!Directory.Exists(logsPath)) Directory.CreateDirectory(logsPath);
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.File(Path.Combine(logsPath, "LogFile_"), rollingInterval: RollingInterval.Minute)
-                .CreateLogger();
-            Log.Information("start Raster");
-
-            Transform trans = Helper.GetTransformation(doc, set, out CoordinateSystem crs);
-
-            string csvVisibleFaces = Path.Combine(path, "Revit2StationsVisibleFaces.csv");
-            string csvVisibleFacesRef = Path.Combine(path, "Revit2StationsVisibleFacesRef.csv");
-
-            #endregion setup
-
-            Log.Information("setup");
-
-            #region ScanStation
-
-            if (!File.Exists(Path.Combine(path, "ScanStation.rfa")))
-                Helper.CreateSphereFamily(uiapp, set.SphereDiameter_Meter / 2 * Constants.meter2Feet,
-                    Path.Combine(path, "ScanStation.rfa"));
-
-            #endregion ScanStation
-
-            Log.Information("ScanStation");
-
-            #region stations
-
-            // user clicks to select a point
-            XYZ point;
-            Vector startStation;
-
-            var stations = new List<Vector>();
-            var stationsPBP = new List<Vector>();
-
-            try
-            {
-                point = uidoc.Selection.PickPoint("Click to place a ScanStation or press ESC to finish");
-                startStation = new Vector(point.X, point.Y, set.HeightOfScanner_Meter * Constants.meter2Feet);
-            }
-            catch (Exception ex)
-            {
-                message = ex.Message;
-                return Result.Failed;
-            }
-
-            double gridSpacing = set.GridSpacing_Meter * Constants.meter2Feet;
-
-            // calculation of grid
-            // columns
-            for (var i = 0; i < set.GridColumns; i++)
-                // rows
-            for (var j = 0; j < set.GridRows; j++)
-            {
-                double x = startStation.x + i * gridSpacing;
-                double y = startStation.y + j * gridSpacing;
-                double z = startStation.z;
-
-                stations.Add(new Vector(x, y, z));
-            }
-
-            Helper.LoadAndPlaceSphereFamily(doc, Path.Combine(path, "ScanStation.rfa"), stations);
-
-            #endregion stations
-
-            TaskDialog.Show("Message", "Creation of the grid completed!");
-            return Result.Succeeded;
+            TaskDialog.Show("Message", "The project file has not been saved yet.");
+            return Result.Failed;
         }
+        ExternalCommandHelper.InitLogger(projectPath);
+        var settings = SettingsJson.ReadSettingsJson(Constants.pathSettings);
+        Log.Information("start Raster");
+
+        // Get transformation
+        var transform = Helper.GetTransformation(document, settings);
+
+        Log.Information("setup");
+
+        #region ScanStation
+
+        Stations.EnsureScanStationFamily(commandData.Application, projectPath, settings);
+
+        #endregion ScanStation
+
+        Log.Information("ScanStation");
+
+        #region stations
+
+        // user clicks to select a point
+        XYZ point;
+        XYZ startStation;
+
+        var stations = new List<XYZ>();
+
+        try
+        {
+            point = uiDocument.Selection.PickPoint("Click to place a ScanStation or press ESC to finish");
+            startStation = new XYZ(point.X, point.Y, settings.HeightOfScanner_Meter * Constants.meter2Feet);
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+            return Result.Failed;
+        }
+
+        double gridSpacing = settings.GridSpacing_Meter * Constants.meter2Feet;
+
+        // calculation of grid
+        // columns
+        for (int i = 0; i < settings.GridColumns; i++)
+            // rows
+        for (int j = 0; j < settings.GridRows; j++)
+        {
+            double x = startStation.X + i * gridSpacing;
+            double y = startStation.Y + j * gridSpacing;
+            double z = startStation.Z;
+
+            stations.Add(new XYZ(x, y, z));
+        }
+
+        if (!Stations.TryLoadAndPlaceSphereFamily(document, projectPath, stations))
+        {
+            Log.Error("Error loading and placing ScanStation family.");
+            TaskDialog.Show("Error", "Failed to load or place ScanStation family. Please check the log for details.");
+            return Result.Failed;
+        }
+
+        #endregion stations
+
+        TaskDialog.Show("Message", "Creation of the grid completed!");
+        return Result.Succeeded;
     }
 }

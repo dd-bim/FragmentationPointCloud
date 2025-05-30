@@ -314,22 +314,22 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
     }
 
     /// <summary>
-    /// Reads a CSV file and parses its contents into a set of <see cref="PlanarFace"/> objects.
+    /// Reads a CSV file and parses its contents into a dictionary of <see cref="PlanarFace"/> objects, keyed by their
+    /// <see cref="Id"/>.
     /// </summary>
-    /// <remarks>This method attempts to read and parse a CSV file where each line represents a <see
-    /// cref="PlanarFace"/> object.  The first line of the file is treated as a header and is skipped. If a line cannot
-    /// be parsed,  an error message is added to <paramref name="lineErrors"/>. If no valid data lines are found, 
-    /// <paramref name="error"/> will contain a message indicating this condition.</remarks>
-    /// <param name="path">The file path to the CSV file to be read. Must not be null or empty.</param>
+    /// <remarks>This method attempts to parse each line of the CSV file into a <see cref="PlanarFace"/>
+    /// object.  If a line cannot be parsed, an error message is added to <paramref name="lineErrors"/>.  If the file
+    /// contains no valid data lines, <paramref name="error"/> will indicate this condition.</remarks>
+    /// <param name="path">The file path of the CSV file to read. Must not be null or empty.</param>
     /// <param name="lineErrors">An array of error messages for lines in the CSV file that could not be parsed.  Each entry specifies the line
     /// number and the associated error.</param>
-    /// <param name="error">An error message describing any critical issue encountered during the reading process,  or an empty string if
-    /// the operation completes successfully.</param>
-    /// <returns>A <see cref="HashSet{T}"/> containing the successfully parsed <see cref="PlanarFace"/> objects.  The set will be
-    /// empty if no valid data lines are found or if an error occurs.</returns>
-    public static HashSet<PlanarFace> ReadCsv(in string path, out string[] lineErrors, out string error)
+    /// <param name="error">An error message describing a critical issue encountered during the operation,  or an empty string if the
+    /// operation completed successfully.</param>
+    /// <returns>A dictionary containing the parsed <see cref="PlanarFace"/> objects, keyed by their <see cref="Id"/>.  The
+    /// dictionary will be empty if no valid data lines were found in the CSV file.</returns>
+    public static Dictionary<Id,PlanarFace> ReadCsv(in string path, out string[] lineErrors, out string error)
     {
-        var faces = new HashSet<PlanarFace>();
+        var faces = new Dictionary<Id, PlanarFace>();
         var errors = new List<string>();
         error = string.Empty;
 
@@ -352,7 +352,7 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
                 lineNumber++;
                 if (TryParseCsvLine(line.AsSpan(), out var pf, out string? parseError))
                 {
-                    faces.Add(pf!);
+                    faces.Add(pf!.Id, pf!);
                 }
                 else
                 {

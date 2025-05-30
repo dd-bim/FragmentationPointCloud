@@ -9,6 +9,7 @@ using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 using Serilog;
 using Revit.Data;
+using System.Linq;
 
 namespace Revit
 {
@@ -79,7 +80,7 @@ namespace Revit
                 while (!process.StandardOutput.EndOfStream)
                 {
                     string outputLine = process.StandardOutput.ReadLine();
-                    Log.Information("{outputLine}",outputLine);
+                    Log.Information("{outputLine}", outputLine);
                 }
 
                 process.WaitForExit();
@@ -206,7 +207,7 @@ namespace Revit
             return new Guid(string.Concat(uid[..28], xor.ToString("x8")));
         }
 
-        public static Schema GetSchemaByName(string schemaName)
+        public static Schema? GetSchemaByName(string schemaName)
         {
             var schemaList = Schema.ListSchemas();
             foreach (var schema in schemaList)
@@ -395,229 +396,11 @@ namespace Revit
             return colorArr;
         }
 
-        public static bool ReadCsvStations(string csvPathStations, out List<XYZ> listStations)
-        {
-            var list = new List<XYZ>();
-            try
-            {
-                using (var reader = new StreamReader(csvPathStations))
-                {
-                    reader.ReadLine();
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        string[] columns = line.Split(';');
+        public sealed record BoundingBox(XYZ Min, XYZ Max);
 
-                        if (columns.Length == 3)
-                            list.Add(new XYZ(double.Parse(columns[0], CultureInfo.InvariantCulture),
-                                double.Parse(columns[1], CultureInfo.InvariantCulture),
-                                double.Parse(columns[2], CultureInfo.InvariantCulture)));
-                        else
-                            TaskDialog.Show("Message", "Incorrect line: " + line);
-                    }
-                }
-
-                listStations = list;
-                return true;
-            }
-            catch (Exception)
-            {
-                listStations = list;
-                return false;
-            }
-        }
-
-        public static void CreateSphereFamily(UIApplication uiapp, double radius, string familyPath)
-        {
-            var familyDoc = uiapp.Application.NewFamilyDocument(
-                $@"C:\ProgramData\Autodesk\RVT {Constants.year}\Family Templates\English\Metric Generic Model.rft");
-
-            using (var t = new Transaction(familyDoc, "Create Sphere"))
-            {
-                t.Start();
-
-                // Define the base point and radius
-                var basePoint = XYZ.Zero;
-
-                // Create profile for the sphere
-                var profile = new List<Curve>();
-                var profilePlus = basePoint + new XYZ(0, radius, 0);
-                var profileMinus = basePoint - new XYZ(0, radius, 0);
-
-                profile.Add(Line.CreateBound(profilePlus, profileMinus));
-                profile.Add(Arc.Create(profileMinus, profilePlus, basePoint + new XYZ(radius, 0, 0)));
-
-                var curveLoop = CurveLoop.Create(profile);
-                var options = new SolidOptions(ElementId.InvalidElementId, ElementId.InvalidElementId);
-
-                // Create the sphere geometry
-                var frame = new Frame(basePoint, XYZ.BasisX, -XYZ.BasisZ, XYZ.BasisY);
-                if (Frame.CanDefineRevitGeometry(frame))
-                {
-                    var sphere =
-                        GeometryCreationUtilities.CreateRevolvedGeometry(frame, new[] { curveLoop }, 0, 2 * Math.PI,
-                            options);
-
-                    // Create a DirectShape element in the family document
-                    var ds = DirectShape.CreateElement(familyDoc, new ElementId(BuiltInCategory.OST_GenericModel));
-                    ds.ApplicationId = "Application id";
-                    ds.ApplicationDataId = "Geometry object id";
-                    ds.SetShape(new GeometryObject[] { sphere });
-                }
-
-                t.Commit();
-            }
-
-            // Save the family file
-            familyDoc.SaveAs(familyPath);
-            familyDoc.Close();
-        }
-
-        public static void LoadAndPlaceSphereFamily(Document doc, string familyPath, List<Vector> stations)
-        {
-            using (var t = new Transaction(doc, "Load and Place Sphere Family"))
-            {
-                t.Start();
-                FamilySymbol familySymbol = null;
-                Family family;
-                if (!doc.LoadFamily(familyPath, out family))
-                {
-                    var collector = new FilteredElementCollector(doc);
-                    ICollection<Element> familyInstances = collector.OfClass(typeof(Family)).ToElements();
-                    foreach (var element in familyInstances)
-                    {
-                        var loadedFamily = element as Family;
-                        if (loadedFamily.Name == "ScanStation")
-                        {
-                            family = loadedFamily;
-                            break;
-                        }
-                    }
-                }
-
-                foreach (var id in family.GetFamilySymbolIds())
-                {
-                    familySymbol = doc.GetElement(id) as FamilySymbol;
-                    break;
-                }
-
-                if (familySymbol == null) Log.Information("Error, no family symbol found.");
-
-                if (!familySymbol.IsActive)
-                {
-                    familySymbol.Activate();
-                    doc.Regenerate();
-                }
-
-                foreach (Vector station in stations)
-                {
-                    var position = new XYZ(station.x, station.y, station.z);
-                    doc.Create.NewFamilyInstance(position, familySymbol, StructuralType.NonStructural);
-                }
-
-                t.Commit();
-            }
-        }
-
-        public static List<XYZ> CollectFamilyInstances(Document doc, Transform trans, string familyName)
-        {
-            var listStations = new List<XYZ>();
-            // Step 1: Get the Family object by name
-            var family = GetFamilyByName(doc, familyName);
-            if (family == null)
-            {
-                TaskDialog.Show("Message", $"Family {familyName} not found.");
-                return default;
-            }
-
-            // Step 2: Get all instances of the Family
-            var familyInstances = GetFamilyInstances(doc, family.Id);
-            foreach (var item in familyInstances)
-            {
-                if (item.Location is LocationPoint locationPoint)
-                    listStations.Add(trans.OfPoint(locationPoint.Point) * Constants.feet2Meter);
-            }
-
-            return listStations;
-        }
-
-        private static Family GetFamilyByName(Document doc, string familyName)
-        {
-            var collector = new FilteredElementCollector(doc);
-            collector.OfClass(typeof(Family));
-
-            foreach (Family family in collector)
-            {
-                if (family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase))
-                    return family;
-            }
-
-            return null;
-        }
-
-        private static List<FamilyInstance> GetFamilyInstances(Document doc, ElementId familyId)
-        {
-            var collector = new FilteredElementCollector(doc);
-            collector.OfClass(typeof(FamilyInstance));
-
-            var instances = new List<FamilyInstance>();
-
-            foreach (FamilyInstance instance in collector)
-            {
-                if (instance.Symbol.Family.Id == familyId)
-                    instances.Add(instance);
-            }
-
-            return instances;
-        }
-
-        public class BoundingBox
-        {
-            public BoundingBox(XYZ min, XYZ max)
-            {
-                Min = min;
-                Max = max;
-            }
-
-            public XYZ Min { get; set; }
-            public XYZ Max { get; set; }
-        }
-
-        public class OrientedBoundingBox
-        {
-            public OrientedBoundingBox(bool oriented, string stateId, string objectGuid, string elementId, XYZ center,
-                XYZ xDir, XYZ yDir, XYZ zDir, double halfLength, double halfWidth, double halfHeight, XYZ min = default,
-                XYZ max = default)
-            {
-                Oriented = oriented;
-                StateId = stateId;
-                ObjectGuid = objectGuid;
-                ElementId = elementId;
-                Center = center;
-                XDirection = xDir;
-                YDirection = yDir;
-                ZDirection = zDir;
-                HalfLength = halfLength;
-                HalfWidth = halfWidth;
-                HalfHeight = halfHeight;
-                Min = min;
-                Max = max;
-            }
-
-            public bool Oriented { get; }
-            public string StateId { get; }
-            public string ObjectGuid { get; }
-            public string ElementId { get; }
-            public XYZ Center { get; }
-            public XYZ XDirection { get; }
-            public XYZ YDirection { get; }
-            public XYZ ZDirection { get; }
-            public double HalfLength { get; }
-            public double HalfWidth { get; }
-            public double HalfHeight { get; }
-            public XYZ Min { get; }
-            public XYZ Max { get; }
-        }
+        public sealed record OrientedBoundingBox(
+            bool Oriented, string StateId, string ObjectGuid, string ElementId, XYZ Center, XYZ XDirection, XYZ YDirection,
+            XYZ ZDirection, double HalfLength, double HalfWidth, double HalfHeight, XYZ Min = default, XYZ Max = default);
 
         public class Paint
         {

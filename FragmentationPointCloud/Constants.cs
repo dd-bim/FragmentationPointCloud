@@ -4,9 +4,10 @@ namespace Revit
 {
     public static class Constants
     {
-        public static readonly double gradToRad = Math.PI / 180;
-        public static readonly double feet2Meter = 0.3048;
-        public static readonly double meter2Feet = 1.0 / feet2Meter;
+        public const double gradToRad = Math.PI / 180;
+        public const double feet2Meter = 0.3048;
+        public const double meter2Feet = 1.0 / feet2Meter;
+        public const double TRIGTOL = 1.0e-11; // tolerance for trigonometric calculations
 
         public static readonly string year = "2025";
 
@@ -27,10 +28,12 @@ namespace Revit
         public static readonly string exeIfcBox =
             $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\IFCFaceBoxExtractor.exe";
 
-        public static readonly string jsonIfcBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\basicList.json";
+        public const string jsonIfcBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\basicList.json";
 
-        public static readonly string directory = "C:";
+        public const string directory = "C:";
 
-        public static readonly string lineDecap = "cd C:\\Program Files\\Autodesk\\Autodesk ReCap";
+        public const string lineDecap = "cd C:\\Program Files\\Autodesk\\Autodesk ReCap";
+
+        public const int PlaneDigits = 2; // number of decimal places for the planes
     }
 }

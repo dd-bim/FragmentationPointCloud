@@ -13,18 +13,18 @@ namespace Revit.Data;
 public enum Octant
 {
     None = 0,
-    XPlus = 1,
+    XPos = 1,
     XNeg = 2,
-    YPlus = 4,
+    YPos = 4,
     YNeg = 8,
-    ZPlus = 16,
+    ZPos = 16,
     ZNeg = 32,
-    PPP = XPlus | YPlus | ZPlus,
-    NPP = XNeg | YPlus | ZPlus,
-    PNP = XPlus | YNeg | ZPlus,
-    NNP = XNeg | YNeg | ZPlus,
-    PPN = XPlus | YPlus | ZNeg,
-    NPN = XNeg | YPlus | ZNeg,
-    PNN = XPlus | YNeg | ZNeg,
+    PPP = XPos | YPos | ZPos,
+    NPP = XNeg | YPos | ZPos,
+    PNP = XPos | YNeg | ZPos,
+    NNP = XNeg | YNeg | ZPos,
+    PPN = XPos | YPos | ZNeg,
+    NPN = XNeg | YPos | ZNeg,
+    PNN = XPos | YNeg | ZNeg,
     NNN = XNeg | YNeg | ZNeg
 }
