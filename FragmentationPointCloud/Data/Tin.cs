@@ -53,26 +53,8 @@ public sealed record Tin(
         Converters = { new BitArrayJsonConverter() }
     };
 
-    /// <summary>
-    /// Creates a triangulated irregular network (TIN) from the given mesh and projects its vertices onto the specified
-    /// plane.
-    /// </summary>
-    /// <remarks>This method processes the input mesh to create a TIN by projecting its vertices onto the
-    /// specified plane and calculating the necessary triangulation. The method also computes bounding boxes in both 3D
-    /// and 2D space, as well as the maximum distance of any vertex from the plane. If the mesh does not meet the
-    /// required conditions (e.g., fewer than three vertices or multiple sets of normals), the method returns <see
-    /// langword="false"/> and outputs <see langword="null"/> for the TIN.</remarks>
-    /// <param name="mesh">The input <see cref="Mesh"/> to be processed. Must contain at least three vertices and a single set of normals.</param>
-    /// <param name="plane">The <see cref="Plane"/> onto which the mesh vertices will be projected.</param>
-    /// <param name="maxDistance">The maximum distance between the mesh vertices and the plane after projection.</param>
-    /// <param name="min3D">The minimum 3D coordinates of the mesh vertices.</param>
-    /// <param name="max3D">The maximum 3D coordinates of the mesh vertices.</param>
-    /// <param name="min2D">The minimum 2D coordinates of the projected vertices on the plane.</param>
-    /// <param name="max2D">The maximum 2D coordinates of the projected vertices on the plane.</param>
-    /// <param name="tin">When this method returns, contains the resulting <see cref="Tin"/> if the operation succeeds; otherwise, <see
-    /// langword="null"/>.</param>
-    /// <returns><see langword="true"/> if the TIN was successfully created; otherwise, <see langword="false"/>.</returns>
-    public static bool Create(Mesh mesh, Plane plane, out double maxDistance, out XYZ min3D, out XYZ max3D, out UV min2D, out UV max2D, out Tin? tin)
+    public static bool Create(Mesh mesh, Plane plane, Transform transform,
+        out double maxDistance, out XYZ min3D, out XYZ max3D, out UV min2D, out UV max2D, out Tin? tin)
     {
         min3D = Extensions.MaxXYZ;
         max3D = Extensions.MinXYZ;
@@ -95,6 +77,7 @@ public sealed record Tin(
         for (int i = 0; i < mesh.Vertices.Count; i++)
         {
             var xyz = mesh.Vertices[i];
+            xyz = transform.OfPoint(xyz) * Constants.feet2Meter; // apply transformation
             plane.Project(xyz, out var uv, out double dist);
             vertices.Add(uv);
             center += uv; // accumulate center
@@ -204,43 +187,29 @@ public sealed record Tin(
         return true;
     }
 
-    /// <summary>
-    /// Creates a new <see cref="Tin"/> instance based on the specified triangle and projection plane.
-    /// </summary>
-    /// <remarks>The method projects the vertices of the input triangle onto the specified plane and
-    /// calculates the bounding box in both 3D and 2D spaces. The resulting <see cref="Tin"/> ensures that the triangle
-    /// is represented in counter-clockwise order in 2D space.</remarks>
-    /// <param name="triangle">The 3D triangle to be projected onto the plane.</param>
-    /// <param name="plane">The plane onto which the triangle vertices are projected.</param>
-    /// <param name="maxDistance">The maximum absolute distance between the triangle vertices and the plane. This value is calculated during the
-    /// projection process.</param>
-    /// <param name="min3D">The minimum 3D coordinates among the triangle vertices.</param>
-    /// <param name="max3D">The maximum 3D coordinates among the triangle vertices.</param>
-    /// <param name="min2D">The minimum 2D coordinates among the projected triangle vertices on the plane.</param>
-    /// <param name="max2D">The maximum 2D coordinates among the projected triangle vertices on the plane.</param>
-    /// <returns>A <see cref="Tin"/> instance representing the projected triangle in 2D space, with its vertices ordered
-    /// counter-clockwise.</returns>
-    public static Tin Create(MeshTriangle triangle, Plane plane, out double maxDistance, out XYZ min3D, out XYZ max3D, out UV min2D, out UV max2D)
+    public static Tin Create(MeshTriangle triangle, Transform transform, out Plane plane,
+       out XYZ min3D, out XYZ max3D, out UV min2D, out UV max2D)
     {
-        var a = triangle.get_Vertex(0);
-        var b = triangle.get_Vertex(1);
-        var c = triangle.get_Vertex(2);
+        var a = transform.OfPoint(triangle.get_Vertex(0)) * Constants.feet2Meter;
+        var b = transform.OfPoint(triangle.get_Vertex(1)) * Constants.feet2Meter;
+        var c = transform.OfPoint(triangle.get_Vertex(2)) * Constants.feet2Meter;
 
-        plane.Project(a, out var uvA, out double distA);
-        plane.Project(b, out var uvB, out double distB);
-        plane.Project(c, out var uvC, out double distC);
+        plane = Plane.CreateByThreePoints(a, b, c);
 
-        maxDistance = double.Max(double.Abs(distA), double.Max(double.Abs(distB), double.Abs(distC)));
+        plane.Project(a, out var uvA, out _);
+        plane.Project(b, out var uvB, out _);
+        plane.Project(c, out var uvC, out _);
+
         min3D = Extensions.Min(a, Extensions.Min(a, c));
         max3D = Extensions.Max(a, Extensions.Max(b, c));
         min2D = Extensions.Min(uvA, Extensions.Min(uvB, uvC));
         max2D = Extensions.Max(uvA, Extensions.Max(uvB, uvC));
 
         // ensure tringle is counter-clockwise
-        if (uvA.SideSign(uvB, uvC) < 0)
-        {
-            (uvA, uvB) = (uvB, uvA); // swap uvA and uvB
-        }
+        //if (uvA.SideSign(uvB, uvC) < 0)
+        //{
+        //    (uvA, uvB) = (uvB, uvA); // swap uvA and uvB
+        //}
 
         return new Tin(
             [uvA, uvB, uvC],

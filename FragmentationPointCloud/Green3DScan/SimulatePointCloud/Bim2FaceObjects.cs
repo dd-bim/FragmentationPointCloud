@@ -1,17 +1,21 @@
 ﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.Exceptions;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+
 using JetBrains.Annotations;
+
 using Serilog;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Autodesk.Revit.Exceptions;
+
 using RD = Revit.Data;
 
 namespace Revit.Green3DScan.SimulatePointCloud;
-
+//checked
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
 public class Bim2FaceObjects : IExternalCommand
@@ -19,6 +23,7 @@ public class Bim2FaceObjects : IExternalCommand
     private const string RevitObjects = "RevitObjects";
     private const string BIMFacesFileName = "1_BimFaces.csv";
     private const string BIMPlanesFileName = "1_BimPlanes.csv";
+    private const int PlaneDigits = 2; // number of decimal places for the planes
 
     private static readonly Options GeometryOptions = new()
     {
@@ -72,9 +77,9 @@ public class Bim2FaceObjects : IExternalCommand
         {
             var element = document.GetElement(reference.ElementId);
             GeometryElement geometryElement;
-            if (element is null 
+            if (element is null
                 || !element.IsValidObject
-                || (geometryElement = element.get_Geometry(GeometryOptions)) is null 
+                || (geometryElement = element.get_Geometry(GeometryOptions)) is null
                 || !geometryElement.IsElementGeometry)
             {
                 Log.Information("skipped building component");
@@ -94,7 +99,7 @@ public class Bim2FaceObjects : IExternalCommand
                 switch (geometryObject)
                 {
                     case Solid obj:
-                        totalFailedFaces += ProcessFaceArrays(settings, document, reference, transform, crs,
+                        totalFailedFaces += ProcessFaceArrays(settings, document, reference, transform,
                             ref faces, ref refPlanes, ref notAnalysedFaces,
                             obj.Faces);
                         solids++;
@@ -110,7 +115,7 @@ public class Bim2FaceObjects : IExternalCommand
                             {
                                 faceArray.Append(item);
                             }
-                            totalFailedFaces += ProcessFaceArrays(settings, document, reference, transform, crs,
+                            totalFailedFaces += ProcessFaceArrays(settings, document, reference, transform,
                                 ref faces, ref refPlanes, ref notAnalysedFaces,
                                 faceArray);
                         }
@@ -125,12 +130,12 @@ public class Bim2FaceObjects : IExternalCommand
         try
         {
             Log.Information("number of faces: {count}", faces.Count);
-            
-            D.PlanarFace.WriteCsv(Path.Combine(projectPath, BIMFacesFileName), faces);
-            D.ReferencePlane.WriteCsv(Path.Combine(projectPath, BIMPlanesFileName), refPlanes.Values);
-            
+
+            RD.PlanarFace.WriteCsv(Path.Combine(projectPath, BIMFacesFileName), faces);
+            RD.ReferencePlane.WriteCsv(Path.Combine(projectPath, BIMPlanesFileName), refPlanes.Values);
+
             // write OBJ
-            D.PlanarFace.WriteObj(Path.Combine(projectPath, RevitObjects), refPlanes, faces);
+            RD.PlanarFace.WriteObj(Path.Combine(projectPath, RevitObjects), refPlanes, faces);
 
             Log.Information("skipped faces: {_totalFailedFaces}", totalFailedFaces);
             foreach (var item in notAnalysedFaces)
@@ -176,7 +181,6 @@ public class Bim2FaceObjects : IExternalCommand
         var element = document.GetElement(reference.ElementId);
         string createId = element.CreatedPhaseId.Value.ToString();
         string demolishedId = element.DemolishedPhaseId.Value.ToString();
-        var location = element.Location;
 
         // distinction between planar and triangulated faces 
         foreach (Face face in faceArray)
@@ -197,69 +201,57 @@ public class Bim2FaceObjects : IExternalCommand
             string convertRepresentation = face.Reference.ConvertToStableRepresentation(document);
             var id = new RD.Id(createId, demolishedId, element.UniqueId, convertRepresentation, 0);
 
-            if (face is PlanarFace planar)
+            if (mesh.NumberOfNormals == 1)
             {
-                var plane = Plane.CreateByOriginAndBasis(
+                Plane plane;
+                if (face is PlanarFace planar)
+                {
+                    plane = Plane.CreateByOriginAndBasis(
                       transform.OfPoint(planar.Origin) * Constants.feet2Meter,
                       transform.OfVector(planar.XVector),
                       transform.OfVector(planar.YVector));
-                mesh.
+                }
+                else
+                {
+                    var faceTrans = face.ComputeDerivatives(UV.Zero);
+                    plane = Plane.CreateByOriginAndBasis(
+                      transform.OfPoint(faceTrans.Origin) * Constants.feet2Meter,
+                      transform.OfVector(faceTrans.BasisX),
+                      transform.OfVector(faceTrans.BasisY));
+                }
 
-                var normal = transform.OfVector(mesh.GetNormal(0));
-                var xaxis = transform.OfVector(planarFace.XVector);
-                var position = transform.OfPoint(face.Origin) * Constants.feet2Meter;
-                var rings = Face2LinearRings(planarFace, transform);
-
-                totalFailedFaces += CreatePlanarFace(settings, position, normal, xaxis, id, rings, 
-                    ref refPlanes, ref notAnalysedFaces, ref faces);
+                var refPlane = RD.ReferencePlane.Create(plane, PlaneDigits);
+                if (!RD.PlanarFace.Create(id, refPlane, mesh, transform, out var planarFace, out double maxPlaneDist)
+                    || !(maxPlaneDist <= settings.MaxPlaneDist_Meter))
+                {
+                    totalFailedFaces += 1;
+                    notAnalysedFaces.Add(id);
+                    Log.Information("Conversion of id {id} failed", id);
+                    continue;
+                }
+                Log.Information("maxPlaneDist: {maxPlaneDist}", maxPlaneDist);
+                faces.Add(planarFace!);
+                refPlanes.Add(refPlane.Id, refPlane);
             }
             else if (!settings.OnlyPlanarFaces)
             {
                 for (int i = 0; i < mesh.NumTriangles; i++)
                 {
                     var triangle = mesh.get_Triangle(i);
-                    var a = triangle.get_Vertex(0);
-                    var b = triangle.get_Vertex(1);
-                    var c = triangle.get_Vertex(2);
-
-                    if (location is LocationPoint locPoint)
+                    var tid = id with
                     {
-                        var origin = locPoint.Point;
-                        double angle = locPoint.Rotation;
-                        double easting = origin.X;
-                        double northing = origin.Y;
-                        double elevation = origin.Z;
+                        PartId = i + 1
+                    };
 
-                        var rotation = Transform.CreateRotation(XYZ.BasisZ, angle);
-                        XYZ vectorTranslation = new(easting, northing, elevation);
-                        var tTranslation = Transform.CreateTranslation(vectorTranslation);
-                        var transformation = tTranslation.Multiply(rotation);
-
-                        a = transformation.OfPoint(a);
-                        b = transformation.OfPoint(b);
-                        c = transformation.OfPoint(c);
+                    if (!RD.PlanarFace.Create(tid, triangle, transform, PlaneDigits, out var planarFace, out var refPlane))
+                    {
+                        totalFailedFaces += 1;
+                        notAnalysedFaces.Add(id);
+                        Log.Information("Conversion of id {id} failed", id);
+                        continue;
                     }
-
-                    a = transform.OfPoint(a) * Constants.feet2Meter;
-                    b = transform.OfPoint(b) * Constants.feet2Meter;
-                    c = transform.OfPoint(c) * Constants.feet2Meter;
-
-                    var d = a - b;
-                    var e = a - c;
-                    var normal = d.CrossProduct(e);
-
-                    var va = a.ToVector();
-                    var vb = b.ToVector();
-                    var vc = c.ToVector();
-                    var rings = new XYZ[] { new([a, b, c, a]) };
-                    int partId = i + 1;
-
-                    // faceId
-                    string convertRepresentation = face.Reference.ConvertToStableRepresentation(document);
-                    D.Id id = new(createId, demolishedId, element.UniqueId, convertRepresentation, partId);
-
-                    CreatePlanarFace(settings, crs, va, normal, id, rings, 
-                        ref refPlanes, ref notAnalysedFaces, ref faces);
+                    faces.Add(planarFace!);
+                    refPlanes.Add(refPlane!.Id, refPlane!);
                 }
             }
         }
@@ -267,27 +259,6 @@ public class Bim2FaceObjects : IExternalCommand
         return totalFailedFaces;
     }
 
-    private static int CreatePlanarFace(SettingsJson settings, XYZ position, XYZ normal, XYZ xAxis, RD.Id id,
-        XYZ[][] rings, ref Dictionary<string, RD.ReferencePlane> refPlanes, ref List<RD.Id> notAnalysedFaces, ref List<RD.PlanarFace> faces)
-    {
-        var plane = new D3.Plane(position, normal.ToDirection());
-        var refPlane = new D.ReferencePlane(crs, plane, 2); // 2 decimal places
-        refPlanes.Add(refPlane.Id, refPlane);
-
-        if (!D.PlanarFace.Create(id, refPlane, rings, out var planarFaceIO, out double maxPlaneDist)
-            || !(maxPlaneDist <= settings.MaxPlaneDist_Meter))
-        {
-            Log.Information("maxPlaneDist: {maxPlaneDist}", maxPlaneDist);
-            faces.Add(planarFaceIO);
-            return 0;
-        }
-        else
-        {
-            notAnalysedFaces.Add(id);
-            Log.Information("Conversion of id {id} failed", id);
-            return 1;
-        }
-    }
 
 
 }

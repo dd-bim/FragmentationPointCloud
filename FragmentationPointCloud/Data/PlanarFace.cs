@@ -118,12 +118,12 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
     /// <param name="maxPlaneDist">When this method returns, contains the maximum distance from the mesh to the reference plane if the operation
     /// succeeds; otherwise, <see cref="double.NaN"/>.</param>
     /// <returns><see langword="true"/> if the planar face was successfully created; otherwise, <see langword="false"/>.</returns>
-    public static bool Create(in Id id, ReferencePlane refPlane, Mesh mesh,
+    public static bool Create(in Id id, ReferencePlane refPlane, Mesh mesh, Transform transform,
         out PlanarFace? planarFace, out double maxPlaneDist)
     {
         var plane = refPlane.Plane;
         if(mesh == null || mesh.NumTriangles == 0 
-            || !Tin.Create(mesh, plane, out maxPlaneDist, 
+            || !Tin.Create(mesh, plane, transform, out maxPlaneDist, 
             out var min3D, out var max3D, 
             out var min2D, out var max2D, out var tin))
         {
@@ -150,18 +150,18 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
     /// <param name="maxPlaneDist">When this method returns, contains the maximum distance from the mesh triangle to the reference plane if the
     /// operation succeeds; otherwise, <see cref="double.NaN"/>.</param>
     /// <returns><see langword="true"/> if the planar face was successfully created; otherwise, <see langword="false"/>.</returns>
-    public static bool Create(in Id id, ReferencePlane refPlane, MeshTriangle meshTriangle,
-        out PlanarFace? planarFace, out double maxPlaneDist)
+    public static bool Create(in Id id, MeshTriangle meshTriangle, Transform transform, int digits,
+        out PlanarFace? planarFace, out ReferencePlane? refPlane)
     {
-        var plane = refPlane.Plane;
-        if (meshTriangle == null)
+       if (meshTriangle == null)
         {
             planarFace = null;
-            maxPlaneDist = double.NaN;
+            refPlane = null;
             return false;
         }
-        var tin = Tin.Create(meshTriangle, plane, out maxPlaneDist,
-            out var min3D, out var max3D, out var min2D, out var max2D);
+        var tin = Tin.Create(meshTriangle, transform, 
+            out var plane, out var min3D, out var max3D, out var min2D, out var max2D);
+        refPlane = ReferencePlane.Create(plane, digits);
         planarFace = new PlanarFace(id, refPlane, min3D, max3D, min2D, max2D, tin);
         return true;
     }

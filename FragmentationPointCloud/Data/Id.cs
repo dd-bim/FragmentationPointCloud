@@ -29,7 +29,7 @@ public readonly record struct Id : IEquatable<Id>
     /// <summary>
     /// Gets the unique identifier for the part.
     /// </summary>
-    public int PartId { get; } = 0;
+    public int PartId { get; init; } = 0;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Id"/> class with the specified state, object, and face identifiers.

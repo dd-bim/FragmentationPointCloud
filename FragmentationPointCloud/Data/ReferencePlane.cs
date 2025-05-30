@@ -19,22 +19,23 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
 {
  
     /// <summary>
-    /// Creates a new <see cref="ReferencePlane"/> instance based on the specified transformation and plane.
+    /// Creates a new <see cref="ReferencePlane"/> instance based on the specified plane and precision.
     /// </summary>
-    /// <remarks>The method generates a unique identifier for the reference plane based on the plane's
-    /// orientation, transformed normal, and origin. The identifier includes the dominant axis of the plane's normal,
-    /// the sign of the transformed distance, and a hash code derived from the plane's properties.</remarks>
-    /// <param name="transform">The transformation to apply to the plane's normal and origin.</param>
-    /// <param name="plane">The plane to be used for creating the reference plane.</param>
-    /// <param name="digits">The number of decimal places to round the calculated distance. Defaults to 3.</param>
-    /// <returns>A new <see cref="ReferencePlane"/> instance representing the transformed plane.</returns>
-    public static ReferencePlane Create(in Transform transform, in Plane plane, int digits = 3)
+    /// <remarks>The generated identifier for the <see cref="ReferencePlane"/> includes the dominant axis of
+    /// the plane's normal vector,  the sign of the plane's distance from the origin, the rounded distance value, and a
+    /// hash code derived from the plane's properties.  This ensures that the reference plane is uniquely
+    /// identifiable.</remarks>
+    /// <param name="plane">The <see cref="Plane"/> object representing the geometric plane to be used for creating the reference plane.</param>
+    /// <param name="digits">The number of decimal places to include in the distance component of the reference plane's identifier.  Defaults
+    /// to 3 if not specified.</param>
+    /// <returns>A <see cref="ReferencePlane"/> instance uniquely identified by a string that encodes the plane's orientation, 
+    /// distance from the origin, and a hash of its properties.</returns>
+    public static ReferencePlane Create(in Plane plane, int digits = 3)
     {
-        var lokNormal = transform.OfVector(plane.Normal);
-        var x = (n: double.Abs(lokNormal.X), c: 'X');
-        var y = (n: double.Abs(lokNormal.Y), c: 'Y');
-        var z = (n: double.Abs(lokNormal.Z), c: 'Z');
-        double lokD = lokNormal.DotProduct(transform.OfPoint(plane.Origin));
+        var x = (n: double.Abs(plane.Normal.X), c: 'X');
+        var y = (n: double.Abs(plane.Normal.Y), c: 'Y');
+        var z = (n: double.Abs(plane.Normal.Z), c: 'Z');
+        double lokD = plane.Normal.DotProduct(plane.Origin);
         var max = x.n > y.n ? x : y;
         max = max.n > z.n ? max : z;
         int hc = HashCode.Combine(plane.Origin, plane.Normal, plane.XVec);
@@ -222,7 +223,7 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
     /// the CSV header.</remarks>
     /// <param name="path">The file path where the CSV file will be created. Must not be null or empty.</param>
     /// <param name="referencePlanes">A collection of reference planes to write to the CSV file. Must not be null.</param>
-    public static void WriteCsv(in string path, HashSet<ReferencePlane> referencePlanes)
+    public static void WriteCsv(in string path, IReadOnlyCollection<ReferencePlane> referencePlanes)
     {
         using var csv = File.CreateText(path);
         csv.WriteLine(CsvHeader);
