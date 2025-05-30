@@ -254,7 +254,7 @@ public sealed record Tin(
     {
         // Check if point lies inside the convex hull
         int zeroH = -1;
-        foreach (var h in Hull)
+        foreach (int h in Hull)
         {
             int sign = SideSign(h, point);
             if (sign < 0)

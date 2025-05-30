@@ -50,7 +50,7 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
         return new ReferencePlane(id, plane);
     }
 
-    public bool Equals(ReferencePlane other) => Id == other.Id;
+    public bool Equals(ReferencePlane? other) => other is not null && Id == other.Id;
 
     public override int GetHashCode() => Id.GetHashCode();
 
@@ -66,7 +66,7 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
         if (t < 0)
             return false; // Schnittpunkt liegt "hinter" dem Ursprung des Strahls
 
-        intersection = origin + t * direction;
+        intersection = origin + (t * direction);
         return true;
     }
 
@@ -193,7 +193,7 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
                 lineNumber++;
                 if (TryParseCsvLine(line.AsSpan(), out var rp, out string parseError))
                 {
-                    planes[rp.Id] = rp;
+                    planes[rp!.Id] = rp;
                 }
                 else
                 {

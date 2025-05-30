@@ -131,10 +131,7 @@ public readonly record struct Id : IEquatable<Id>
                FaceId == other.FaceId && PartId == other.PartId;
     }
 
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(ObjectId, FaceId, PartId);
-    }
+    public override int GetHashCode() => HashCode.Combine(ObjectId, FaceId, PartId);
 
     /// <summary>
     /// Returns a string representation of the object, including its state, object, face, and part identifiers.
