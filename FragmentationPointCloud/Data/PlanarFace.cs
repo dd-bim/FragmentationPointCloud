@@ -1,55 +1,18 @@
 ﻿using Autodesk.Revit.DB;
 
-using Raum2D.Features;
-using Raum2D.Geometry;
-
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Revit.Data;
 
-/// <summary>
-/// Represents a planar face in 3D space, defined by its bounding box, corners, and associated reference plane.
-/// </summary>
-/// <remarks>A <see cref="PlanarFace"/> is a geometric entity that describes a flat surface in 3D space. It is
-/// defined by its unique identifier, a reference plane, and its bounding box corners. The class provides methods for
-/// creating, exporting, and parsing planar faces, as well as utilities for working with their geometric data.</remarks>
 public sealed record PlanarFace : IEquatable<PlanarFace>
 {
     private const string CsvHeader =
-        "StateId;ObjectGuid;FaceId;PlaneId;BtmLft;BtmRgt;TopRgt;TopLft;BBoxMin;BBoxMax;Polygon";
-
-    public const string ShortCsvHeader = "StateId;ObjectGuid;FaceId;Polygon";
-
-    private const int LineCount = 11;
-
-    private PlanarFace(Id id, string referencePlaneId, XYZ btmLft, XYZ btmRgt, XYZ topRgt, XYZ topLft, XYZ bBoxMin, XYZ bBoxMax, SimpleFeature faceFeature2D)
-    {
-        Id = id;
-        ReferencePlaneId = referencePlaneId;
-        BtmLft = btmLft;
-        BtmRgt = btmRgt;
-        TopRgt = topRgt;
-        TopLft = topLft;
-        BBoxMin = bBoxMin;
-        BBoxMax = bBoxMax;
-        FaceFeature2D = faceFeature2D;
-    }
-
-    private PlanarFace(in Id id, ReferencePlane referencePlane, SimpleFeature polygon, in XYZ min, in XYZ max)
-    {
-        Id = id;
-        ReferencePlaneId = referencePlane.Id;
-        var bbox = polygon.BoundingBox;
-        BtmLft = referencePlane.Plane.FromPlaneSystem(new UV((double)bbox.MinX, (double)bbox.MinY));
-        BtmRgt = referencePlane.Plane.FromPlaneSystem(new UV((double)bbox.MinX, (double)bbox.MaxY));
-        TopRgt = referencePlane.Plane.FromPlaneSystem(new UV((double)bbox.MaxX, (double)bbox.MaxY));
-        TopLft = referencePlane.Plane.FromPlaneSystem(new UV((double)bbox.MaxX, (double)bbox.MinY));
-        BBoxMin = min;
-        BBoxMax = max;
-        FaceFeature2D = polygon;
-    }
+        "StateId;ObjectGuid;FaceId;PlaneId;BtmLft;BtmRgt;TopRgt;TopLft;BBoxMin;BBoxMax;TIN";
 
     /// <summary>
     /// Gets the unique identifier for the entity.
@@ -94,93 +57,114 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
     /// <summary>
     /// Gets the 2D facial feature data associated with the current instance.
     /// </summary>
-    public SimpleFeature FaceFeature2D { get; private set; }
+    public Tin Tin { get; private set; }
 
-    public bool Equals(PlanarFace other) => other.Id.Equals(Id);
+    private PlanarFace(Id id, string referencePlaneId, XYZ btmLft, XYZ btmRgt, XYZ topRgt, XYZ topLft, XYZ bBoxMin, XYZ bBoxMax, Tin tin)
+    {
+        Id = id;
+        ReferencePlaneId = referencePlaneId;
+        BtmLft = btmLft;
+        BtmRgt = btmRgt;
+        TopRgt = topRgt;
+        TopLft = topLft;
+        BBoxMin = bBoxMin;
+        BBoxMax = bBoxMax;
+        Tin = tin;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PlanarFace"/> class, representing a planar face defined by a
+    /// reference plane, bounding box, and 2D/3D coordinate limits.
+    /// </summary>
+    /// <remarks>This constructor initializes the planar face by mapping the 2D coordinate limits to the 3D
+    /// space defined by the reference plane. The bounding box and TIN provide additional spatial and surface
+    /// information for the planar face.</remarks>
+    /// <param name="id">The unique identifier for the planar face.</param>
+    /// <param name="referencePlane">The reference plane that defines the orientation and position of the planar face.</param>
+    /// <param name="bBoxMin">The minimum 3D bounding box coordinates of the planar face.</param>
+    /// <param name="bBoxMax">The maximum 3D bounding box coordinates of the planar face.</param>
+    /// <param name="min2D">The minimum 2D coordinates in the plane's local coordinate system.</param>
+    /// <param name="max2D">The maximum 2D coordinates in the plane's local coordinate system.</param>
+    /// <param name="tin">The triangulated irregular network (TIN) associated with the planar face, used for surface representation.</param>
+    private PlanarFace(Id id, ReferencePlane referencePlane, XYZ bBoxMin, XYZ bBoxMax, UV min2D, UV max2D, Tin tin)
+    {
+        Id = id;
+        ReferencePlaneId = referencePlane.Id;
+        BtmLft = referencePlane.Plane.FromPlaneSystem(min2D);
+        BtmRgt = referencePlane.Plane.FromPlaneSystem(new UV(max2D.U, min2D.V));
+        TopRgt = referencePlane.Plane.FromPlaneSystem(max2D);
+        TopLft = referencePlane.Plane.FromPlaneSystem(new UV(min2D.U, max2D.V));
+        BBoxMin = bBoxMin;
+        BBoxMax = bBoxMax;
+        Tin = tin;
+    }
+
+    public bool Equals(PlanarFace? other) => other is not null && Id.Equals(other.Id);
 
     public override int GetHashCode() => Id.GetHashCode();
 
     /// <summary>
-    /// Converts a set of 3D coordinate rings into a 2D polygon representation on a specified plane.
+    /// Creates a planar face from the specified mesh and reference plane.
     /// </summary>
-    /// <remarks>This method projects 3D coordinates onto the specified plane and converts them into a 2D
-    /// polygon representation. The maximum distance of any point from the plane is calculated and returned via the
-    /// <paramref name="maxPlaneDist"/> parameter. The resulting polygon is created with the specified precision,
-    /// determined by the <paramref name="digits"/> parameter.</remarks>
-    /// <param name="plane">The plane onto which the 3D coordinates will be projected.</param>
-    /// <param name="rings">An array of coordinate rings, where each ring is an array of <see cref="XYZ"/> points.</param>
-    /// <param name="digits">The number of decimal places to retain when converting coordinates to 2D.</param>
-    /// <param name="polygon">When this method returns, contains the resulting 2D polygon as a <see cref="SimpleFeature"/> object,  or an
-    /// empty polygon if the conversion fails.</param>
-    /// <param name="maxPlaneDist">When this method returns, contains the maximum distance of any point from the plane during projection.</param>
-    /// <returns><see langword="true"/> if the resulting polygon is not empty; otherwise, <see langword="false"/>.</returns>
-    private static bool ToPolygon2d(Plane plane, XYZ[][] rings, int digits,
-       out SimpleFeature polygon,
-       out double maxPlaneDist)
-    {
-        var rings2d = new DecimalXY[rings.Length][];
-        maxPlaneDist = 0.0;
-        for (int i = 0; i < rings.Length; i++)
-        {
-            var ring = rings[i];
-            var transformed = new DecimalXY[ring.Length];
-            for (int j = 0; j < ring.Length; j++)
-            {
-                var xyz = ring[j];
-                plane.Project(xyz, out var uv, out double z);
-                transformed[j] = uv.ToDecimalXY(digits);
-                maxPlaneDist = double.Max(maxPlaneDist, double.Abs(z));
-            }
-            rings2d[i] = transformed;
-        }
-
-        polygon = SimpleFeature.Create(rings2d, SFType.POLYGON);
-        return !polygon.IsEmpty;
-    }
-
-#nullable enable
-
-    /// <summary>
-    /// Creates a planar face from the specified reference plane and a set of 3D ring points.
-    /// </summary>
-    /// <remarks>This method projects the input 3D points onto the specified reference plane to create a 2D
-    /// polygon. If the input data is invalid or the projection fails, the method returns <see langword="false"/> and
-    /// outputs <see langword="null"/> for <paramref name="planarFace"/> and <see cref="double.NaN"/> for <paramref
-    /// name="maxPlaneDist"/>.</remarks>
-    /// <param name="id">The unique identifier associated with the planar face.</param>
+    /// <remarks>This method processes the provided mesh to create a planar face aligned with the specified
+    /// reference plane. If the mesh is invalid (e.g., <see langword="null"/> or contains no triangles) or the operation
+    /// fails, the method returns <see langword="false"/> and outputs <see langword="null"/> for <paramref
+    /// name="planarFace"/> and <see cref="double.NaN"/> for <paramref name="maxPlaneDist"/>.</remarks>
+    /// <param name="id">The unique identifier for the planar face.</param>
     /// <param name="refPlane">The reference plane used to define the planar face.</param>
-    /// <param name="rings">A jagged array of 3D points representing the rings that define the planar face.</param>
+    /// <param name="mesh">The mesh to be processed. Must not be <see langword="null"/> and must contain at least one triangle.</param>
     /// <param name="planarFace">When this method returns, contains the created <see cref="PlanarFace"/> if the operation succeeds; otherwise,
     /// <see langword="null"/>.</param>
-    /// <param name="maxPlaneDist">When this method returns, contains the maximum distance of the input points from the reference plane. If the
-    /// operation fails, this will be set to <see cref="double.NaN"/>.</param>
-    /// <param name="digits2d">The number of decimal places to use for 2D precision when projecting points onto the reference plane. Defaults
-    /// to 7.</param>
+    /// <param name="maxPlaneDist">When this method returns, contains the maximum distance from the mesh to the reference plane if the operation
+    /// succeeds; otherwise, <see cref="double.NaN"/>.</param>
     /// <returns><see langword="true"/> if the planar face was successfully created; otherwise, <see langword="false"/>.</returns>
-    public static bool Create(in Id id, ReferencePlane refPlane, XYZ[][] rings,
-        out PlanarFace? planarFace, out double maxPlaneDist, int digits2d = 7)
+    public static bool Create(in Id id, ReferencePlane refPlane, Mesh mesh,
+        out PlanarFace? planarFace, out double maxPlaneDist)
     {
         var plane = refPlane.Plane;
-        if (rings.Length < 1
-            || !ToPolygon2d(plane, rings, digits2d, out var polygon, out maxPlaneDist))
+        if(mesh == null || mesh.NumTriangles == 0 
+            || !Tin.Create(mesh, plane, out maxPlaneDist, 
+            out var min3D, out var max3D, 
+            out var min2D, out var max2D, out var tin))
         {
             planarFace = null;
             maxPlaneDist = double.NaN;
             return false;
         }
-        var min = Extensions.AllMax;
-        var max = Extensions.AllMin;
-        foreach (var point in polygon.Points())
-        {
-            var uv = point.ToUV();
-            var xyz = plane.FromPlaneSystem(uv);
-            min = min.Min(xyz);
-            max = max.Max(xyz);
-        }
-        planarFace = new PlanarFace(id, refPlane, polygon, min, max);
+        planarFace = new PlanarFace(id, refPlane, min3D, max3D, min2D, max2D, tin!);
         return true;
     }
 
+    /// <summary>
+    /// Creates a planar face from the specified mesh triangle and reference plane.
+    /// </summary>
+    /// <remarks>This method attempts to create a planar face by projecting the specified mesh triangle onto
+    /// the given reference plane. If <paramref name="meshTriangle"/> is <see langword="null"/>, the method returns <see
+    /// langword="false"/>, and the output parameters <paramref name="planarFace"/> and <paramref name="maxPlaneDist"/>
+    /// are set to <see langword="null"/> and <see cref="double.NaN"/>, respectively.</remarks>
+    /// <param name="id">The unique identifier for the planar face to be created.</param>
+    /// <param name="refPlane">The reference plane used to define the planar face.</param>
+    /// <param name="meshTriangle">The mesh triangle used to generate the planar face. Cannot be <see langword="null"/>.</param>
+    /// <param name="planarFace">When this method returns, contains the created <see cref="PlanarFace"/> if the operation succeeds; otherwise,
+    /// <see langword="null"/>.</param>
+    /// <param name="maxPlaneDist">When this method returns, contains the maximum distance from the mesh triangle to the reference plane if the
+    /// operation succeeds; otherwise, <see cref="double.NaN"/>.</param>
+    /// <returns><see langword="true"/> if the planar face was successfully created; otherwise, <see langword="false"/>.</returns>
+    public static bool Create(in Id id, ReferencePlane refPlane, MeshTriangle meshTriangle,
+        out PlanarFace? planarFace, out double maxPlaneDist)
+    {
+        var plane = refPlane.Plane;
+        if (meshTriangle == null)
+        {
+            planarFace = null;
+            maxPlaneDist = double.NaN;
+            return false;
+        }
+        var tin = Tin.Create(meshTriangle, plane, out maxPlaneDist,
+            out var min3D, out var max3D, out var min2D, out var max2D);
+        planarFace = new PlanarFace(id, refPlane, min3D, max3D, min2D, max2D, tin);
+        return true;
+    }
 
     /// <summary>
     /// Converts the current object to a CSV-formatted string representation.
@@ -202,7 +186,7 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
             TopLft.ToFullWktString(),
             BBoxMin.ToFullWktString(),
             BBoxMax.ToFullWktString(),
-            FaceFeature2D.ToString(),
+            Tin.ToString(),
         ];
         return string.Join(";", line);
     }
@@ -211,13 +195,14 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
     /// Attempts to parse a CSV-formatted line into a <see cref="PlanarFace"/> object.
     /// </summary>
     /// <remarks>The input line must be a non-empty, semicolon-delimited string containing the required fields
-    /// in the expected order: StateId, ObjectGuid, FaceId, PlaneId, BtmLft, BtmRgt, TopRgt, TopLft, BBoxMin, BBoxMax,
-    /// and Polygon. If any field is missing, empty, or invalid, the method will return <see langword="false"/> and
-    /// provide an error message.</remarks>
-    /// <param name="line">The input line as a <see cref="ReadOnlySpan{T}"/> of characters, representing a CSV-formatted string.</param>
+    /// in the expected order. If any field is missing, empty, or invalid, the method will return <see
+    /// langword="false"/> and provide an error message.</remarks>
+    /// <param name="line">The input line of text, represented as a <see cref="ReadOnlySpan{T}"/> of characters, containing the CSV data to
+    /// parse.</param>
     /// <param name="planarFace">When this method returns, contains the parsed <see cref="PlanarFace"/> object if the parsing was successful;
     /// otherwise, <see langword="null"/>.</param>
-    /// <param name="error">When this method returns, contains an error message describing why the parsing failed, if applicable.</param>
+    /// <param name="error">When this method returns, contains an error message describing why the parsing failed, if applicable. If parsing
+    /// succeeds, this will be an empty string.</param>
     /// <returns><see langword="true"/> if the line was successfully parsed into a <see cref="PlanarFace"/> object; otherwise,
     /// <see langword="false"/>.</returns>
     private static bool TryParseCsvLine(ReadOnlySpan<char> line, out PlanarFace? planarFace, out string error)
@@ -272,11 +257,11 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
         var topLftSpan = line[(idx7 + 1)..idx8].Trim();
         var bboxMinSpan = line[(idx8 + 1)..idx9].Trim();
         var bboxMaxSpan = line[(idx9 + 1)..idx10].Trim();
-        var polygonSpan = line[(idx10 + 1)..].Trim();
+        var tinSpan = line[(idx10 + 1)..].Trim();
 
         if (stateIdSpan.IsEmpty || objectGuidSpan.IsEmpty || faceIdSpan.IsEmpty || planeIdSpan.IsEmpty ||
             btmLftSpan.IsEmpty || btmRgtSpan.IsEmpty || topRgtSpan.IsEmpty || topLftSpan.IsEmpty ||
-            bboxMinSpan.IsEmpty || bboxMaxSpan.IsEmpty || polygonSpan.IsEmpty)
+            bboxMinSpan.IsEmpty || bboxMaxSpan.IsEmpty || tinSpan.IsEmpty)
             goto NotReadable;
 
         // FaceId und PartId extrahieren
@@ -296,12 +281,12 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
             topLftSpan.TryParseWktXYZ(out var topLft) &&
             bboxMinSpan.TryParseWktXYZ(out var boxMin) &&
             bboxMaxSpan.TryParseWktXYZ(out var boxMax) &&
-            SimpleFeature.TryParseWkt(polygonSpan, out var polygon))
+            Tin.TryParse(tinSpan, out var tin))
         {
             planarFace = new PlanarFace(
                 new Id(stateIdSpan.ToString(), objectGuidSpan.ToString(), faceIdOnly, partId),
                 planeIdSpan.ToString(),
-                btmLft, btmRgt, topRgt, topLft, boxMin, boxMax, polygon
+                btmLft, btmRgt, topRgt, topLft, boxMin, boxMax, tin!
             );
             return true;
         }
@@ -324,7 +309,7 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
     {
         using var csv = File.CreateText(path);
         csv.WriteLine(CsvHeader);
-        foreach (var pf in planarFaces) 
+        foreach (var pf in planarFaces)
             csv.WriteLine(pf.ToCsvString());
     }
 
@@ -402,39 +387,48 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
     {
         using var file = File.CreateText(path + ".obj");
         var vertices = new List<XYZ>();
-        var faces = new List<int[]>();
+        var vertexMap = new Dictionary<(string planeId, int vertexIdx), int>();
+        var faces = new List<(string comment, int[] indices)>();
 
         foreach (var pf in planarFaces)
         {
-            var polygons = pf.FaceFeature2D.PointArrays();
-            for (int i = 0; i < polygons.Length; i++)
+            var tin = pf.Tin;
+            var plane = planes[pf.ReferencePlaneId].Plane;
+            int baseVertexCount = vertices.Count;
+
+            // Map TIN-Vertices to 3D and collect indices
+            for (int i = 0; i < tin.Vertices.Length; i++)
             {
-                file.WriteLine($"# {pf.Id}_{i}");
-                var polygon = polygons[i];
-                foreach (var ls in polygon)
-                {
-                    var plane = planes[pf.ReferencePlaneId].Plane;
-                    int[] indices = new int[ls.Length];
-                    for (int j = 0; j < ls.Length; j++)
-                    {
-                        var xyz = plane.FromPlaneSystem(ls[j].ToUV());
-                        vertices.Add(xyz);
-                        indices[j] = vertices.Count;
-                    }
-                    faces.Add(indices);
-                }
+                var uv = tin.Vertices[i];
+                var xyz = plane.FromPlaneSystem(uv);
+                vertices.Add(xyz);
+                vertexMap[(pf.ReferencePlaneId, i)] = baseVertexCount + i + 1; // OBJ: 1-basiert
+            }
+
+            // Faces
+            for (int t = 0; t < tin.Triangles.Length; t += 3)
+            {
+                if (!tin.IsInterior[t / 3]) continue;
+
+                int i0 = vertexMap[(pf.ReferencePlaneId, tin.Triangles[t + 0])];
+                int i1 = vertexMap[(pf.ReferencePlaneId, tin.Triangles[t + 1])];
+                int i2 = vertexMap[(pf.ReferencePlaneId, tin.Triangles[t + 2])];
+                faces.Add(($"# {pf.Id}", new[] { i0, i1, i2 }));
             }
         }
 
-        // Vertices schreiben
+        // Write vertices
         foreach (var v in vertices)
             file.WriteLine($"v {v.X} {v.Y} {v.Z}");
 
-        // Faces schreiben
-        foreach (int[] indices in faces)
+        // Write faces (with comments)
+        foreach (var (comment, indices) in faces)
         {
+            file.WriteLine(comment);
             file.WriteLine("f " + string.Join(" ", indices));
         }
     }
+
+
 
 }

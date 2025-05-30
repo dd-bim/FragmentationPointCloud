@@ -6,7 +6,6 @@ using JetBrains.Annotations;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using Autodesk.Revit.Exceptions;
 using RD = Revit.Data;
@@ -163,14 +162,14 @@ public class Bim2FaceObjects : IExternalCommand
         #endregion catch
     }
 
-    private static int ProcessFaceArrays(SettingsJson settings,
+    private static int ProcessFaceArrays(
+        SettingsJson settings,
         Document document,
         Reference reference,
         Transform transform,
-        D3.CoordinateSystem crs,
-        ref List<D.PlanarFace> faces,
-        ref Dictionary<string, D.ReferencePlane> refPlanes,
-        ref List<D.Id> notAnalysedFaces,
+        ref List<RD.PlanarFace> faces,
+        ref Dictionary<string, RD.ReferencePlane> refPlanes,
+        ref List<RD.Id> notAnalysedFaces,
         FaceArray faceArray)
     {
         int totalFailedFaces = 0;
@@ -182,33 +181,40 @@ public class Bim2FaceObjects : IExternalCommand
         // distinction between planar and triangulated faces 
         foreach (Face face in faceArray)
         {
-            if (face is PlanarFace planarFace)
+            if (face.Reference == null)
             {
-                if (face.Reference == null)
-                {
-                    // skipped faces
-                    totalFailedFaces += 1;
-                    continue;
-                }
+                // skipped faces
+                totalFailedFaces += 1;
+                continue;
+            }
+            var mesh = face.Triangulate();
+            if (mesh == null || mesh.NumTriangles < 1)
+            {
+                // skipped faces
+                totalFailedFaces += 1;
+                continue;
+            }
+            string convertRepresentation = face.Reference.ConvertToStableRepresentation(document);
+            var id = new RD.Id(createId, demolishedId, element.UniqueId, convertRepresentation, 0);
 
-                string convertRepresentation = face.Reference.ConvertToStableRepresentation(document);
-                var id = new D.Id(createId, demolishedId, element.UniqueId, convertRepresentation, 0);
-                var normal = transform.OfVector(planarFace.FaceNormal);
-                var position = transform.OfPoint(planarFace.Origin) * Constants.feet2Meter;
+            if (face is PlanarFace planar)
+            {
+                var plane = Plane.CreateByOriginAndBasis(
+                      transform.OfPoint(planar.Origin) * Constants.feet2Meter,
+                      transform.OfVector(planar.XVector),
+                      transform.OfVector(planar.YVector));
+                mesh.
+
+                var normal = transform.OfVector(mesh.GetNormal(0));
+                var xaxis = transform.OfVector(planarFace.XVector);
+                var position = transform.OfPoint(face.Origin) * Constants.feet2Meter;
                 var rings = Face2LinearRings(planarFace, transform);
 
-                totalFailedFaces += CreatePlanarFace(settings, crs, position.ToVector(), normal, id, rings, 
+                totalFailedFaces += CreatePlanarFace(settings, position, normal, xaxis, id, rings, 
                     ref refPlanes, ref notAnalysedFaces, ref faces);
             }
             else if (!settings.OnlyPlanarFaces)
             {
-                var mesh = face.Triangulate();
-                if (mesh == null || mesh.NumTriangles < 1)
-                {
-                    // skipped faces
-                    totalFailedFaces += 1;
-                    continue;
-                }
                 for (int i = 0; i < mesh.NumTriangles; i++)
                 {
                     var triangle = mesh.get_Triangle(i);
@@ -245,7 +251,7 @@ public class Bim2FaceObjects : IExternalCommand
                     var va = a.ToVector();
                     var vb = b.ToVector();
                     var vc = c.ToVector();
-                    var rings = new D3.LineString[] { new([va, vb, vc, va]) };
+                    var rings = new XYZ[] { new([a, b, c, a]) };
                     int partId = i + 1;
 
                     // faceId
@@ -261,8 +267,8 @@ public class Bim2FaceObjects : IExternalCommand
         return totalFailedFaces;
     }
 
-    private static int CreatePlanarFace(SettingsJson settings, D3.CoordinateSystem crs, D3.Vector position, XYZ normal, D.Id id,
-        D3.LineString[] rings, ref Dictionary<string, D.ReferencePlane> refPlanes, ref List<D.Id> notAnalysedFaces, ref List<D.PlanarFace> faces)
+    private static int CreatePlanarFace(SettingsJson settings, XYZ position, XYZ normal, XYZ xAxis, RD.Id id,
+        XYZ[][] rings, ref Dictionary<string, RD.ReferencePlane> refPlanes, ref List<RD.Id> notAnalysedFaces, ref List<RD.PlanarFace> faces)
     {
         var plane = new D3.Plane(position, normal.ToDirection());
         var refPlane = new D.ReferencePlane(crs, plane, 2); // 2 decimal places
@@ -283,23 +289,5 @@ public class Bim2FaceObjects : IExternalCommand
         }
     }
 
-    private static D3.LineString[] Face2LinearRings(Face face, Transform transform)
-    {
-        var rings = new D3.LineString[face.EdgeLoops.Size];
-        int i = 0;
-        foreach (EdgeArray edgeLoop in face.EdgeLoops)
-        {
-            var vertices = new D3.Vector[edgeLoop.Size + 1];
-            int j = 0;
-            foreach (Edge edge in edgeLoop)
-            {
-                vertices[j++] = (edge.AsCurve().GetEndPoint(0) * Constants.feet2Meter).ToVector();
-            }
-            vertices[^1] = vertices[0];
-            D3.LineString lineString = new(vertices);
-            rings[i++] = lineString;
-        }
-        return rings;
-    }
 
 }

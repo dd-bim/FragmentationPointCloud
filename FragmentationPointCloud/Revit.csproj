@@ -7,7 +7,7 @@
         <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
         <LangVersion>latest</LangVersion>
         <Platforms>x64</Platforms>
-		<nullable>true</nullable>
+		<nullable>enable</nullable>
     </PropertyGroup>
     <ItemGroup>
         <None Update="SettingsGreen3DScan.json">
@@ -39,9 +39,6 @@
         <PackageReference Include="Serilog" Version="4.3.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="YamlDotNet" Version="16.3.0" />
-    </ItemGroup>
-    <ItemGroup>
-      <ProjectReference Include="..\..\Raum2D\Raum2D\Raum2D.csproj" />
     </ItemGroup>
     <ItemGroup>
         <WCFMetadata Include="Connected Services\" />

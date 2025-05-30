@@ -53,11 +53,24 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
 
     public override int GetHashCode() => Id.GetHashCode();
 
+    public static bool TryRayPlaneIntersection(XYZ origin, XYZ direction, Plane plane, out XYZ intersection)
+    {
+        intersection = null!;
+        var n = plane.Normal;
+        double denom = direction.DotProduct(n);
+        if (Math.Abs(denom) < 1e-10)
+            return false; // Parallel, kein Schnitt
+
+        double t = (plane.Origin - origin).DotProduct(n) / denom;
+        if (t < 0)
+            return false; // Schnittpunkt liegt "hinter" dem Ursprung des Strahls
+
+        intersection = origin + t * direction;
+        return true;
+    }
+
 
     private const string CsvHeader = "Id;Position;Normal;PlaneX;";
-
-
-    private const int LineCount = 4;
 
     /// <summary>
     /// Converts the current object to a CSV-formatted string representation.
@@ -94,7 +107,7 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
     /// <param name="error">When this method returns, contains an error message if the parsing failed; otherwise, an empty string.</param>
     /// <returns><see langword="true"/> if the line was successfully parsed into a <see cref="ReferencePlane"/>; otherwise, <see
     /// langword="false"/>.</returns>
-    private static bool TryParseCsvLine(ReadOnlySpan<char> line, out ReferencePlane referencePlane, out string error)
+    private static bool TryParseCsvLine(ReadOnlySpan<char> line, out ReferencePlane? referencePlane, out string error)
     {
         referencePlane = default;
         error = string.Empty;
@@ -128,10 +141,7 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
             nrmSpan.TryParseXYZ(out var nrm) &&
             pxSpan.TryParseXYZ(out var px))
         {
-            var normal = nrm.Normalize();
-            var planeX = px.Normalize();
-            var planeY = normal.CrossProduct(planeX).Normalize();
-            var plane = Plane.CreateByOriginAndBasis(position, planeX, planeY);
+            var plane = Extensions.GetPlane(position, nrm, px);
 
             referencePlane = new ReferencePlane(idSpan.ToString(), plane);
             return true;
