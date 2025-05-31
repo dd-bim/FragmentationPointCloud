@@ -1,20 +1,19 @@
-﻿using System;
+﻿using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+
+using JetBrains.Annotations;
+
+using Serilog;
+
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using Autodesk.Revit.Attributes;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
-using JetBrains.Annotations;
 
-using Revit.Green3DScan.SimulatePointCloud;
-
-using Serilog;
 using RD = Revit.Data;
 
 namespace Revit.Green3DScan.SimulatePointCloud;
 
-// TODO: Combine code with Bim2Stations.cs to avoid duplication of logic
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
 public class Stations2PointClouds : IExternalCommand
@@ -33,13 +32,13 @@ public class Stations2PointClouds : IExternalCommand
         Log.Information("start Stations2PointClouds");
 
         // Get transformation
-        var transform = Helper.GetTransformation(document, settings);
+        var transform = Helper.GetTransformation(document!, settings);
 
         Log.Information("setup");
 
         #region select files
 
-        if (uiDocument.ActiveView is View3D current3DView)
+        if (uiDocument.ActiveView is View3D)
         {
             TaskDialog.Show("Message", "You must be in a 2D viewplan!");
             return Result.Failed;
@@ -66,10 +65,13 @@ public class Stations2PointClouds : IExternalCommand
 
         #region read files
 
-        var facesRevit = RD.PlanarFace.ReadCsv(csvPathPfRevit, out string[] lineErrors1, out string error1);
-
-        var referencePlanesRevit =
-            RD.ReferencePlane.ReadCsv(csvPathRpRevit, out string[] lineErrors2, out string error2);
+        if (!RD.PlanarFace.TryReadCsv(csvPathPfRevit, out var facesRevit)
+           || !RD.ReferencePlane.TryReadCsv(csvPathRpRevit, out var referencePlanesRevit))
+        {
+            TaskDialog.Show("Error", "Failed to read faces or reference planes CSV. Please check the log for details.");
+            Log.Error("Failed to read faces or reference planes CSV files.");
+            return Result.Failed;
+        }
 
         #endregion read files
 
@@ -77,11 +79,11 @@ public class Stations2PointClouds : IExternalCommand
 
         #region stations
 
-        var allStations = Stations.CollectFromFamilyInstances(document, transform);
+        var allStations = Stations.CollectFromFamilyInstances(document!, transform);
 
         Log.Information("write stations csv");
 
-        if(!Stations.WriteCsv(projectPath, allStations))
+        if (!Stations.WriteCsv(projectPath, allStations))
         {
             Log.Error("Error writing stations to CSV.");
             TaskDialog.Show("Error", "Error writing stations to CSV.");
@@ -94,7 +96,8 @@ public class Stations2PointClouds : IExternalCommand
 
         #region write pointcloud in XYZ
 
-        _ = RayCasting.VisibleFaces(facesRevit, referencePlanesRevit, allStations, settings, out _, out var pointClouds, true);
+        var raycast = new RayCasting(facesRevit, referencePlanesRevit, settings, true);
+        var pointClouds = raycast.PointClouds(allStations);
         string csvPath = Stations.GetStationsDirectoryPath(projectPath);
         for (int i = 0; i < allStations.Count; i++)
         {
