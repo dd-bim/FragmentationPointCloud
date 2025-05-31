@@ -1,9 +1,12 @@
-﻿using System;
+﻿using Autodesk.Revit.DB;
+
+using Serilog;
+
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
-using Autodesk.Revit.DB;
 
 namespace Revit.Data;
 
@@ -17,7 +20,7 @@ namespace Revit.Data;
 /// <param name="Plane"></param>
 public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<ReferencePlane>
 {
- 
+
     /// <summary>
     /// Creates a new <see cref="ReferencePlane"/> instance based on the specified plane and precision.
     /// </summary>
@@ -71,7 +74,7 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
     }
 
 
-    private const string CsvHeader = "Id;Position;Normal;PlaneX;";
+    private const string CsvHeader = "Id;Position;Normal;PlaneX";
 
     /// <summary>
     /// Converts the current object to a CSV-formatted string representation.
@@ -84,39 +87,21 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
         string[] line =
         [
             Id,
-            $"POINT Z({Plane.Origin.ToFullString()})",
+            Plane.Origin.ToFullWktString(),
             Plane.Normal.ToFullString(),
             Plane.XVec.ToFullString(),
         ];
         return string.Join(";", line);
     }
 
-    /// <summary>
-    /// Attempts to parse a CSV-formatted line into a <see cref="ReferencePlane"/> object.
-    /// </summary>
-    /// <remarks>The input line must be a non-empty string formatted as "Id;Position;Normal;PlaneX;", where:
-    /// <list type="bullet"> <item><description><c>Id</c> is a unique identifier.</description></item>
-    /// <item><description><c>Position</c> is a WKT (Well-Known Text) representation of a 3D point.</description></item>
-    /// <item><description><c>Normal</c> is a 3D vector representing the normal of the plane.</description></item>
-    /// <item><description><c>PlaneX</c> is a 3D vector representing the X-axis direction of the
-    /// plane.</description></item> </list> If the input line is invalid or cannot be parsed, the method returns <see
-    /// langword="false"/> and provides an error message in the <paramref name="error"/> parameter.</remarks>
-    /// <param name="line">The input line to parse, represented as a <see cref="ReadOnlySpan{T}"/> of characters. The line must follow the
-    /// format: "Id;Position;Normal;PlaneX;".</param>
-    /// <param name="referencePlane">When this method returns, contains the parsed <see cref="ReferencePlane"/> if the parsing was successful;
-    /// otherwise, the default value.</param>
-    /// <param name="error">When this method returns, contains an error message if the parsing failed; otherwise, an empty string.</param>
-    /// <returns><see langword="true"/> if the line was successfully parsed into a <see cref="ReferencePlane"/>; otherwise, <see
-    /// langword="false"/>.</returns>
-    private static bool TryParseCsvLine(ReadOnlySpan<char> line, out ReferencePlane? referencePlane, out string error)
+    private static bool TryParseCsvLine(ReadOnlySpan<char> line, out ReferencePlane? referencePlane)
     {
         referencePlane = default;
-        error = string.Empty;
 
         // Leere oder zu kurze Zeile abfangen
         if (line.IsEmpty)
         {
-            error = "ReferencePlane.ParseCsvLine: Input string is null or empty";
+            Log.Warning("ReferencePlane.ParseCsvLine: Input string is null or empty");
             return false;
         }
 
@@ -149,31 +134,14 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
         }
 
     NotReadable:
-        error = $"ReferencePlane.ParseCsvLine: Line: \r\n{line.ToString()}\r\n is not readable";
+        Log.Warning("ReferencePlane.ParseCsvLine: Input string is not readable: {Line}", line.ToString());
         referencePlane = default;
         return false;
     }
 
-    /// <summary>
-    /// Reads a CSV file and parses its contents into a dictionary of reference planes.
-    /// </summary>
-    /// <remarks>This method processes the CSV file line by line, skipping the header row.  If a line cannot
-    /// be parsed, an error message is added to <paramref name="lineErrors"/>.  If the file contains no valid data
-    /// lines, <paramref name="error"/> will indicate this.</remarks>
-    /// <param name="path">The file path to the CSV file to be read. Must not be null or empty.</param>
-    /// <param name="lineErrors">An array of error messages for lines in the CSV file that could not be parsed.  Each entry specifies the line
-    /// number and the associated error.</param>
-    /// <param name="error">An error message describing a critical issue encountered during the operation,  or an empty string if the
-    /// operation completed successfully.</param>
-    /// <returns>A dictionary where the keys are the unique identifiers of the reference planes  and the values are the
-    /// corresponding <see cref="ReferencePlane"/> objects.  The dictionary will be empty if no valid reference planes
-    /// were parsed.</returns>
-    public static Dictionary<string, ReferencePlane> ReadCsv(in string path, out string[] lineErrors, out string error)
+    public static bool TryReadCsv(in string path, out Dictionary<string, ReferencePlane> planes)
     {
-        var planes = new Dictionary<string, ReferencePlane>();
-        var errors = new List<string>();
-        error = string.Empty;
-
+        planes = [];
         try
         {
             using var reader = new StreamReader(path);
@@ -183,36 +151,35 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
             // Erste Zeile (Header) überspringen
             if ((line = reader.ReadLine()) == null)
             {
-                lineErrors = [];
-                error = "ReferencePlane.ReadCsv: CSV-File has no data lines";
-                return planes;
+                Log.Error("ReferencePlane.ReadCsv: CSV-File is empty or has no header line");
+                return false;
             }
 
             while ((line = reader.ReadLine()) != null)
             {
                 lineNumber++;
-                if (TryParseCsvLine(line.AsSpan(), out var rp, out string parseError))
+                if (TryParseCsvLine(line.AsSpan(), out var rp))
                 {
                     planes[rp!.Id] = rp;
                 }
                 else
                 {
-                    errors.Add($"Line {lineNumber + 1} has Error: {parseError}");
+                    Log.Warning("ReferencePlane.ReadCsv: Line {LineNumber} is not readable: {Line}", lineNumber, line);
                 }
             }
         }
         catch (Exception e)
         {
-            lineErrors = [];
-            error = "ReferencePlane.ReadCsv: " + e.Message;
-            return planes;
+            Log.Error(e, "ReferencePlane.ReadCsv: Error reading CSV file at {Path}", path);
+            return false;
         }
 
-        lineErrors = [.. errors];
-        error = planes.Count == 0 
-            ? "ReferencePlane.ReadCsv: CSV-File has no data lines" 
-            : string.Empty;
-        return planes;
+        if (planes.Count == 0)
+        {
+            Log.Warning("ReferencePlane.TryReadCsv: CSV-File has no data lines");
+            return false;
+        }
+        return true;
     }
 
     /// <summary>
@@ -227,7 +194,7 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
     {
         using var csv = File.CreateText(path);
         csv.WriteLine(CsvHeader);
-        foreach (var rp in referencePlanes) 
+        foreach (var rp in referencePlanes)
             csv.WriteLine(rp.ToCsvString());
     }
 }

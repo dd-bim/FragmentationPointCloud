@@ -1,103 +1,77 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Autodesk.Revit.DB;
 
-using Autodesk.Revit.DB;
+using System;
+using System.Collections.Generic;
+
 using static Revit.Extensions;
 
-using RD = Revit.Data;
-using Octant = Revit.Data.Octant;
 using Id = Revit.Data.Id;
+using Octant = Revit.Data.Octant;
+using RD = Revit.Data;
 
 namespace Revit.Green3DScan.SimulatePointCloud
 {
-    public static class RayCasting
+    public sealed class RayCasting
     {
         private static readonly NormalDistribution _nrmDistrib = new(0);
 
-        public static HashSet<Id>[] VisibleFaces(
+        private readonly Dictionary<Id, RD.PlanarFace> _planarFaces;
+        private readonly Dictionary<string, RD.ReferencePlane> _refPlanes;
+        private readonly bool _addNoise;
+        private readonly int _stepsPerFullTurn;
+        private readonly int _halfSteps;
+        private readonly UV _step;
+        private readonly double _beta;
+        private readonly double _minDF_Meter;
+        private readonly double _maxDF_Meter;
+
+        public RayCasting(
             Dictionary<Id, RD.PlanarFace> planarFaces,
-            Dictionary<string, RD.ReferencePlane> refPlanes, 
-            List<XYZ> stations,
-            SettingsJson settings, 
-            out Dictionary<Id, int> countPoints,
-            out XYZ[][] pointClouds,
+            Dictionary<string, RD.ReferencePlane> refPlanes,
+            SettingsJson settings,
             bool addNoise = false)
+        {
+            _planarFaces = planarFaces;
+            _refPlanes = refPlanes;
+            _stepsPerFullTurn = settings.StepsPerFullTurn;
+            _halfSteps = _stepsPerFullTurn / 2;
+            _step = (double.Tau / settings.StepsPerFullTurn).ToDirection();
+            _beta = settings.Beta_Degree * Constants.gradToRad;
+            _addNoise = addNoise;
+            _nrmDistrib.StdDev = addNoise ? settings.NoiseOfScanner_Meter : 0;
+            _minDF_Meter = settings.MinDF_Meter;
+            _maxDF_Meter = settings.MaxDF_Meter;
+        }
+
+        public HashSet<Id>[] VisibleFaces(
+            List<XYZ> stations,
+            out Dictionary<Id, int> countPoints)
         {
             countPoints = [];
             var visibleFacesOfStations = new HashSet<RD.Id>[stations.Count];
-            pointClouds = new XYZ[stations.Count][];
-            if(addNoise)
-                _nrmDistrib.StdDev = settings.NoiseOfScanner_Meter;
 
             for (int i = 0; i < visibleFacesOfStations.Length; i++)
             {
-                visibleFacesOfStations[i] = visibleFaces(planarFaces, refPlanes, stations[i], settings, countPoints, out var pointCloud, addNoise);
-                pointClouds[i] = pointCloud;
+                visibleFacesOfStations[i] = visibleFaces(stations[i], countPoints, out _);
             }
             return visibleFacesOfStations;
         }
 
-        private static bool GetMinDist(
-            Dictionary<Id, RD.PlanarFace> planarFaces,
-            Dictionary<string, RD.ReferencePlane> refPlanes, 
-            Dictionary<Octant, HashSet<Id>> octants,
-            XYZ station, XYZ direction, SettingsJson settings, 
-            out Id minId, out XYZ minPoint,
-            bool addNoise)
+        public XYZ[][] PointClouds(List<XYZ> stations)
         {
-            // test only faces in the correct octant
-            var octantFaces = octants[direction.GetOctant()];
-            double minDistance = double.PositiveInfinity;
-            minPoint = XYZ.Zero;
-            minId = new Id();
-
-            foreach (var id in octantFaces)
+            var pointClouds = new XYZ[stations.Count][];
+            for (int i = 0; i < stations.Count; i++)
             {
-                var plane = refPlanes[planarFaces[id].ReferencePlaneId].Plane;
-                double cos = direction.DotProduct(plane.Normal);
-
-                //filtering by direction
-                if (cos > -Constants.TRIGTOL) // in Revit the normal is defined out of solid
-                    continue;
-
-                // intersections
-                double planeDistance = (plane.Origin - station).DotProduct(plane.Normal);
-                double distance = planeDistance / cos;
-
-                if (distance < settings.MinDF_Meter 
-                    || distance > settings.MaxDF_Meter
-                    || distance >= minDistance) 
-                    continue;
-
-                var intersectionPoint = station + (distance * direction);
-                // point in collection?
-                plane.Project(intersectionPoint, out var projectedPoint, out _);
-                if (!planarFaces[id].Tin.Intersects(projectedPoint)) 
-                    continue;
-                minPoint = addNoise
-                    ? new XYZ(
-                        intersectionPoint.X + _nrmDistrib.Next,
-                        intersectionPoint.Y + _nrmDistrib.Next,
-                        intersectionPoint.Z + _nrmDistrib.Next)
-                    : intersectionPoint;
-
-                minDistance = distance;
-                minId = id;
+                _ = visibleFaces(stations[i], null, out var pointCloud);
+                pointClouds[i] = pointCloud;
             }
-
-            return !double.IsInfinity(minDistance);
+            return pointClouds;
         }
 
-        private static HashSet<Id> visibleFaces(
-            Dictionary<Id, RD.PlanarFace> planarFaces,
-            Dictionary<string, RD.ReferencePlane> refPlanes, 
-            XYZ station, 
-            SettingsJson settings,
-            Dictionary<Id, int> countPoints,
-            out XYZ[] pointCloud,
-            bool addNoise)
+        private HashSet<Id> visibleFaces(
+             XYZ station,
+             Dictionary<Id, int>? countPoints,
+             out XYZ[] pointCloud)
         {
             var visibleFaces = new HashSet<Id>();
             //var visibleFacesListPoints = new List<S.Id>();
@@ -117,7 +91,7 @@ namespace Revit.Green3DScan.SimulatePointCloud
             };
 
             // assigning faces to octants
-            foreach (var planarFace in planarFaces.Values)
+            foreach (var planarFace in _planarFaces.Values)
             {
                 var oct = (planarFace.BtmLft - station).GetOctant();
                 oct |= (planarFace.BtmRgt - station).GetOctant();
@@ -130,24 +104,22 @@ namespace Revit.Green3DScan.SimulatePointCloud
                 }
             }
 
-            int halfSteps = settings.StepsPerFullTurn / 2;
             var azimuth = UV.BasisU;
             var inclination = UV.BasisU;
-            var step = (double.Tau / settings.StepsPerFullTurn).ToDirection();
-            double beta = settings.Beta_Degree * Constants.gradToRad;
 
             void AddChecked(XYZ direction)
             {
-                if (GetMinDist(planarFaces, refPlanes, octants, station, direction, settings, out var minId, out var minPoint, addNoise))
+                if (GetMinDist(octants, station, direction, out var minId, out var minPoint))
                 {
                     double angle = double.Acos(
                         ToDirection(azimuth, inclination)
-                        .DotProduct(refPlanes[planarFaces[minId].ReferencePlaneId].Plane.Normal));
-                    if (angle < beta)
+                        .DotProduct(_refPlanes[_planarFaces[minId].ReferencePlaneId].Plane.Normal));
+                    if (angle < _beta)
                     {
                         visibleFaces.Add(minId);
 
-                        if (!countPoints.TryAdd(minId, 1))
+                        if (countPoints is not null
+                            && !countPoints.TryAdd(minId, 1))
                             countPoints[minId]++;
 
                         points.Add(minPoint);
@@ -159,24 +131,72 @@ namespace Revit.Green3DScan.SimulatePointCloud
             AddChecked(XYZ.BasisZ);
             AddChecked(-XYZ.BasisZ);
 
-            for (int i = 0; i < settings.StepsPerFullTurn; i++)
+            for (int i = 0; i < _stepsPerFullTurn; i++)
             {
-                inclination = step;
-                for (int j = 1; j < halfSteps; j++)
+                inclination = _step;
+                for (int j = 1; j < _halfSteps; j++)
                 {
                     var dir = ToDirection(azimuth, inclination);
                     AddChecked(dir);
-                    inclination += step;
+                    inclination = inclination.DirectionAdd(_step);
                 }
 
-                azimuth += step;
+                azimuth = azimuth.DirectionAdd(_step);
             }
 
             pointCloud = [.. points];
             return visibleFaces;
         }
 
- 
+        private bool GetMinDist(
+            Dictionary<Octant, HashSet<Id>> octants,
+            XYZ station, XYZ direction,
+            out Id minId, out XYZ minPoint)
+        {
+            // test only faces in the correct octant
+            var octantFaces = octants[direction.GetOctant()];
+            double minDistance = double.PositiveInfinity;
+            minPoint = XYZ.Zero;
+            minId = new Id();
+
+            foreach (var id in octantFaces)
+            {
+                var plane = _refPlanes[_planarFaces[id].ReferencePlaneId].Plane;
+                double cos = direction.DotProduct(plane.Normal);
+
+                //filtering by direction
+                if (cos > -Constants.TRIGTOL) // in Revit the normal is defined out of solid
+                    continue;
+
+                // intersections
+                double planeDistance = (plane.Origin - station).DotProduct(plane.Normal);
+                double distance = planeDistance / cos;
+
+                if (distance < _minDF_Meter
+                    || distance > _maxDF_Meter
+                    || distance >= minDistance)
+                    continue;
+
+                var intersectionPoint = station + (distance * direction);
+                // point in collection?
+                plane.Project(intersectionPoint, out var projectedPoint, out _);
+                if (!_planarFaces[id].Tin.Intersects(projectedPoint))
+                    continue;
+                minPoint = _addNoise
+                    ? new XYZ(
+                        intersectionPoint.X + _nrmDistrib.Next,
+                        intersectionPoint.Y + _nrmDistrib.Next,
+                        intersectionPoint.Z + _nrmDistrib.Next)
+                    : intersectionPoint;
+
+                minDistance = distance;
+                minId = id;
+            }
+
+            return !double.IsInfinity(minDistance);
+        }
+
+
     }
 
     internal sealed class NormalDistribution(double stdDev)
@@ -206,8 +226,8 @@ namespace Revit.Green3DScan.SimulatePointCloud
             double u, v, s;
             do
             {
-                u = _random.NextDouble() * 2 - 1;
-                v = _random.NextDouble() * 2 - 1;
+                u = (_random.NextDouble() * 2) - 1;
+                v = (_random.NextDouble() * 2) - 1;
                 s = (u * u) + (v * v);
             } while (s >= 1 || s == 0);
             s = double.Sqrt(-2.0 * double.Log(s) / s);

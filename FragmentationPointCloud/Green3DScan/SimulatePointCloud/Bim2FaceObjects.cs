@@ -11,12 +11,12 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 using RD = Revit.Data;
 
 namespace Revit.Green3DScan.SimulatePointCloud;
 
-//checked
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
 public class Bim2FaceObjects : IExternalCommand
@@ -29,8 +29,7 @@ public class Bim2FaceObjects : IExternalCommand
     {
         ComputeReferences = true,
         IncludeNonVisibleObjects = true,
-        DetailLevel = ViewDetailLevel.Fine,
-        View = null
+        DetailLevel = ViewDetailLevel.Fine
     };
 
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -64,7 +63,7 @@ public class Bim2FaceObjects : IExternalCommand
         }
 
         // Set transformation
-        var transform = Helper.GetTransformation(document, settings);
+        var transform = Helper.GetTransformation(document!, settings);
 
         // Extract PlanarFaces and ReferencePlanes from the selected building components
         int totalFailedFaces = 0;
@@ -75,7 +74,7 @@ public class Bim2FaceObjects : IExternalCommand
 
         foreach (var reference in pickedObjects)
         {
-            var element = document.GetElement(reference.ElementId);
+            var element = document!.GetElement(reference.ElementId);
             GeometryElement geometryElement;
             if (element is null
                 || !element.IsValidObject
@@ -225,8 +224,19 @@ public class Bim2FaceObjects : IExternalCommand
                     totalFailedFaces += 1;
                     notAnalysedFaces.Add(id);
                     Log.Information("Conversion of id {id} failed", id);
+                    var verts = string.Join(", ", mesh.Vertices.Select(v => v.ToFullString()));
+                    var triangles = "";
+                    for (int i = 0; i < mesh.NumTriangles; i++)
+                    {
+                        var triangle = mesh.get_Triangle(i);
+                        triangles += $"({triangle.get_Index(0)}, {triangle.get_Index(1)}, {triangle.get_Index(2)}) ";
+                    }
+                    Log.Information("V({verts}) T({tris})", verts, triangles);
                     continue;
                 }
+#if DEBUG
+                planarFace!.Tin.WriteSVG($"debug_{faces.Count}.svg");
+#endif
                 Log.Information("maxPlaneDist: {maxPlaneDist}", maxPlaneDist);
                 faces.Add(planarFace!);
                 refPlanes.Add(refPlane.Id, refPlane);
@@ -241,7 +251,7 @@ public class Bim2FaceObjects : IExternalCommand
                         PartId = i + 1
                     };
 
-                    if (!RD.PlanarFace.Create(tid, triangle, transform, PlaneDigits, out var planarFace, out var refPlane))
+                    if (!RD.PlanarFace.Create(tid, triangle, transform, Constants.PlaneDigits, out var planarFace, out var refPlane))
                     {
                         totalFailedFaces += 1;
                         notAnalysedFaces.Add(id);

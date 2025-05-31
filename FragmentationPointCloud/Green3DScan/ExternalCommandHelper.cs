@@ -1,7 +1,8 @@
-﻿using System;
-using Autodesk.Revit.DB;
+﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+
 using Serilog;
+
 using System.IO;
 
 namespace Revit.Green3DScan;
@@ -31,9 +32,9 @@ internal static class ExternalCommandHelper
     /// <param name="uiDocument">When this method returns, contains the active <see cref="UIDocument"/> object,  or <see langword="null"/> if no
     /// valid UI document is available.</param>
     /// <returns><see langword="true"/> if the project path is successfully retrieved; otherwise, <see langword="false"/>.</returns>
-    internal static bool GetProjectPath(ExternalCommandData commandData, 
+    internal static bool GetProjectPath(ExternalCommandData commandData,
         out string projectPath,
-        out Document projectDocument,
+        out Document? projectDocument,
         out UIDocument uiDocument)
     {
         uiDocument = commandData.Application.ActiveUIDocument;
@@ -45,8 +46,8 @@ internal static class ExternalCommandHelper
             return false;
         }
         projectDocument = uiDocument.Document;
-        projectPath = Path.GetDirectoryName(projectDocument.PathName);
-        return string.IsNullOrEmpty(projectPath);
+        projectPath = Path.GetDirectoryName(projectDocument.PathName) ?? string.Empty;
+        return !string.IsNullOrEmpty(projectPath);
     }
 
     /// <summary>

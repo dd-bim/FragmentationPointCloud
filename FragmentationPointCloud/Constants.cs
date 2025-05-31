@@ -8,6 +8,7 @@ namespace Revit
         public const double feet2Meter = 0.3048;
         public const double meter2Feet = 1.0 / feet2Meter;
         public const double TRIGTOL = 1.0e-11; // tolerance for trigonometric calculations
+        public const byte TinDigits = 6; // number of decimal places for TIN calculations
 
         public static readonly string year = "2025";
 
@@ -28,7 +29,7 @@ namespace Revit
         public static readonly string exeIfcBox =
             $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\IFCFaceBoxExtractor.exe";
 
-        public const string jsonIfcBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\basicList.json";
+        public static readonly string jsonIfcBox = $@"C:\ProgramData\Autodesk\Revit\Addins\{year}\basicList.json";
 
         public const string directory = "C:";
 

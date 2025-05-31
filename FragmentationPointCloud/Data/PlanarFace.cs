@@ -1,11 +1,10 @@
 ﻿using Autodesk.Revit.DB;
 
+using Serilog;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Revit.Data;
 
@@ -122,9 +121,9 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
         out PlanarFace? planarFace, out double maxPlaneDist)
     {
         var plane = refPlane.Plane;
-        if(mesh == null || mesh.NumTriangles == 0 
-            || !Tin.Create(mesh, plane, transform, out maxPlaneDist, 
-            out var min3D, out var max3D, 
+        if (mesh == null || mesh.NumTriangles == 0
+            || !Tin.Create(mesh, plane, transform, out maxPlaneDist,
+            out var min3D, out var max3D,
             out var min2D, out var max2D, out var tin))
         {
             planarFace = null;
@@ -153,16 +152,15 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
     public static bool Create(in Id id, MeshTriangle meshTriangle, Transform transform, int digits,
         out PlanarFace? planarFace, out ReferencePlane? refPlane)
     {
-       if (meshTriangle == null)
+        if (meshTriangle == null || !Tin.Create(meshTriangle, transform,
+            out var plane, out var min3D, out var max3D, out var min2D, out var max2D, out Tin? tin))
         {
             planarFace = null;
             refPlane = null;
             return false;
         }
-        var tin = Tin.Create(meshTriangle, transform, 
-            out var plane, out var min3D, out var max3D, out var min2D, out var max2D);
         refPlane = ReferencePlane.Create(plane, digits);
-        planarFace = new PlanarFace(id, refPlane, min3D, max3D, min2D, max2D, tin);
+        planarFace = new PlanarFace(id, refPlane, min3D, max3D, min2D, max2D, tin!);
         return true;
     }
 
@@ -191,28 +189,13 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
         return string.Join(";", line);
     }
 
-    /// <summary>
-    /// Attempts to parse a CSV-formatted line into a <see cref="PlanarFace"/> object.
-    /// </summary>
-    /// <remarks>The input line must be a non-empty, semicolon-delimited string containing the required fields
-    /// in the expected order. If any field is missing, empty, or invalid, the method will return <see
-    /// langword="false"/> and provide an error message.</remarks>
-    /// <param name="line">The input line of text, represented as a <see cref="ReadOnlySpan{T}"/> of characters, containing the CSV data to
-    /// parse.</param>
-    /// <param name="planarFace">When this method returns, contains the parsed <see cref="PlanarFace"/> object if the parsing was successful;
-    /// otherwise, <see langword="null"/>.</param>
-    /// <param name="error">When this method returns, contains an error message describing why the parsing failed, if applicable. If parsing
-    /// succeeds, this will be an empty string.</param>
-    /// <returns><see langword="true"/> if the line was successfully parsed into a <see cref="PlanarFace"/> object; otherwise,
-    /// <see langword="false"/>.</returns>
-    private static bool TryParseCsvLine(ReadOnlySpan<char> line, out PlanarFace? planarFace, out string error)
+    private static bool TryParseCsvLine(ReadOnlySpan<char> line, out PlanarFace? planarFace)
     {
         planarFace = null;
-        error = string.Empty;
 
         if (line.IsEmpty)
         {
-            error = "PlanarFace.ParseCsvLine: Input string is null or empty";
+            Log.Warning("PlanarFace.ParseCsvLine: Input string is null or empty");
             return false;
         }
 
@@ -292,7 +275,7 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
         }
 
     NotReadable:
-        error = $"PlanarFace.ParseCsvLine: Line: \r\n{line.ToString()}\r\n is not readable";
+        Log.Warning($"PlanarFace.ParseCsvLine: Line: \r\n{line.ToString()}\r\n is not readable");
         planarFace = null;
         return false;
     }
@@ -313,25 +296,9 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
             csv.WriteLine(pf.ToCsvString());
     }
 
-    /// <summary>
-    /// Reads a CSV file and parses its contents into a dictionary of <see cref="PlanarFace"/> objects, keyed by their
-    /// <see cref="Id"/>.
-    /// </summary>
-    /// <remarks>This method attempts to parse each line of the CSV file into a <see cref="PlanarFace"/>
-    /// object.  If a line cannot be parsed, an error message is added to <paramref name="lineErrors"/>.  If the file
-    /// contains no valid data lines, <paramref name="error"/> will indicate this condition.</remarks>
-    /// <param name="path">The file path of the CSV file to read. Must not be null or empty.</param>
-    /// <param name="lineErrors">An array of error messages for lines in the CSV file that could not be parsed.  Each entry specifies the line
-    /// number and the associated error.</param>
-    /// <param name="error">An error message describing a critical issue encountered during the operation,  or an empty string if the
-    /// operation completed successfully.</param>
-    /// <returns>A dictionary containing the parsed <see cref="PlanarFace"/> objects, keyed by their <see cref="Id"/>.  The
-    /// dictionary will be empty if no valid data lines were found in the CSV file.</returns>
-    public static Dictionary<Id,PlanarFace> ReadCsv(in string path, out string[] lineErrors, out string error)
+    public static bool TryReadCsv(in string path, out Dictionary<Id, PlanarFace> planarFaces)
     {
-        var faces = new Dictionary<Id, PlanarFace>();
-        var errors = new List<string>();
-        error = string.Empty;
+        planarFaces = [];
 
         try
         {
@@ -342,36 +309,35 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
             // Header überspringen
             if ((line = reader.ReadLine()) == null)
             {
-                lineErrors = [];
-                error = "PlanarFace.ReadCsv: CSV-File has no data lines";
-                return faces;
+                Log.Error("PlanarFace.TryReadCsv: CSV-File is empty or has no header line");
+                return false;
             }
 
             while ((line = reader.ReadLine()) != null)
             {
                 lineNumber++;
-                if (TryParseCsvLine(line.AsSpan(), out var pf, out string? parseError))
+                if (TryParseCsvLine(line.AsSpan(), out var pf))
                 {
-                    faces.Add(pf!.Id, pf!);
+                    planarFaces.Add(pf!.Id, pf!);
                 }
                 else
                 {
-                    errors.Add($"Line {lineNumber + 1} has Error: {parseError}");
+                    Log.Warning($"PlanarFace.TryReadCsv: Line {lineNumber + 1} is not readable: {line}");
                 }
             }
         }
         catch (Exception e)
         {
-            lineErrors = [];
-            error = "PlanarFace.ReadCsv: " + e.Message;
-            return faces;
+            Log.Error(e, "PlanarFace.TryReadCsv: Error reading CSV file at {Path}", path);
+            return false;
         }
 
-        lineErrors = [.. errors];
-        error = faces.Count == 0
-            ? "PlanarFace.ReadCsv: CSV-File has no data lines"
-            : string.Empty;
-        return faces;
+        if (planarFaces.Count == 0)
+        {
+            Log.Warning("PlanarFace.TryReadCsv: CSV-File has no data lines");
+            return false;
+        }
+        return true;
     }
 
     /// <summary>
@@ -399,7 +365,7 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
             // Map TIN-Vertices to 3D and collect indices
             for (int i = 0; i < tin.Vertices.Length; i++)
             {
-                var uv = tin.Vertices[i];
+                var uv = tin.Transformation.Reverse(tin.Vertices[i]);
                 var xyz = plane.FromPlaneSystem(uv);
                 vertices.Add(xyz);
                 vertexMap[(pf.ReferencePlaneId, i)] = baseVertexCount + i + 1; // OBJ: 1-basiert

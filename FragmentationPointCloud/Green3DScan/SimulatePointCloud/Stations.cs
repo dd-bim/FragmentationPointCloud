@@ -2,13 +2,12 @@
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 
+using Serilog;
+
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-
-using Serilog;
 
 namespace Revit.Green3DScan.SimulatePointCloud;
 
@@ -31,10 +30,7 @@ public static class Stations
     public const string Bim2StationsVisibleFacesRefFileName = "Bim2StationsVisibleFacesRef.csv";
 
 
-    public static string GetStationsDirectoryPath(string projectPath)
-    {
-        return Path.Combine(projectPath, StationDirectory);
-    }
+    public static string GetStationsDirectoryPath(string projectPath) => Path.Combine(projectPath, StationDirectory);
 
 
     public static List<XYZ> CollectFromUser(UIDocument uiDoc, double scannerHeightFeet)
@@ -63,7 +59,7 @@ public static class Stations
             return [];
         }
 
-        return [.. GetFamilyInstances(doc, family.Id)
+        return [.. GetFamilyInstances(doc, family!.Id)
             .Where(inst => inst.Location is LocationPoint)
             .Select(inst => trans.OfPoint(((LocationPoint)inst.Location).Point) * Constants.feet2Meter)];
     }
@@ -101,7 +97,7 @@ public static class Stations
                 var ds = DirectShape.CreateElement(familyDoc, new ElementId(BuiltInCategory.OST_GenericModel));
                 ds.ApplicationId = "Application id";
                 ds.ApplicationDataId = "Geometry object id";
-                ds.SetShape(new GeometryObject[] { sphere });
+                ds.SetShape([sphere]);
             }
 
             t.Commit();
@@ -113,7 +109,7 @@ public static class Stations
 
     public static bool TryLoadAndPlaceSphereFamily(Document doc, string familyPath, List<XYZ> stations)
     {
-        if(!TryLoadSphereFamily(doc, familyPath, out var familySymbol))
+        if (!TryLoadSphereFamily(doc, familyPath, out var familySymbol))
             return false;
         using var t = new Transaction(doc, "Place Sphere Family");
         t.Start();
@@ -184,7 +180,7 @@ public static class Stations
             .Where(inst => inst.Symbol.Family.Id == familyId)];
     }
 
-    public static bool TryReadCsv(string path, Transform transform, out List<XYZ> stations, out string[] lineErrors, out string error)
+    public static bool TryReadCsv(string path, Transform transform, out List<XYZ> stations)
     {
         string[] lines;
         stations = [];
@@ -194,64 +190,64 @@ public static class Stations
         }
         catch (Exception e)
         {
-            lineErrors = [];
-            error = "TryReadCsv: " + e.Message;
+            Log.Error(e, "Error reading CSV file: {Path}", path);
             return false;
         }
 
         if (lines.Length > 1)
         {
-            var errors = new List<string>();
             for (int i = 1; i < lines.Length; i++)
             {
-                if (TryParseCsvLine(lines[i], transform, out var station, out error))
+                if (TryParseCsvLine(lines[i].AsSpan(), transform, out var station))
                 {
                     stations.Add(station!);
                     continue;
                 }
-
-                errors.Add($"Line {i + 1} has Error: {error}");
-                error = string.Empty;
             }
-
-            lineErrors = [.. errors];
-            error = string.Empty;
             return true;
         }
-
-        lineErrors = Array.Empty<string>();
-        error = "TryReadCsv: CSV-File has no data lines";
+        Log.Error("TryReadCsv: CSV-File has no data lines or is not readable: {Path}", path);
         return false;
     }
 
-    private static bool TryParseCsvLine(string line, Transform trans, out XYZ? station, out string error)
+    private static bool TryParseCsvLine(ReadOnlySpan<char> line, Transform trans, out XYZ? station)
     {
-        if (string.IsNullOrEmpty(line))
-        {
-            error = "TryParseCsvLine: Input string is null or empty";
-            station = default;
-            return false;
-        }
-
-        string[] strings = line.Split([';'], StringSplitOptions.RemoveEmptyEntries);
-        if (strings.Length == CsvLineCount)
-        {
-            error = string.Empty;
-            if (strings[0].TryParseInvariant(out double x)
-                && strings[1].TryParseInvariant(out double y)
-                && strings[2].TryParseInvariant(out double z))
-            {
-                var station_csv = new XYZ(x, y, z);
-                station = trans.Inverse.OfPoint(station_csv * Constants.meter2Feet);
-                return true;
-            }
-            error = "TryParseCsvLine: One of the values is not a valid double.";
-            station = default;
-            return false;
-        }
-
-        error = $"TryParseCsvLine: Line: \r\n{line}\r\n is not readable";
         station = default;
+
+        if (line.IsEmpty || line.IsWhiteSpace())
+        {
+            Log.Error("TryParseCsvLine: Input string is null or empty");
+            return false;
+        }
+
+        int firstSep = line.IndexOf(';');
+        if (firstSep < 0)
+        {
+            Log.Error("TryParseCsvLine: Line: \r\n{Line}\r\n is not readable (missing first separator)", line.ToString());
+            return false;
+        }
+        int secondSep = line[(firstSep + 1)..].IndexOf(';');
+        if (secondSep < 0)
+        {
+            Log.Error("TryParseCsvLine: Line: \r\n{line}\r\n is not readable (missing second separator)", line.ToString());
+            return false;
+        }
+        secondSep += firstSep + 1;
+
+        var xSpan = line[..firstSep].Trim();
+        var ySpan = line.Slice(firstSep + 1, secondSep - firstSep - 1).Trim();
+        var zSpan = line[(secondSep + 1)..].Trim();
+
+        if (double.TryParse(xSpan, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double x) &&
+            double.TryParse(ySpan, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double y) &&
+            double.TryParse(zSpan, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double z))
+        {
+            var station_csv = new XYZ(x, y, z);
+            station = trans.Inverse.OfPoint(station_csv * Constants.meter2Feet);
+            return true;
+        }
+
+        Log.Error("TryParseCsvLine: Line: \r\n{Line}\r\n is not readable (invalid double values)", line.ToString());
         return false;
     }
 
@@ -260,7 +256,6 @@ public static class Stations
         string csvPath = Path.Combine(projectPath, StationDirectory);
         try
         {
-
             if (!Directory.Exists(csvPath))
                 Directory.CreateDirectory(csvPath);
 
@@ -268,25 +263,18 @@ public static class Stations
 
             using var csv = File.CreateText(path);
             csv.WriteLine(CsvHeader);
-            if (transform != null)
+
+            foreach (var s in stations)
             {
-                foreach (var s in stations)
-                {
-                    var ts = transform.OfPoint(s) * Constants.feet2Meter;
-                    csv.WriteLine(FormattableString.Invariant($"{ts.X};{ts.Y};{ts.Z}"));
-                }
+                var ts = transform != null ? transform.OfPoint(s) * Constants.feet2Meter : s;
+                csv.WriteLine(FormattableString.Invariant($"{ts.X};{ts.Y};{ts.Z}"));
             }
-            else
-            {
-                foreach (var s in stations)
-                    csv.WriteLine(FormattableString.Invariant($"{s.X};{s.Y};{s.Z}"));
-            }
-            csv.Close();
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-            return false; // Log or handle the exception as needed
+            Log.Error(ex, "Error writing CSV to {Path}", csvPath);
+            return false;
         }
     }
 }

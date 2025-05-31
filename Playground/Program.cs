@@ -1,86 +1,167 @@
 ﻿
 using Playground;
 
-using System.Security.Cryptography;
-
-//var vertices = new (double x, double y)[]
-//{
-//    (0, 0),
-//    (2, 1),
-//    (4, 0),
-//    (3, 2),
-//    (1, 2),
-//    (0, 3),
-//    (3, 3)
+//var vertices = new UV[] {
+//    new UV(0, 0),
+//    new UV(4, 0),
+//    new UV(4, 3),
+//    new UV(0, 3),
+//    new UV(1, 1),
+//    new UV(2, 1),
+//    new UV(2, 2),
+//    new UV(1, 2),
+//    new UV(1, 4),
+//    new UV(2, 4),
+//    new UV(2, 5),
+//    new UV(1, 5),
 //};
 
-//var triangles = new int[] 
-//{ 
-//    0, 1, 4, 
-//    3, 4, 1,
-//    1, 2, 3,
-//    3, 6, 4,
-//    4, 5, 0
+//var triangles = new int[][] {
+//    [0, 1, 5],
+//    [1, 5, 6],
+//    [1, 6, 2],
+//    [3, 6, 2],
+//    [7, 3, 6],
+//    [4, 3, 7],
+//    [0, 3, 4],
+//    [0, 4, 5],
+//    [8, 10, 9],
+//    [11, 8, 10]
 //};
 
-var dim = 10;
-var vertices = new (double x, double y)[dim * dim];
-var triangles = new int[(dim - 1) * (dim - 1) * 6];
+var vertices = new UV[] {
+ new UV(-111.00592803955078, 37.802940368652344), // 0
+ new UV(-110.61222839355469, 37.802940368652344), // 1
+ new UV(-110.61222839355469, 37.638900756835938), // 2
+ new UV(-110.21852874755859, 37.638900756835938), // 3
+ new UV(-110.21852874755859, 39.279319763183594), // 4
+ new UV(-110.61222839355469, 39.279319763183594), // 5
+ new UV(-110.61222839355469, 39.115276336669922), // 6
+ new UV(-111.00592803955078, 39.115276336669922)  // 7
+};
 
-for (int y = 0; y < dim; y++)
-{
-    for (int x = 0; x < dim; x++)
-    {
-        vertices[y * dim + x] = (x, y);
-    }
-}
-for (int i = 0; i < dim - 1; i++)
-{
-    int row = i * (dim - 1) * 6;
-    int btm = i * dim;
-    int top = btm + dim;
-    for (int j = 0; j < dim - 1; j++)
-    {
-        triangles[row + j * 6 + 0] = btm + j; 
-        triangles[row + j * 6 + 1] = btm + j + 1;
-        triangles[row + j * 6 + 2] = top + j + 1;
-        triangles[row + j * 6 + 3] = btm + j;
-        triangles[row + j * 6 + 4] = top + j + 1;
-        triangles[row + j * 6 + 5] = top + j;
-    }
-}
+int[][] triangles = new int[][]
+{ //(7, 0, 1) (1, 2, 3) (3, 4, 1) (1, 6, 7) (6, 4, 5) (1, 4, 6)
+    [7, 0, 1],
+    [1, 2, 3],
+    [3, 4, 1],
+    [1, 6, 7],
+    [6, 4, 5],
+    [1, 4, 6]};//  [9,20,-1,6,-1,18,3,17,-1,0,21,15,23,-1,16,11,14,7,5,-1,1,10,-1,12],[[2,19,4,8,13,22]],[1,1,1,1,1,1,0,0],-0.049999541497895671,0.13000053730949906,0.45000017163687039,0.36999984150872112,4294969758
 
 
 
-if (!Tin.Create(vertices, triangles, out var tin))
+var mesh = new Mesh(vertices, triangles);
+
+if (!Tin.Create(mesh, out var tin))
 {
     Console.WriteLine("Failed to create Tin.");
 }
 else
 {
+    tin.WriteSVG("tin.svg");
     Console.WriteLine("Tin created successfully!");
-    Console.WriteLine($"Vertices: {string.Join(", ", tin.Vertices.Select(v => $"({v.x}, {v.y})"))}");
-    Console.WriteLine($"Indizes  : {string.Join(", ", Enumerable.Range(0, tin.Triangles.Length).Chunk(3).Select(t => $"{t[0],2} {t[1],2} {t[2],2}"))}");
-    Console.WriteLine($"Triangles: {string.Join(", ", tin.Triangles.Chunk(3).Select(t => $"{t[0],2} {t[1],2} {t[2],2}"))}");
-    Console.WriteLine($"Opposites: {string.Join(", ", tin.Opposites.Chunk(3).Select(t => $"{t[0],2} {t[1],2} {t[2],2}"))}");
-    Console.WriteLine($"Hull: {string.Join(", ", tin.Hull)}");
-    Console.WriteLine($"IsInterior: {string.Join(", ", tin.IsInterior.Cast<bool>())}");
-
-    //var p = (1d, 2d);
-    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
-    //p = (2, 2.6);
-    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
-    //p = (0.5, 1);
-    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
-    //p = (2, 1.5);
-    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
-    //p = (1.5, 0);
-    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
-    //p = (4, 2);
-    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
-
-
+    Console.WriteLine(tin.ToString());
+    // Example point intersection check
+    var p = new UV(1.5, 1.5);
+    Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+    p = new UV(1.5, 3.5);
+    Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+    p = new UV(1, 4);
+    Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+    p = new UV(2, 0.5);
+    Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+    p = new UV(2, 0.0000001);
+    Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
 }
+
+
+
+
+
+
+
+
+//using System.Security.Cryptography;
+
+////var vertices = new (double x, double y)[]
+////{
+////    (0, 0),
+////    (2, 1),
+////    (4, 0),
+////    (3, 2),
+////    (1, 2),
+////    (0, 3),
+////    (3, 3)
+////};
+
+////var triangles = new int[] 
+////{ 
+////    0, 1, 4, 
+////    3, 4, 1,
+////    1, 2, 3,
+////    3, 6, 4,
+////    4, 5, 0
+////};
+
+//var dim = 10;
+//var vertices = new (double x, double y)[dim * dim];
+//var triangles = new int[(dim - 1) * (dim - 1) * 6];
+
+//for (int y = 0; y < dim; y++)
+//{
+//    for (int x = 0; x < dim; x++)
+//    {
+//        vertices[y * dim + x] = (x, y);
+//    }
+//}
+//for (int i = 0; i < dim - 1; i++)
+//{
+//    int row = i * (dim - 1) * 6;
+//    int btm = i * dim;
+//    int top = btm + dim;
+//    for (int j = 0; j < dim - 1; j++)
+//    {
+//        triangles[row + j * 6 + 0] = btm + j; 
+//        triangles[row + j * 6 + 1] = btm + j + 1;
+//        triangles[row + j * 6 + 2] = top + j + 1;
+//        triangles[row + j * 6 + 3] = btm + j;
+//        triangles[row + j * 6 + 4] = top + j + 1;
+//        triangles[row + j * 6 + 5] = top + j;
+//    }
+//}
+
+
+
+//if (!Tin.Create(vertices, triangles, out var tin))
+//{
+//    Console.WriteLine("Failed to create Tin.");
+//}
+//else
+//{
+//    Console.WriteLine("Tin created successfully!");
+//    Console.WriteLine($"Vertices: {string.Join(", ", tin.Vertices.Select(v => $"({v.x}, {v.y})"))}");
+//    Console.WriteLine($"Indizes  : {string.Join(", ", Enumerable.Range(0, tin.Triangles.Length).Chunk(3).Select(t => $"{t[0],2} {t[1],2} {t[2],2}"))}");
+//    Console.WriteLine($"Triangles: {string.Join(", ", tin.Triangles.Chunk(3).Select(t => $"{t[0],2} {t[1],2} {t[2],2}"))}");
+//    Console.WriteLine($"Opposites: {string.Join(", ", tin.Opposites.Chunk(3).Select(t => $"{t[0],2} {t[1],2} {t[2],2}"))}");
+//    Console.WriteLine($"Hull: {string.Join(", ", tin.Hull)}");
+//    Console.WriteLine($"IsInterior: {string.Join(", ", tin.IsInterior.Cast<bool>())}");
+
+//    //var p = (1d, 2d);
+//    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+//    //p = (2, 2.6);
+//    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+//    //p = (0.5, 1);
+//    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+//    //p = (2, 1.5);
+//    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+//    //p = (1.5, 0);
+//    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+//    //p = (4, 2);
+//    //Console.WriteLine(FormattableString.Invariant($"Test point {p} intersects: {tin.Intersects(p)}"));
+
+
+//}
 
 
 

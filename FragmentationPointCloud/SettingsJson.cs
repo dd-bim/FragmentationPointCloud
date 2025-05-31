@@ -13,17 +13,23 @@ namespace Revit
     /// way.</remarks>
     public record SettingsJson
     {
+        private static readonly JsonSerializerOptions _options = new()
+        {
+            WriteIndented = true,
+            //PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
         public double BBox_Buffer { get; set; }
         public bool OnlyPlanarFaces { get; set; }
         public bool CoordinatesReduction { get; set; }
         public double PgmHeightOfLevel_Meter { get; set; }
         public double PgmImageExpansion_Px { get; set; }
         public double PgmImageResolution_Meter { get; set; }
-        public string VerbosityLevel { get; set; }
-        public string PathPointCloud { get; set; }
-        public string PathCloudCompare { get; set; }
-        public string PathDecap { get; set; }
-        public string ServerUuid { get; set; }
+        public string VerbosityLevel { get; set; } = string.Empty;
+        public string PathPointCloud { get; set; } = string.Empty;
+        public string PathCloudCompare { get; set; } = string.Empty;
+        public string PathDecap { get; set; } = string.Empty;
+        public string ServerUuid { get; set; } = string.Empty;
         public double FragmentationVoxelResolution_Meter { get; set; }
         public int StepsPerFullTurn { get; set; }
         public double SphereDiameter_Meter { get; set; }
@@ -50,8 +56,9 @@ namespace Revit
         {
             string jText = File.ReadAllText(path);
 
-            //create collection from each json file
-            return JsonSerializer.Deserialize<SettingsJson>(jText);
+            // Ensure the deserialization result is not null
+            return JsonSerializer.Deserialize<SettingsJson>(jText)
+                   ?? throw new InvalidOperationException("Failed to deserialize the JSON file into a SettingsJson object.");
         }
 
         /// <summary>
@@ -65,11 +72,7 @@ namespace Revit
         {
             try
             {
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                };
-                string jExportText = JsonSerializer.Serialize(json, options);
+                string jExportText = JsonSerializer.Serialize(json, _options);
                 File.WriteAllText(path, jExportText);
                 Console.WriteLine(@"write settings");
             }

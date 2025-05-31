@@ -1,23 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-
-using Autodesk.Revit.Attributes;
+﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
 using JetBrains.Annotations;
 
 using Serilog;
-//using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
-//using Transform = Autodesk.Revit.DB.Transform;
-//using Sys = System.Globalization.CultureInfo;
-//using Path = System.IO.Path;
-//using Vector = GeometryLib.D3.Vector;
 
 namespace Revit.Green3DScan.SimulatePointCloud;
 
-// TODO: Combine code with Bim2Stations.cs to avoid duplication of logic
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
 public class LoadStations : IExternalCommand
@@ -28,7 +18,7 @@ public class LoadStations : IExternalCommand
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
         // Initialization
-        if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out var document, out var uiDocument))
+        if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out var document, out _))
         {
             TaskDialog.Show("Message", "The project file has not been saved yet.");
             return Result.Failed;
@@ -40,15 +30,17 @@ public class LoadStations : IExternalCommand
         Log.Information(settings.BBox_Buffer.ToString());
 
         // Get transformation
-        var transform = Helper.GetTransformation(document, settings);
+        var transform = Helper.GetTransformation(document!, settings);
 
         Log.Information("setup");
 
         #region select files
 
         // Stations
-        var fodStations = new FileOpenDialog("CSV file (*.csv)|*.csv");
-        fodStations.Title = "Select CSV file with stations from Revit!";
+        var fodStations = new FileOpenDialog(Stations.CsvFilter)
+        {
+            Title = "Select CSV file with stations from Revit!"
+        };
         if (fodStations.Show() == ItemSelectionDialogResult.Canceled) return Result.Cancelled;
         string csvPathStations =
             ModelPathUtils.ConvertModelPathToUserVisiblePath(fodStations.GetSelectedModelPath());
@@ -59,9 +51,8 @@ public class LoadStations : IExternalCommand
 
         #region read files
 
-        if(!Stations.TryReadCsv(csvPathStations, transform, out var allStations, out string[] lineErrors1, out string error1)) 
-        {             
-            Log.Error("Error reading stations CSV: {Error}", error1);
+        if (!Stations.TryReadCsv(csvPathStations, transform, out var allStations))
+        {
             TaskDialog.Show("Error", "Failed to read stations CSV. Please check the log for details.");
             return Result.Failed;
         }
@@ -72,7 +63,7 @@ public class LoadStations : IExternalCommand
 
         #region ScanStation
 
-        if(!Stations.TryLoadAndPlaceSphereFamily(document, projectPath, allStations))
+        if (!Stations.TryLoadAndPlaceSphereFamily(document!, projectPath, allStations))
         {
             Log.Error("Error loading and placing ScanStation family.");
             TaskDialog.Show("Error", "Failed to load or place ScanStation family. Please check the log for details.");

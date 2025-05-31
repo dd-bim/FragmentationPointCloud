@@ -5,10 +5,15 @@
         <UseWindowsForms>true</UseWindowsForms>
         <UseWPF>true</UseWPF>
         <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
-        <LangVersion>latest</LangVersion>
+        <LangVersion>preview</LangVersion>
         <Platforms>x64</Platforms>
 		<nullable>enable</nullable>
+		<NeutralLanguage>en</NeutralLanguage>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.WindowsDesktop.App" />
+	</ItemGroup>
     <ItemGroup>
         <None Update="SettingsGreen3DScan.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -30,6 +35,9 @@
         <Content Include="Resources\set.PNG">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+    </ItemGroup>
+    <ItemGroup>
+      <None Include="C:\ProgramData\Autodesk\Revit\Addins\2025\Green3DScan.addin" Link="Green3DScan.addin" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Autodesk.Revit.SDK" Version="2026.0.0.9999" />

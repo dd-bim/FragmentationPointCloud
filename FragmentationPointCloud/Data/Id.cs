@@ -97,7 +97,7 @@ public readonly record struct Id : IEquatable<Id>
     /// <param name="objectId">The identifier representing the object. Cannot be null or empty.</param>
     /// <param name="faceId">The identifier representing the face. Cannot be null or empty.</param>
     /// <param name="partId">The identifier representing the part. Must be a non-negative integer.</param>
-   public Id(string stateId, string objectId, string faceId, int partId)
+    public Id(string stateId, string objectId, string faceId, int partId)
     {
         StateId = stateId;
         ObjectId = objectId;

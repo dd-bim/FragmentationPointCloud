@@ -1,18 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using Autodesk.Revit.Attributes;
+﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+
 using JetBrains.Annotations;
+
 using Serilog;
-//using CoordinateSystem = GeometryLib.D3.CoordinateSystem;
-//using Path = System.IO.Path;
-//using Vector = GeometryLib.D3.Vector;
+
+using System;
+using System.Collections.Generic;
 
 namespace Revit.Green3DScan.SimulatePointCloud;
 
-// TODO: Combine code with Bim2Stations.cs to avoid duplication of logic
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
 public class Raster : IExternalCommand
@@ -32,8 +30,8 @@ public class Raster : IExternalCommand
         var settings = SettingsJson.ReadSettingsJson(Constants.pathSettings);
         Log.Information("start Raster");
 
-        // Get transformation
-        var transform = Helper.GetTransformation(document, settings);
+        //// Get transformation
+        //var transform = Helper.GetTransformation(document!, settings);
 
         Log.Information("setup");
 
@@ -70,16 +68,16 @@ public class Raster : IExternalCommand
         // columns
         for (int i = 0; i < settings.GridColumns; i++)
             // rows
-        for (int j = 0; j < settings.GridRows; j++)
-        {
-            double x = startStation.X + i * gridSpacing;
-            double y = startStation.Y + j * gridSpacing;
-            double z = startStation.Z;
+            for (int j = 0; j < settings.GridRows; j++)
+            {
+                double x = startStation.X + (i * gridSpacing);
+                double y = startStation.Y + (j * gridSpacing);
+                double z = startStation.Z;
 
-            stations.Add(new XYZ(x, y, z));
-        }
+                stations.Add(new XYZ(x, y, z));
+            }
 
-        if (!Stations.TryLoadAndPlaceSphereFamily(document, projectPath, stations))
+        if (!Stations.TryLoadAndPlaceSphereFamily(document!, projectPath, stations))
         {
             Log.Error("Error loading and placing ScanStation family.");
             TaskDialog.Show("Error", "Failed to load or place ScanStation family. Please check the log for details.");

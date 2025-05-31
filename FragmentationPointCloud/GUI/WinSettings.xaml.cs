@@ -3,9 +3,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
-using System.Reflection;
 
 namespace Revit.GUI
 {
@@ -16,16 +16,18 @@ namespace Revit.GUI
     {
         public WinSettings(SettingsJson set)
         {
-            Data = new Dictionary<string, ObservableCollection<AttributeContainer>>();
+            Data = [];
             SaveChanges = false;
             InitializeComponent();
+
+            Json = set;
 
             var x = new Dictionary<string, string>();
             var properties = typeof(SettingsJson).GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
             foreach (var prop in properties)
             {
-                object value = prop.GetValue(set);
+                object? value = prop.GetValue(set);
 
                 string stringValue = value switch
                 {
@@ -50,7 +52,9 @@ namespace Revit.GUI
         }
 
         public Dictionary<string, ObservableCollection<AttributeContainer>> Data { get; set; }
+
         public SettingsJson Json { get; set; }
+
         public bool SaveChanges { get; set; }
 
         private void SaveClick(object sender, RoutedEventArgs e)
@@ -71,15 +75,16 @@ namespace Revit.GUI
 
             var pathPointCloudAttr =
                 Data["Green3DScan"].FirstOrDefault(attr => attr.AttributeName == "PathPointCloud");
-            if (pathPointCloudAttr != null) pathPointCloudAttr.AttributeValue = newPath;
+            pathPointCloudAttr?.AttributeValue = newPath;
         }
 
         public class AttributeContainer : INotifyPropertyChanged
         {
-            private string _attrValue;
-            public string AttributeName { get; private init; }
+            private string _attrValue = string.Empty;
+            public string AttributeName { get; private init; } = string.Empty;
 
-            public event PropertyChangedEventHandler PropertyChanged;
+            // Declare the event as nullable to match the nullability of the interface member
+            public event PropertyChangedEventHandler? PropertyChanged;
 
             public string AttributeValue
             {
@@ -88,7 +93,7 @@ namespace Revit.GUI
                 {
                     if (_attrValue == value) return;
                     _attrValue = value;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("attrValue"));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AttributeValue)));
                 }
             }
 
@@ -98,10 +103,10 @@ namespace Revit.GUI
                 var collection = new ObservableCollection<AttributeContainer>();
 
                 foreach (var attrCont in attributes.Select(entry => new AttributeContainer
-                         {
-                             AttributeName = entry.Key,
-                             AttributeValue = entry.Value
-                         }))
+                {
+                    AttributeName = entry.Key,
+                    AttributeValue = entry.Value
+                }))
                 {
                     collection.Add(attrCont);
                 }

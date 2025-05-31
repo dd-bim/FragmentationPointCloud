@@ -1,15 +1,15 @@
-﻿using System;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.ExtensibleStorage;
+
+using Revit.Data;
+
+using Serilog;
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.ExtensibleStorage;
-using Autodesk.Revit.DB.Structure;
-using Autodesk.Revit.UI;
-using Serilog;
-using Revit.Data;
-using System.Linq;
 
 namespace Revit
 {
@@ -79,7 +79,7 @@ namespace Revit
 
                 while (!process.StandardOutput.EndOfStream)
                 {
-                    string outputLine = process.StandardOutput.ReadLine();
+                    string? outputLine = process.StandardOutput.ReadLine();
                     Log.Information("{outputLine}", outputLine);
                 }
 
@@ -225,6 +225,11 @@ namespace Revit
             using var trans = new Transaction(doc, "Read Materials");
             trans.Start();
             var ppSchema = GetSchemaByName("Green3DScanMaterials");
+            if (ppSchema == null)
+            {
+                Log.Error("Schema Green3DScanMaterials not found.");
+                return mat;
+            }
 
             var collector = new FilteredElementCollector(doc);
             var dataStorageList = collector.OfClass(typeof(DataStorage)).ToElements();
@@ -262,7 +267,6 @@ namespace Revit
                     mat[11] = m11;
                 }
             }
-
             return mat;
         }
 
@@ -286,67 +290,32 @@ namespace Revit
             using var t = new Transaction(doc, "AddMaterials");
             t.Start();
 
+            void addMat(int index, string name, Color color)
+            {
+                var matDRed = Material.Create(doc, name);
+                if (doc.GetElement(matDRed) is not Material mat0)
+                {
+                    Log.Error("Material {name} could not be created.", name);
+                    return;
+                }
+                mat0.Color = color;
+                colorArr[index] = matDRed;
+            }
+
             // materials
 
-            var matDRed = Material.Create(doc, "CPM_darkred");
-            var mat0 = doc.GetElement(matDRed) as Material;
-            mat0.Color = dRed;
-            colorArr[0] = matDRed;
-
-            var matRed = Material.Create(doc, "CPM_red");
-            var mat1 = doc.GetElement(matRed) as Material;
-            mat1.Color = red;
-            colorArr[1] = matRed;
-
-            var matLRed = Material.Create(doc, "CPM_lightred");
-            var mat2 = doc.GetElement(matLRed) as Material;
-            mat2.Color = lRed;
-            colorArr[2] = matLRed;
-
-            var matDOra = Material.Create(doc, "CPM_darkorange");
-            var mat3 = doc.GetElement(matDOra) as Material;
-            mat3.Color = dOra;
-            colorArr[3] = matDOra;
-
-            var matOra = Material.Create(doc, "CPM_orange");
-            var mat4 = doc.GetElement(matOra) as Material;
-            mat4.Color = ora;
-            colorArr[4] = matOra;
-
-            var matLOra = Material.Create(doc, "CPM_ligthorange");
-            var mat5 = doc.GetElement(matLOra) as Material;
-            mat5.Color = yel;
-            colorArr[5] = matLOra;
-
-            var matYel = Material.Create(doc, "CPM_yellow");
-            var mat6 = doc.GetElement(matYel) as Material;
-            mat6.Color = yelGre;
-            colorArr[6] = matYel;
-
-            var matYelGre = Material.Create(doc, "CPM_yellowgreen");
-            var mat7 = doc.GetElement(matYelGre) as Material;
-            mat7.Color = gre;
-            colorArr[7] = matYelGre;
-
-            var matGre = Material.Create(doc, "CPM_green");
-            var mat8 = doc.GetElement(matGre) as Material;
-            mat8.Color = dGre;
-            colorArr[8] = matGre;
-
-            var matDGre = Material.Create(doc, "CPM_darkgreen");
-            var mat9 = doc.GetElement(matDGre) as Material;
-            mat9.Color = ddGre;
-            colorArr[9] = matDGre;
-
-            var matGrey = Material.Create(doc, "CPM_grey");
-            var mat10 = doc.GetElement(matGrey) as Material;
-            mat10.Color = grey;
-            colorArr[10] = matGrey;
-
-            var matBlue = Material.Create(doc, "CPM_blue");
-            var mat11 = doc.GetElement(matBlue) as Material;
-            mat11.Color = blue;
-            colorArr[11] = matBlue;
+            addMat(0, "CPM_darkred", dRed);
+            addMat(1, "CPM_red", red);
+            addMat(2, "CPM_lightred", lRed);
+            addMat(3, "CPM_darkorange", dOra);
+            addMat(4, "CPM_orange", ora);
+            addMat(5, "CPM_ligthorange", yel);
+            addMat(6, "CPM_yellow", yelGre);
+            addMat(7, "CPM_yellowgreen", gre);
+            addMat(8, "CPM_green", dGre);
+            addMat(9, "CPM_darkgreen", ddGre);
+            addMat(10, "CPM_grey", grey);
+            addMat(11, "CPM_blue", blue);
 
             //DataStorage
             var progressPatchMaterials = GetSchemaByName("Green3DScanMaterials");
@@ -400,7 +369,8 @@ namespace Revit
 
         public sealed record OrientedBoundingBox(
             bool Oriented, string StateId, string ObjectGuid, string ElementId, XYZ Center, XYZ XDirection, XYZ YDirection,
-            XYZ ZDirection, double HalfLength, double HalfWidth, double HalfHeight, XYZ Min = default, XYZ Max = default);
+            XYZ ZDirection, double HalfLength, double HalfWidth, double HalfHeight,
+            XYZ Min, XYZ Max);
 
         public class Paint
         {

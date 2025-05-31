@@ -7,16 +7,13 @@ using JetBrains.Annotations;
 
 using Serilog;
 
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 using RD = Revit.Data;
 
 namespace Revit.Green3DScan.SimulatePointCloud;
 
-// Stations implementiert
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
 public class Bim2Stations : IExternalCommand
@@ -36,18 +33,18 @@ public class Bim2Stations : IExternalCommand
         Log.Information("start Revit2Station");
         Log.Information("setup");
 
-        if (uiDocument.ActiveView is View3D current3DView)
+        if (uiDocument.ActiveView is View3D)
         {
             TaskDialog.Show("Message", "You must be in a 2D viewplan!");
             return Result.Failed;
         }
 
         // Get transformation
-        var transform = Helper.GetTransformation(document, settings);
+        var transform = Helper.GetTransformation(document!, settings);
 
         #region room faces
 
-        var activeView = document.ActiveView;
+        var activeView = document!.ActiveView;
 
         // collect all rooms in active view
         var collRooms = new FilteredElementCollector(document, activeView.Id);
@@ -149,7 +146,7 @@ public class Bim2Stations : IExternalCommand
         {
             var loc = door.Location;
 
-            if (loc is LocationCurve locationCurve)
+            if (loc is LocationCurve)
             {
                 Log.Information("Door, but no LocationPoint.");
             }

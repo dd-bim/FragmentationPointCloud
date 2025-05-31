@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-
-using Autodesk.Revit.Attributes;
+﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
@@ -13,7 +9,6 @@ using Serilog;
 
 using OperationCanceledException = Autodesk.Revit.Exceptions.OperationCanceledException;
 
-// Stations class to handle common operations related to ScanStations
 namespace Revit.Green3DScan.SimulatePointCloud;
 
 [Transaction(TransactionMode.Manual)]
@@ -34,7 +29,7 @@ public class AddStation : IExternalCommand
         Log.Information(settings.BBox_Buffer.ToString());
 
         // Get transformation
-        var transform = Helper.GetTransformation(document, settings);
+        var transform = Helper.GetTransformation(document!, settings);
 
         Log.Information("setup");
 
@@ -48,7 +43,7 @@ public class AddStation : IExternalCommand
         {
             tg.Start();
 
-            if (!Stations.TryLoadSphereFamily(document, projectPath, out var familySymbol))
+            if (!Stations.TryLoadSphereFamily(document!, projectPath, out var familySymbol))
             {
                 Log.Error("Error loading ScanStation family.");
                 TaskDialog.Show("Error", "Failed to load ScanStation family. Please check the log for details.");
@@ -67,7 +62,7 @@ public class AddStation : IExternalCommand
 
                     using var tx = new Transaction(document, "Place ScanStation");
                     tx.Start();
-                    document.Create.NewFamilyInstance(position, familySymbol, StructuralType.NonStructural);
+                    document!.Create.NewFamilyInstance(position, familySymbol, StructuralType.NonStructural);
                     tx.Commit();
                 }
                 catch (OperationCanceledException)
@@ -78,7 +73,7 @@ public class AddStation : IExternalCommand
             tg.Assimilate(); // commit the transaction group
         }
 
-        var allStations = Stations.CollectFromFamilyInstances(document, transform);
+        var allStations = Stations.CollectFromFamilyInstances(document!, transform);
         TaskDialog.Show("Message", allStations.Count + " ScanStations");
 
         #endregion create new stations

@@ -1,17 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using Autodesk.Revit.Attributes;
+﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+
 using JetBrains.Annotations;
 
 using Serilog;
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+
 using RD = Revit.Data;
 
 namespace Revit.Green3DScan.SimulatePointCloud;
 
-// TODO: Combine code with Bim2Stations.cs to avoid duplication of logic
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
 public class Stations2NotVisibleFaces : IExternalCommand
@@ -19,7 +21,7 @@ public class Stations2NotVisibleFaces : IExternalCommand
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
         // Initialization
-        if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out var document, out var uiDocument))
+        if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out var document, out _))
         {
             TaskDialog.Show("Message", "The project file has not been saved yet.");
             return Result.Failed;
@@ -31,8 +33,8 @@ public class Stations2NotVisibleFaces : IExternalCommand
         Log.Information(settings.BBox_Buffer.ToString());
 
         // Get transformation
-        var transform = Helper.GetTransformation(document, settings);
- 
+        var transform = Helper.GetTransformation(document!, settings);
+
         Log.Information("setup");
 
         #region select files
@@ -58,10 +60,14 @@ public class Stations2NotVisibleFaces : IExternalCommand
 
         #region read files
 
-        var facesRevit = RD.PlanarFace.ReadCsv(csvPathPfRevit, out _, out _);
-        var referencePlanesRevit = RD.ReferencePlane.ReadCsv(csvPathRpRevit, out _, out _);
+        if (!RD.PlanarFace.TryReadCsv(csvPathPfRevit, out var facesRevit)
+         || !RD.ReferencePlane.TryReadCsv(csvPathRpRevit, out var referencePlanesRevit))
+        {
+            TaskDialog.Show("Error", "Failed to read faces or reference planes CSV. Please check the log for details.");
+            return Result.Failed;
+        }
 
-        var stations = Stations.CollectFromFamilyInstances(document, transform);
+        var stations = Stations.CollectFromFamilyInstances(document!, transform);
 
         #endregion read files
 
@@ -69,9 +75,10 @@ public class Stations2NotVisibleFaces : IExternalCommand
 
         #region write stations to csv
 
-        if(!Stations.WriteCsv(projectPath, stations)) 
+        if (!Stations.WriteCsv(projectPath, stations))
         {
             Log.Error("Error writing stations to CSV.");
+            TaskDialog.Show("Error", "Failed to write stations to CSV. Please check the log for details.");
             return Result.Failed;
         }
 
@@ -83,7 +90,8 @@ public class Stations2NotVisibleFaces : IExternalCommand
 
         #region visible and not visible faces
 
-        var visibleFacesId = RayCasting.VisibleFaces(facesRevit, referencePlanesRevit, stations, settings, out var test, out _);
+        var rayCast = new RayCasting(facesRevit, referencePlanesRevit, settings);
+        var visibleFacesId = rayCast.VisibleFaces(stations, out var test);
 
         //Test 
         int y = 0;
@@ -115,7 +123,7 @@ public class Stations2NotVisibleFaces : IExternalCommand
         var notVisibleFaces = new List<RD.PlanarFace>();
         var notvisibleRefPlanes = new HashSet<RD.ReferencePlane>();
 
-         // not visible faces
+        // not visible faces
         foreach (var face in facesRevit.Values)
         {
             if (!visibleFaceId.Contains(face.Id))
@@ -140,11 +148,11 @@ public class Stations2NotVisibleFaces : IExternalCommand
         // add materials and save the ElementIds in a DataStorage
         try
         {
-            matId = Helper.AddMaterials(document);
+            matId = Helper.AddMaterials(document!);
         }
         catch (Exception)
         {
-            matId = Helper.ReadMaterialsDS(document);
+            matId = Helper.ReadMaterialsDS(document!);
         }
 
         //Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
@@ -168,7 +176,7 @@ public class Stations2NotVisibleFaces : IExternalCommand
             //}
         }
 
-        Helper.Paint.ColourFace(document, visibleWithPMin, matId[5]);
+        Helper.Paint.ColourFace(document!, visibleWithPMin, matId[5]);
 
         #endregion color not visible faces
 

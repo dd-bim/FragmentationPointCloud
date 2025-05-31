@@ -6,8 +6,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace Revit;
 
@@ -29,7 +27,7 @@ internal static class Extensions
 
     public static string ToFullString(this UV uv) => string.Format(CultureInfo.InvariantCulture, "{0:G17} {1:G17}", uv.U, uv.V);
 
-    public static string ToFullWktString(this XYZ xyz) => $"POLYGON Z({ToFullString(xyz)})";
+    public static string ToFullWktString(this XYZ xyz) => $"POINT Z({ToFullString(xyz)})";
 
     public static bool TryParseUV(this ReadOnlySpan<char> input, out UV uv)
     {
@@ -44,8 +42,8 @@ internal static class Extensions
         if (double.TryParse(uSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out double u) &&
             double.TryParse(vSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
         {
-                uv = new UV(u, v);
-                return true;
+            uv = new UV(u, v);
+            return true;
         }
         return false;
     }
@@ -150,10 +148,15 @@ internal static class Extensions
 
     public static int SideSign(this UV p, UV a, UV b)
     {
-        double crossProduct = (a.U - p.U) * (b.V - p.V) - (a.V - p.V) * (b.U - p.U);
-        return double.Sign(crossProduct);
+        double det = p.Det(a, b);
+        return double.Sign(det);
     }
 
+    public static double Det(this UV p, UV a, UV b)
+    {
+        //double crossProduct = ((a.U - p.U) * (b.V - p.V)) - ((a.V - p.V) * (b.U - p.U));
+        return (a - p).CrossProduct(b - p);
+    }
 
 
     public static XYZ MaxXYZ => new(double.MaxValue, double.MaxValue, double.MaxValue);
@@ -164,7 +167,7 @@ internal static class Extensions
 
     public static UV MinUV => new(double.MinValue, double.MinValue);
 
-
+    public static UV DirectionAdd(this UV a, UV b) => new UV((a.U * b.U) - (a.V * b.V), (a.V * b.U) + (a.U * b.V));
 
     public static UV ToDirection(this double angle) =>
         // Convert angle in radians to a direction vector
@@ -199,48 +202,6 @@ internal static class Extensions
         var planeX = xAxis.Normalize();
         var planeY = nrm.CrossProduct(planeX).Normalize();
         return Plane.CreateByOriginAndBasis(position, planeX, planeY);
-    }
-
-    public class BitArrayJsonConverter : JsonConverter<BitArray>
-    {
-        public override BitArray? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            var bits = new List<bool>();
-            if (reader.TokenType != JsonTokenType.StartArray)
-                throw new JsonException();
-
-            while (reader.Read())
-            {
-                if (reader.TokenType == JsonTokenType.EndArray)
-                    break;
-                if (reader.TokenType == JsonTokenType.Number)
-                {
-                    if (reader.TryGetInt32(out int value))
-                    {
-                        if (value == 0) bits.Add(false);
-                        else if (value == 1) bits.Add(true);
-                        else throw new JsonException("BitArray must contain only 0 or 1.");
-                    }
-                    else
-                    {
-                        throw new JsonException();
-                    }
-                }
-                else
-                {
-                    throw new JsonException();
-                }
-            }
-            return new BitArray(bits.ToArray());
-        }
-
-        public override void Write(Utf8JsonWriter writer, BitArray value, JsonSerializerOptions options)
-        {
-            writer.WriteStartArray();
-            foreach (bool bit in value)
-                writer.WriteNumberValue(bit ? 1 : 0);
-            writer.WriteEndArray();
-        }
     }
 
 }

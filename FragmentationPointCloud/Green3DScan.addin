@@ -6,8 +6,9 @@
        <Text>Green3DScan</Text> 
        <Description>Plugin for fragmentation of point clouds</Description>
        <VisibilityMode>AlwaysVisible</VisibilityMode>
-       <Assembly>Green3DScan\Revit.dll</Assembly>
-       <AddInId>db36ce02-981d-4ccc-a4e6-fa61b4a7ecb4</AddInId>
+	   <Assembly>E:\source\FragmentationPointCloud\FragmentationPointCloud\bin\x64\Debug\net8.0-windows\Revit.dll"</Assembly>
+	 <!--<Assembly>Green3DScan\Revit.dll</Assembly>-->
+       <AddInId>3C3A34AF-2312-4012-8A7A-E1AD78AE0A73</AddInId>
        <VendorId>HTW Dresden</VendorId>
        <VendorDescription>Faculty of Spatial Information</VendorDescription>
 </AddIn>
