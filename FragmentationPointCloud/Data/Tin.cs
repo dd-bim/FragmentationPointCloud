@@ -58,7 +58,7 @@ public sealed record Tin(
             max3D = max3D.Max(xyz);
         }
 
-        if (!Transformation.Create(min2D, max2D, Constants.TinDigits, out var transformation))
+        if (!Transformation.Create(min2D, max2D, Constants.MinTinDigits, out var transformation))
         {
             tin = null;
             return false; // Transformation not possible
@@ -95,7 +95,7 @@ public sealed record Tin(
             if (ma > mc) (ma, mc) = (mc, ma); // ensure a < c
             if (!triMap.Add((ma, mb, mc)))
             {
-                Log.Warning($"Triangle {i} is a duplicate after transformation.");
+                Log.Warning($"Triangle {i} is a duplicate after transformation (skipped).");
                 continue; // duplicate triangle
             }
             int sign = ivertices[a].SideSign(ivertices[b], ivertices[c]);
@@ -155,7 +155,7 @@ public sealed record Tin(
                 {
                     if (count++ > triangles.Count)
                     {
-                        Log.Error("No valid convex hull found, tin has no valid topology.");
+                        Log.Error("No valid convex hull found, TIN has no valid topology.");
                         tin = null;
                         return false; // prevent infinite loop
                     }
@@ -205,7 +205,7 @@ public sealed record Tin(
                 {
                     if (!found.Add(curr) || count++ > hullSet.Count)
                     {
-                        Log.Error($"Hull edge {curr} already found in another hull, tin has no valid topology.");
+                        Log.Error($"Hull edge {curr} already found in another hull, TIN has no valid topology.");
                         tin = null;
                         return false; // prevent infinite loop
                     }
@@ -216,7 +216,7 @@ public sealed record Tin(
                     {
                         if (innerCount++ > triangles.Count)
                         {
-                            Log.Error("No valid convex hull found, tin has no valid topology.");
+                            Log.Error("No valid convex hull found, TIN has no valid topology.");
                             tin = null;
                             return false; // prevent infinite loop
                         }
@@ -225,7 +225,7 @@ public sealed record Tin(
                 } while (curr != h);
                 if (hull.Count < 3)
                 {
-                    Log.Error($"Hull edge {h} has less than 3 edges, rin has no valid topology.");
+                    Log.Error($"Hull edge {h} has less than 3 edges, TIN has no valid topology.");
                     tin = null;
                     return false; // prevent invalid hull
                 }
@@ -235,7 +235,7 @@ public sealed record Tin(
         }
         if (hulls.Count == 0)
         {
-            Log.Error("No valid convex hull found, rin has no valid topology.");
+            Log.Error("No valid convex hull found, TIN has no valid topology.");
             tin = null;
             return false; // no hull found
         }
@@ -250,9 +250,6 @@ public sealed record Tin(
         if(!tin.IsValid())
         {
             Log.Error("TIN is not valid after creation.");
-            Log.Error(tin.ToString());
-            tin.WriteSVG("debug.svg"); // write SVG for debugging
-            tin = null;
             return false; // TIN is not valid
         }
         return true;
@@ -276,7 +273,7 @@ public sealed record Tin(
         min2D = Extensions.Min(uvA, Extensions.Min(uvB, uvC));
         max2D = Extensions.Max(uvA, Extensions.Max(uvB, uvC));
 
-        if (!Transformation.Create(min2D, max2D, Constants.TinDigits, out var transformation))
+        if (!Transformation.Create(min2D, max2D, Constants.MinTinDigits, out var transformation))
         {
             tin = null;
             return false; // Transformation not possible
@@ -380,10 +377,10 @@ public sealed record Tin(
             int caSign = point.SideSign(c, a);
             switch (abSign, bcSign, caSign)
             {
+                case (1, 1, 1): return IsInterior[ab / 3];
                 case (_, 0, 0):
                 case (0, _, 0):
                 case (0, 0, _): return true; // vertices are always interior
-                case (1, 1, 1): return IsInterior[ab / 3];
                 case (0, 1, 1): return IsInterior[ab / 3] || (Opposites[ab] > 0 && IsInterior[Opposites[ab] / 3]);
                 case (1, 0, 1): return IsInterior[bc / 3] || (Opposites[bc] > 0 && IsInterior[Opposites[bc] / 3]);
                 case (1, 1, 0): return IsInterior[ca / 3] || (Opposites[ca] > 0 && IsInterior[Opposites[ca] / 3]);
@@ -433,121 +430,140 @@ public sealed record Tin(
     {
         tin = null;
         // Erwartetes Format: [vertices],[triangles],[opposites],[[hull1],[hull2],...],[isInterior],minX,minY,maxX,maxY,scale
-        // Remove whitespace
-        string str = input.ToString().Replace(" ", "");
+
         int idx = 0;
 
-        static bool ParseArray(ReadOnlySpan<char> s, ref int idx, out List<string> items)
+        // Hilfsfunktion: Liest ein Array [a b,c d,...] als IntXY[]
+        static bool ParseIntXYArray(ReadOnlySpan<char> s, ref int idx, out ImmutableArray<IntXY> result)
         {
-            items = [];
-            if (idx >= s.Length || s[idx] != '[') return false;
+            var builder = ImmutableArray.CreateBuilder<IntXY>();
+            if (idx >= s.Length || s[idx] != '[') { result = default; return false; }
             idx++; // skip '['
             int start = idx;
-            int depth = 1;
-            while (idx < s.Length && depth > 0)
+            while (idx < s.Length && s[idx] != ']')
             {
-                if (s[idx] == '[') depth++;
-                else if (s[idx] == ']') depth--;
-                idx++;
+                // Suche nächstes Komma oder schließende Klammer
+                int next = idx;
+                while (next < s.Length && s[next] != ',' && s[next] != ']') next++;
+                var vertSpan = s.Slice(idx, next - idx);
+                int spaceIdx = vertSpan.IndexOf(' ');
+                if (spaceIdx < 1 || spaceIdx >= vertSpan.Length - 1) { result = default; return false; }
+                if (!int.TryParse(vertSpan.Slice(0, spaceIdx), out int x) ||
+                    !int.TryParse(vertSpan.Slice(spaceIdx + 1), out int y))
+                { result = default; return false; }
+                builder.Add(new IntXY(x, y));
+                idx = next;
+                if (idx < s.Length && s[idx] == ',') idx++;
             }
-            if (depth != 0) return false;
-            string arr = s.Slice(start, idx - start - 1).ToString();
-            if (arr.Length == 0)
-                return true;
-            items.AddRange(arr.Split(',', StringSplitOptions.RemoveEmptyEntries));
+            if (idx >= s.Length || s[idx] != ']') { result = default; return false; }
+            idx++; // skip ']'
+            result = builder.ToImmutable();
+            return true;
+        }
+
+        // Hilfsfunktion: Liest ein Array [1,2,3] als int[]
+        static bool ParseIntArray(ReadOnlySpan<char> s, ref int idx, out ImmutableArray<int> result)
+        {
+            var builder = ImmutableArray.CreateBuilder<int>();
+            if (idx >= s.Length || s[idx] != '[') { result = default; return false; }
+            idx++; // skip '['
+            while (idx < s.Length && s[idx] != ']')
+            {
+                int next = idx;
+                while (next < s.Length && s[next] != ',' && s[next] != ']') next++;
+                if (!int.TryParse(s.Slice(idx, next - idx), out int v)) { result = default; return false; }
+                builder.Add(v);
+                idx = next;
+                if (idx < s.Length && s[idx] == ',') idx++;
+            }
+            if (idx >= s.Length || s[idx] != ']') { result = default; return false; }
+            idx++; // skip ']'
+            result = builder.ToImmutable();
+            return true;
+        }
+
+        // Hilfsfunktion: Liest ein Array [0,1,1,...] als bool[]
+        static bool ParseBoolArray(ReadOnlySpan<char> s, ref int idx, out BitArray result)
+        {
+            if (idx >= s.Length || s[idx] != '[') { result = default!; return false; }
+            idx++; // skip '['
+            var bools = new List<bool>();
+            while (idx < s.Length && s[idx] != ']')
+            {
+                char c = s[idx];
+                if (c == '0') bools.Add(false);
+                else if (c == '1') bools.Add(true);
+                else { result = default!; return false; }
+                idx++;
+                if (idx < s.Length && s[idx] == ',') idx++;
+            }
+            if (idx >= s.Length || s[idx] != ']') { result = default!; return false; }
+            idx++; // skip ']'
+            result = new BitArray(bools.ToArray());
+            return true;
+        }
+
+        // Hilfsfunktion: Liest ein Array von Arrays [[...],[...],...]
+        static bool ParseHullArrays(ReadOnlySpan<char> s, ref int idx, out ImmutableArray<ImmutableArray<int>> result)
+        {
+            var builder = ImmutableArray.CreateBuilder<ImmutableArray<int>>();
+            if (idx >= s.Length || s[idx] != '[') { result = default; return false; }
+            idx++; // skip outer '['
+            while (idx < s.Length && s[idx] == '[')
+            {
+                if (!ParseIntArray(s, ref idx, out var arr)) { result = default; return false; }
+                builder.Add(arr);
+                if (idx < s.Length && s[idx] == ',') idx++;
+            }
+            if (idx >= s.Length || s[idx] != ']') { result = default; return false; }
+            idx++; // skip closing outer ']'
+            result = builder.ToImmutable();
             return true;
         }
 
         // Parse [vertices]
-        if (!ParseArray(str, ref idx, out var vertsStr)) return false;
-        if (idx >= str.Length || str[idx] != ',') return false; idx++;
+        if (!ParseIntXYArray(input, ref idx, out var verts)) return false;
+        if (idx >= input.Length || input[idx] != ',') return false; idx++;
 
         // Parse [triangles]
-        if (!ParseArray(str, ref idx, out var trianglesStr)) return false;
-        if (idx >= str.Length || str[idx] != ',') return false; idx++;
+        if (!ParseIntArray(input, ref idx, out var triangles)) return false;
+        if (idx >= input.Length || input[idx] != ',') return false; idx++;
 
         // Parse [opposites]
-        if (!ParseArray(str, ref idx, out var oppositesStr)) return false;
-        if (idx >= str.Length || str[idx] != ',') return false; idx++;
+        if (!ParseIntArray(input, ref idx, out var opposites)) return false;
+        if (idx >= input.Length || input[idx] != ',') return false; idx++;
 
         // Parse [[hulls]]
-        if (idx >= str.Length || str[idx] != '[') return false;
-        idx++; // skip outer '['
-        var hulls = new List<ImmutableArray<int>>();
-        while (idx < str.Length && str[idx] == '[')
-        {
-            if (!ParseArray(str, ref idx, out var hullStr)) return false;
-            int?[] hull = [.. hullStr.Select(s => int.TryParse(s, out int v) ? v : (int?)null)];
-            if (hull.Any(v => v == null)) return false;
-            hulls.Add(ImmutableArray.Create(hull.Select(v => v!.Value).ToArray()));
-            if (idx < str.Length && str[idx] == ',') idx++; // skip comma between hulls
-        }
-        if (idx >= str.Length || str[idx] != ']') return false; idx++; // skip closing outer ']'
-        if (idx >= str.Length || str[idx] != ',') return false; idx++;
+        if (!ParseHullArrays(input, ref idx, out var hulls)) return false;
+        if (idx >= input.Length || input[idx] != ',') return false; idx++;
 
         // Parse [isInterior]
-        if (!ParseArray(str, ref idx, out var isInteriorStr)) return false;
-        if (idx >= str.Length || str[idx] != ',') return false; idx++;
+        if (!ParseBoolArray(input, ref idx, out var isInterior)) return false;
+        if (idx >= input.Length || input[idx] != ',') return false; idx++;
 
         // Parse minX, minY, maxX, maxY, scale
-        int nextComma = str.IndexOf(',', idx);
-        if (nextComma < 0) return false;
-        if (!double.TryParse(str.AsSpan(idx, nextComma - idx), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double minX)) return false;
-        idx = nextComma + 1;
-
-        nextComma = str.IndexOf(',', idx);
-        if (nextComma < 0) return false;
-        if (!double.TryParse(str.AsSpan(idx, nextComma - idx), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double minY)) return false;
-        idx = nextComma + 1;
-
-        nextComma = str.IndexOf(',', idx);
-        if (nextComma < 0) return false;
-        if (!double.TryParse(str.AsSpan(idx, nextComma - idx), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double maxX)) return false;
-        idx = nextComma + 1;
-
-        nextComma = str.IndexOf(',', idx);
-        if (nextComma < 0) return false;
-        if (!double.TryParse(str.AsSpan(idx, nextComma - idx), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double maxY)) return false;
-        idx = nextComma + 1;
-
-        if (!double.TryParse(str.AsSpan(idx), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double scale)) return false;
-
-        // Convert verts to ImmutableArray<IntXY>
-        var verts = new List<IntXY>(vertsStr.Count / 2);
-        for (int i = 0; i < vertsStr.Count; i += 2)
+        double[] vals = new double[5];
+        for (int i = 0; i < 5; i++)
         {
-            if (!int.TryParse(vertsStr[i], out int x) || !int.TryParse(vertsStr[i + 1], out int y))
+            int nextComma = (i < 4) ? input.Slice(idx).IndexOf(',') : -1;
+            ReadOnlySpan<char> valSpan = (nextComma >= 0) ? input.Slice(idx, nextComma) : input.Slice(idx);
+            if (!double.TryParse(valSpan, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out vals[i]))
                 return false;
-            verts.Add(new IntXY(x, y));
+            idx += valSpan.Length + (nextComma >= 0 ? 1 : 0);
         }
 
-        // Convert triangles, opposites
-        int?[] triangles = [.. trianglesStr.Select(s => int.TryParse(s, out int v) ? v : (int?)null)];
-        if (triangles.Any(v => v == null)) return false;
-
-        int?[] opposites = [.. oppositesStr.Select(s => int.TryParse(s, out int v) ? v : (int?)null)];
-        if (opposites.Any(v => v == null)) return false;
-
-        // Convert isInterior
-        bool[] bits = new bool[isInteriorStr.Count];
-        for (int i = 0; i < isInteriorStr.Count; i++)
-        {
-            if (isInteriorStr[i] == "1") bits[i] = true;
-            else if (isInteriorStr[i] == "0") bits[i] = false;
-            else return false;
-        }
-
-        var transformation = new Transformation(scale, new UV(minX, minY), new UV(maxX, maxY));
+        var transformation = new Transformation(vals[4], new UV(vals[0], vals[1]), new UV(vals[2], vals[3]));
         tin = new Tin(
             transformation,
-            [.. verts],
-            [.. triangles.Select(v => v!.Value)],
-            [.. opposites.Select(v => v!.Value)],
-            [.. hulls],
-            new BitArray(bits)
+            verts,
+            triangles,
+            opposites,
+            hulls,
+            isInterior
         );
         return true;
     }
+
     public bool IsValid()
     {
         int triangleCount = Triangles.Length / 3;

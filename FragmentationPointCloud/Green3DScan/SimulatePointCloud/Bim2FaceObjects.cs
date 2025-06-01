@@ -185,6 +185,7 @@ public class Bim2FaceObjects : IExternalCommand
             if (face.Reference == null)
             {
                 // skipped faces
+                Log.Information("skipped face without reference");
                 totalFailedFaces += 1;
                 continue;
             }
@@ -192,6 +193,7 @@ public class Bim2FaceObjects : IExternalCommand
             if (mesh == null || mesh.NumTriangles < 1)
             {
                 // skipped faces
+                Log.Information("skipped face without mesh or no triangles in mesh");
                 totalFailedFaces += 1;
                 continue;
             }
@@ -224,14 +226,6 @@ public class Bim2FaceObjects : IExternalCommand
                     totalFailedFaces += 1;
                     notAnalysedFaces.Add(id);
                     Log.Information("Conversion of id {id} failed", id);
-                    var verts = string.Join(", ", mesh.Vertices.Select(v => v.ToFullString()));
-                    var triangles = "";
-                    for (int i = 0; i < mesh.NumTriangles; i++)
-                    {
-                        var triangle = mesh.get_Triangle(i);
-                        triangles += $"({triangle.get_Index(0)}, {triangle.get_Index(1)}, {triangle.get_Index(2)}) ";
-                    }
-                    Log.Information("V({verts}) T({tris})", verts, triangles);
                     continue;
                 }
 #if DEBUG
