@@ -385,7 +385,7 @@ public sealed record PlanarFace : IEquatable<PlanarFace>
 
         // Write vertices
         foreach (var v in vertices)
-            file.WriteLine($"v {v.X} {v.Y} {v.Z}");
+            file.WriteLine(FormattableString.Invariant($"v {v.X} {v.Y} {v.Z}"));
 
         // Write faces (with comments)
         foreach (var (comment, indices) in faces)

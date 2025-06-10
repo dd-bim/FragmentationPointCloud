@@ -324,6 +324,10 @@ public sealed record Tin(
 
     public bool Intersects(in UV pointUV)
     {
+        if(Transformation.IsOutside(pointUV))
+        { // Point is outside the transformation bounds
+            return false;
+        }
         var point = Transformation.Forward(pointUV);
         // Check if point lies inside the convex hull
         int minH = 0; // just a placeholder
@@ -744,25 +748,20 @@ public readonly record struct Transformation(double Scale, UV Min, UV Max)
         double rangeX = max.U - min.U;
         double rangeY = max.V - min.V;
         double range = double.BitIncrement(double.Max(rangeX, rangeY));
-        if (range > int.MaxValue)
+        double maxValue = (double)new decimal(int.MaxValue, 0, 0, false, digits);
+        if (range > maxValue)
         {
             Log.Error("Range overflow: {Range}", range);
             transformation = default;
             return false;
         }
         double scale = double.Floor(int.MaxValue / range); // Scale of calculations
-        double scalePrecision = 1.0 / scale; // Precision of calculations
-        double digitPrecision = (double)new decimal(1, 0, 0, false, digits); // Precision of digits
-        if (digitPrecision < scalePrecision)
-        {
-            Log.Error("Lossless Transformation not possible");
-            transformation = default;
-            return false;
-        }
         // Align scale with decimal places, to avoid unnecessary rounding errors
         transformation = new Transformation(scale, min, max);
         return true;
     }
+
+    public bool IsOutside(in UV uv) => uv.U < Min.U || uv.U > Max.U || uv.V < Min.V || uv.V > Max.V;
 
     internal IntXY Forward(in UV xy)
     {

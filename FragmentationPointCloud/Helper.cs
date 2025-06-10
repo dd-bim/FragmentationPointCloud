@@ -50,7 +50,7 @@ namespace Revit
             // Differentiation whether a reduction is to be calculated or not
             (double angle, double elevation, double easting, double northing) = settings.CoordinatesReduction == false
                 ? (positionData.Angle, positionData.Elevation, positionData.EastWest, positionData.NorthSouth)
-                : (positionData.Angle, 0, 0, 0);
+                : (0, 0, 0, 0);
 
             var rotation = Transform.CreateRotation(XYZ.BasisZ, angle);
             var origin = new XYZ(easting, northing, elevation);

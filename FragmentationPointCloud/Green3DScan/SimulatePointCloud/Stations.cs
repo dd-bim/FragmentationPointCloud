@@ -6,6 +6,7 @@ using Serilog;
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -238,9 +239,9 @@ public static class Stations
         var ySpan = line.Slice(firstSep + 1, secondSep - firstSep - 1).Trim();
         var zSpan = line[(secondSep + 1)..].Trim();
 
-        if (double.TryParse(xSpan, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double x) &&
-            double.TryParse(ySpan, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double y) &&
-            double.TryParse(zSpan, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double z))
+        if (double.TryParse(xSpan, NumberStyles.Float, CultureInfo.InvariantCulture, out double x) &&
+            double.TryParse(ySpan, NumberStyles.Float, CultureInfo.InvariantCulture, out double y) &&
+            double.TryParse(zSpan, NumberStyles.Float, CultureInfo.InvariantCulture, out double z))
         {
             var station_csv = new XYZ(x, y, z);
             station = trans.Inverse.OfPoint(station_csv * Constants.meter2Feet);

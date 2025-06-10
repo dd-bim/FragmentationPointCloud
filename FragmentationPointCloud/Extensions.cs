@@ -186,14 +186,24 @@ internal static class Extensions
     }
 
 
+    public static Octant GetOctant(this XYZ vector, XYZ normal)
+    {
+        var 
+            octant  = vector.X < 0 ? normal.X < 0 ? Octant.None : Octant.XNeg : normal.X > 0 ? Octant.None : Octant.XPos;
+            octant |= vector.Y < 0 ? normal.Y < 0 ? Octant.None : Octant.YNeg : normal.Y > 0 ? Octant.None : Octant.YPos;
+            octant |= vector.Z < 0 ? normal.Z < 0 ? Octant.None : Octant.ZNeg : normal.Z > 0 ? Octant.None : Octant.ZPos;
+        return octant;
+    }
+
+
     public static Octant GetOctant(this XYZ vector)
     {
-        var octant = vector.X < 0 ? Octant.XNeg : Octant.XPos;
+        var
+         octant = vector.X < 0 ? Octant.XNeg : Octant.XPos;
         octant |= vector.Y < 0 ? Octant.YNeg : Octant.YPos;
         octant |= vector.Z < 0 ? Octant.ZNeg : Octant.ZPos;
         return octant;
     }
-
 
 
     public static Plane GetPlane(in XYZ position, in XYZ normal, in XYZ xAxis)

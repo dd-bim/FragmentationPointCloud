@@ -1,7 +1,9 @@
 ﻿using Autodesk.Revit.DB;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 using static Revit.Extensions;
 
@@ -21,7 +23,7 @@ namespace Revit.Green3DScan.SimulatePointCloud
         private readonly int _stepsPerFullTurn;
         private readonly int _halfSteps;
         private readonly UV _step;
-        private readonly double _beta;
+        private readonly double _cosbeta;
         private readonly double _minDF_Meter;
         private readonly double _maxDF_Meter;
 
@@ -36,7 +38,7 @@ namespace Revit.Green3DScan.SimulatePointCloud
             _stepsPerFullTurn = settings.StepsPerFullTurn;
             _halfSteps = _stepsPerFullTurn / 2;
             _step = (double.Tau / settings.StepsPerFullTurn).ToDirection();
-            _beta = settings.Beta_Degree * Constants.gradToRad;
+            _cosbeta = -double.Cos(settings.Beta_Degree * Constants.gradToRad);
             _addNoise = addNoise;
             _nrmDistrib.StdDev = addNoise ? settings.NoiseOfScanner_Meter : 0;
             _minDF_Meter = settings.MinDF_Meter;
@@ -47,30 +49,32 @@ namespace Revit.Green3DScan.SimulatePointCloud
             List<XYZ> stations,
             out Dictionary<Id, int> countPoints)
         {
-            countPoints = [];
-            var visibleFacesOfStations = new HashSet<RD.Id>[stations.Count];
+            // countPoints threadsicher machen
+            var concurrentCountPoints = new ConcurrentDictionary<Id, int>();
+            var visibleFacesOfStations = new HashSet<Id>[stations.Count];
 
-            for (int i = 0; i < visibleFacesOfStations.Length; i++)
+            Parallel.For(0, stations.Count, i =>
             {
-                visibleFacesOfStations[i] = visibleFaces(stations[i], countPoints, out _);
-            }
+                visibleFacesOfStations[i] = visibleFaces(stations[i], concurrentCountPoints, out _);
+            });
+            countPoints = new Dictionary<Id, int>(concurrentCountPoints);
             return visibleFacesOfStations;
         }
 
         public XYZ[][] PointClouds(List<XYZ> stations)
         {
             var pointClouds = new XYZ[stations.Count][];
-            for (int i = 0; i < stations.Count; i++)
+            Parallel.For(0, stations.Count, i =>
             {
                 _ = visibleFaces(stations[i], null, out var pointCloud);
                 pointClouds[i] = pointCloud;
-            }
+            });
             return pointClouds;
         }
 
         private HashSet<Id> visibleFaces(
              XYZ station,
-             Dictionary<Id, int>? countPoints,
+             ConcurrentDictionary<Id, int>? countPoints,
              out XYZ[] pointCloud)
         {
             var visibleFaces = new HashSet<Id>();
@@ -93,10 +97,21 @@ namespace Revit.Green3DScan.SimulatePointCloud
             // assigning faces to octants
             foreach (var planarFace in _planarFaces.Values)
             {
-                var oct = (planarFace.BtmLft - station).GetOctant();
-                oct |= (planarFace.BtmRgt - station).GetOctant();
-                oct |= (planarFace.TopRgt - station).GetOctant();
-                oct |= (planarFace.TopLft - station).GetOctant();
+                var normal = _refPlanes[planarFace.ReferencePlaneId].Plane.Normal;
+                var btm = (planarFace.BtmLft + planarFace.BtmRgt) * 0.5;
+                var top = (planarFace.TopLft + planarFace.TopRgt) * 0.5;
+                var left = (planarFace.BtmLft + planarFace.TopLft) * 0.5;
+                var right = (planarFace.BtmRgt + planarFace.TopRgt) * 0.5;
+                var center = (btm + top + left + right) * 0.25;
+                var oct = (planarFace.BtmLft - station).GetOctant(normal);
+                oct |= (planarFace.BtmRgt - station).GetOctant(normal);
+                oct |= (planarFace.TopRgt - station).GetOctant(normal);
+                oct |= (planarFace.TopLft - station).GetOctant(normal);
+                oct |= (center - station).GetOctant(normal);
+                oct |= (btm - station).GetOctant(normal);
+                oct |= (top - station).GetOctant(normal);
+                oct |= (left - station).GetOctant(normal);
+                oct |= (right - station).GetOctant(normal);
                 foreach (var (octant, ids) in octants)
                 {
                     if (oct.HasFlag(octant))
@@ -104,18 +119,17 @@ namespace Revit.Green3DScan.SimulatePointCloud
                 }
             }
 
-            var azimuth = UV.BasisU;
-            var inclination = UV.BasisU;
-
             void AddChecked(XYZ direction)
             {
                 if (GetMinDist(octants, station, direction, out var minId, out var minPoint))
                 {
-                    double angle = double.Acos(
-                        ToDirection(azimuth, inclination)
-                        .DotProduct(_refPlanes[_planarFaces[minId].ReferencePlaneId].Plane.Normal));
-                    if (angle < _beta)
-                    {
+                    //var dir = ToDirection(azimuth, inclination);
+                    //var nrm = _refPlanes[_planarFaces[minId].ReferencePlaneId].Plane.Normal;
+                    //double cos = dir.DotProduct(nrm);
+                    ////double angle = double.Acos(dir.DotProduct(nrm));
+                    ////if (angle < _beta)
+                    //if(cos < _cosbeta)
+                    //{
                         visibleFaces.Add(minId);
 
                         if (countPoints is not null
@@ -123,7 +137,7 @@ namespace Revit.Green3DScan.SimulatePointCloud
                             countPoints[minId]++;
 
                         points.Add(minPoint);
-                    }
+                    //}
                 }
             }
 
@@ -131,9 +145,10 @@ namespace Revit.Green3DScan.SimulatePointCloud
             AddChecked(XYZ.BasisZ);
             AddChecked(-XYZ.BasisZ);
 
+            var azimuth = UV.BasisU;
             for (int i = 0; i < _stepsPerFullTurn; i++)
             {
-                inclination = _step;
+                var inclination = _step;
                 for (int j = 1; j < _halfSteps; j++)
                 {
                     var dir = ToDirection(azimuth, inclination);
@@ -165,7 +180,7 @@ namespace Revit.Green3DScan.SimulatePointCloud
                 double cos = direction.DotProduct(plane.Normal);
 
                 //filtering by direction
-                if (cos > -Constants.TRIGTOL) // in Revit the normal is defined out of solid
+                if (cos > _cosbeta) // in Revit the normal is defined out of solid
                     continue;
 
                 // intersections
@@ -201,8 +216,11 @@ namespace Revit.Green3DScan.SimulatePointCloud
 
     internal sealed class NormalDistribution(double stdDev)
     {
-        private readonly Random _random = new();
-        private double? _next = null;
+        // Thread-local Random und _next für Thread-Sicherheit
+        [ThreadStatic]
+        private static Random? _threadRandom;
+        [ThreadStatic]
+        private static double? _threadNext;
 
         public double StdDev { get; set; } = stdDev;
 
@@ -210,29 +228,31 @@ namespace Revit.Green3DScan.SimulatePointCloud
         {
             get
             {
-                if (_next.HasValue)
+                if (_threadNext.HasValue)
                 {
-                    double value = _next.Value;
-                    _next = null;
+                    double value = _threadNext.Value;
+                    _threadNext = null;
                     return StdDev * value;
                 }
                 return StdDev * nextDouble();
             }
-            set => _next = value;
+            set => _threadNext = value;
         }
 
         private double nextDouble()
         {
+            var random = _threadRandom ??= new Random(Guid.NewGuid().GetHashCode());
             double u, v, s;
             do
             {
-                u = (_random.NextDouble() * 2) - 1;
-                v = (_random.NextDouble() * 2) - 1;
+                u = (random.NextDouble() * 2) - 1;
+                v = (random.NextDouble() * 2) - 1;
                 s = (u * u) + (v * v);
             } while (s >= 1 || s == 0);
             s = double.Sqrt(-2.0 * double.Log(s) / s);
-            _next = v * s;
+            _threadNext = v * s;
             return u * s;
         }
     }
+
 }
