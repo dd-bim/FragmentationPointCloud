@@ -228,9 +228,9 @@ public class Bim2FaceObjects : IExternalCommand
                     Log.Information("Conversion of id {id} failed", id);
                     continue;
                 }
-#if DEBUG
-                planarFace!.Tin.WriteSVG($"debug_{faces.Count}.svg");
-#endif
+//#if DEBUG
+//                planarFace!.Tin.WriteSVG($"debug_{faces.Count}.svg");
+//#endif
                 Log.Information("maxPlaneDist: {maxPlaneDist}", maxPlaneDist);
                 faces.Add(planarFace!);
                 refPlanes.Add(refPlane.Id, refPlane);
