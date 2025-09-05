@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0" ProductType="Application" ProductName="Green3DScan" AppName="Green3DScan" AppVersion="1.0.0" Author="Green3D" Description="Green3DScan Revit Add-in">
+  <Components>
+    <Component ModuleName="Green3DScan" AppName="Green3DScan" Description="Green3DScan Revit Integration" LoadOnRevitStartup="true" SeriesMin="R2025" SeriesMax="R2025" />
+  </Components>
+  <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2025" SeriesMax="R2025" />
+</ApplicationPackage>

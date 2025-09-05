@@ -15,6 +15,9 @@
 		<FrameworkReference Include="Microsoft.WindowsDesktop.App" />
 	</ItemGroup>
     <ItemGroup>
+        <None Update="Green3DScanDebug.addin">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </None>
         <None Update="SettingsGreen3DScan.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
@@ -36,11 +39,11 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
+	<ItemGroup>
+		<None Include="Green3DScan.addin"></None>
+	</ItemGroup>
     <ItemGroup>
-      <None Include="C:\ProgramData\Autodesk\Revit\Addins\2025\Green3DScan.addin" Link="Green3DScan.addin" />
-    </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="Autodesk.Revit.SDK" Version="2026.0.0.9999" />
+        <PackageReference Include="Autodesk.Revit.SDK" Version="2025.0.2.419" />
         <PackageReference Include="Nice3point.Revit.Extensions" Version="2026.0.1" />
         <PackageReference Include="OpenCvSharp4" Version="4.11.0.20250507" />
         <PackageReference Include="OpenCvSharp4.Windows" Version="4.11.0.20250507" />
@@ -64,4 +67,41 @@
         <LastGenOutput>ResourcePng.Designer.cs</LastGenOutput>
       </EmbeddedResource>
     </ItemGroup>
+
+    <PropertyGroup>
+      <BundleRoot>$(SolutionDir)dist\Green3DScan.bundle</BundleRoot>
+      <RevitYear>2025</RevitYear>
+      <BundleVersion>1.0.0</BundleVersion>
+    </PropertyGroup>
+
+    <ItemGroup Condition="'$(Configuration)' == 'Release'">
+      <!-- Alle auszugebenden Dateien (CopyLocalLockFileAssemblies=true liefert Abhängigkeiten) -->
+      <BundleFiles Include="$(TargetDir)*.dll" />
+      <BundleFiles Include="$(TargetDir)*.json" />
+    </ItemGroup>
+
+    <Target Name="BuildRevitBundle" AfterTargets="Build" Condition="'$(Configuration)'=='Release'">
+      <!-- Ordner leeren/neu erstellen -->
+      <RemoveDir Directories="$(BundleRoot)" />
+      <MakeDir Directories="$(BundleRoot)\Contents\$(RevitYear)\Bin" />
+      <MakeDir Directories="$(BundleRoot)\Resources" />
+
+      <!-- DLLs + Assets kopieren -->
+      <Copy SourceFiles="@(BundleFiles)" DestinationFolder="$(BundleRoot)\Contents\$(RevitYear)\Bin\" SkipUnchangedFiles="true" />
+
+      <!-- Settings falls an anderem Ort -->
+      <Copy SourceFiles="$(ProjectDir)SettingsGreen3DScan.json" Condition="Exists('$(ProjectDir)SettingsGreen3DScan.json')" DestinationFolder="$(BundleRoot)\Contents\$(RevitYear)\Bin\" />
+
+      <!-- Addin Manifest kopieren -->
+      <Copy SourceFiles="$(ProjectDir)Green3DScan.addin" DestinationFolder="$(BundleRoot)\Contents\$(RevitYear)\" />
+
+      <!-- PackageContents.xml erstellen -->
+      <WriteLinesToFile File="$(BundleRoot)\PackageContents.xml" Overwrite="true" Lines="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&#xD;&#xA;&lt;ApplicationPackage SchemaVersion=&quot;1.0&quot; ProductType=&quot;Application&quot; ProductName=&quot;Green3DScan&quot; AppName=&quot;Green3DScan&quot; AppVersion=&quot;$(BundleVersion)&quot; Author=&quot;Green3D&quot; Description=&quot;Green3DScan Revit Add-in&quot;&gt;&#xD;&#xA;  &lt;Components&gt;&#xD;&#xA;    &lt;Component ModuleName=&quot;Green3DScan&quot; AppName=&quot;Green3DScan&quot; Description=&quot;Green3DScan Revit Integration&quot; LoadOnRevitStartup=&quot;true&quot; SeriesMin=&quot;R$(RevitYear)&quot; SeriesMax=&quot;R$(RevitYear)&quot; /&gt;&#xD;&#xA;  &lt;/Components&gt;&#xD;&#xA;  &lt;RuntimeRequirements OS=&quot;Win64&quot; Platform=&quot;Revit&quot; SeriesMin=&quot;R$(RevitYear)&quot; SeriesMax=&quot;R$(RevitYear)&quot; /&gt;&#xD;&#xA;&lt;/ApplicationPackage&gt;" />
+      
+      <!-- Optional: Zip erzeugen -->
+      <ItemGroup>
+        <_BundleToZip Include="$(BundleRoot)\**\*" />
+      </ItemGroup>
+      <ZipDirectory SourceDirectory="$(BundleRoot)" DestinationFile="$(SolutionDir)dist\Green3DScan_$(BundleVersion).zip" Overwrite="true" />
+    </Target>
 </Project>

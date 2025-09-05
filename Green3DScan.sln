@@ -12,8 +12,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
-Project("{B7DD6F7E-DEF8-4E67-B5B7-07EF123DB6F0}") = "Installer", "Installer\Installer.wixproj", "{3773727D-17B4-44E6-BE98-C48EDE8DF38A}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -48,18 +46,6 @@ Global
 		{16FE1248-287D-4226-8ECB-94C92E8E6955}.Release|x64.Build.0 = Release|Any CPU
 		{16FE1248-287D-4226-8ECB-94C92E8E6955}.Release|x86.ActiveCfg = Release|Any CPU
 		{16FE1248-287D-4226-8ECB-94C92E8E6955}.Release|x86.Build.0 = Release|Any CPU
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Debug|ARM64.ActiveCfg = Debug|ARM64
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Debug|ARM64.Build.0 = Debug|ARM64
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Debug|x64.ActiveCfg = Debug|x64
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Debug|x64.Build.0 = Debug|x64
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Debug|x86.ActiveCfg = Debug|x86
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Debug|x86.Build.0 = Debug|x86
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Release|ARM64.ActiveCfg = Release|ARM64
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Release|ARM64.Build.0 = Release|ARM64
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Release|x64.ActiveCfg = Release|x64
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Release|x64.Build.0 = Release|x64
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Release|x86.ActiveCfg = Release|x86
-		{3773727D-17B4-44E6-BE98-C48EDE8DF38A}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
