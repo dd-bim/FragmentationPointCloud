@@ -155,7 +155,7 @@ public class Stations2NotVisibleFaces : IExternalCommand
             matId = Helper.ReadMaterialsDS(document!);
         }
 
-        //Helper.Paint.ColourFace(doc, notVisibleFacesId, matId[0]);
+        Helper.Paint.ColourFace(document!, notVisibleFacesId, matId[0]);
         int pMin = 1;
         // TODO Test with minimum number of points on face
         //var pMin = set.StepsPerFullTurn * set.StepsPerFullTurn * set.Beta_Degree / 25000;

@@ -1,6 +1,8 @@
 ﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
+using Revit.Green3DScan.SimulatePointCloud;
+
 using Serilog;
 
 using System.IO;
@@ -82,13 +84,29 @@ internal static class ExternalCommandHelper
     /// empty string.</param>
     /// <returns><see langword="true"/> if the user selected a file; otherwise, <see langword="false"/> if the dialog was
     /// canceled or no file was selected.</returns>
-    internal static bool GetFilePathDialog(string title, string filter, out string filePath)
+    internal static bool GetOpenFilePathDialog(string title, string filter, out string filePath)
     {
         using var fileOpenDialog = new FileOpenDialog(filter);
         fileOpenDialog.Title = title;
         ModelPath selectedModelPath;
         if (fileOpenDialog.Show() == ItemSelectionDialogResult.Canceled
             || (selectedModelPath = fileOpenDialog.GetSelectedModelPath()) is null)
+        {
+            filePath = string.Empty;
+            return false;
+        }
+        filePath = ModelPathUtils.ConvertModelPathToUserVisiblePath(selectedModelPath);
+        return true;
+    }
+
+    internal static bool GetSaveFilePathDialog(string title, string filter, string? initialFileName, out string filePath)
+    {
+        using var fileSaveDialog = new FileSaveDialog(filter);
+        fileSaveDialog.Title = title;
+        fileSaveDialog.InitialFileName = initialFileName ?? "";
+        ModelPath selectedModelPath;
+        if (fileSaveDialog.Show() == ItemSelectionDialogResult.Canceled
+            || (selectedModelPath = fileSaveDialog.GetSelectedModelPath()) is null)
         {
             filePath = string.Empty;
             return false;

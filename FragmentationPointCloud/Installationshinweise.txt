@@ -1,0 +1,8 @@
+﻿1.	Zip entpacken.
+2.	Ordner Green3DScan.bundle nach: %ProgramData%\Autodesk\ApplicationPlugins\
+    oder ohne Admin, nur aktueller Benutzer: %AppData%\Autodesk\ApplicationPlugins\
+3.	Revit starten.
+
+oder
+
+Green3DScan.bundle und install-green3dscan.ps1 in selben Ordner kopieren und aus der Konsole das Skript starten

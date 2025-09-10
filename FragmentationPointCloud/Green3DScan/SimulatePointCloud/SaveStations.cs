@@ -6,17 +6,12 @@ using JetBrains.Annotations;
 
 using Serilog;
 
-using System.IO;
-
 namespace Revit.Green3DScan.SimulatePointCloud;
 
 [Transaction(TransactionMode.Manual)]
 [UsedImplicitly]
-public class LoadStations : IExternalCommand
+public class SaveStations : IExternalCommand
 {
-    public const string CsvHeader = "East;North;Elevation";
-    private const int LineCount = 3;
-
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
         // Initialization
@@ -36,29 +31,26 @@ public class LoadStations : IExternalCommand
 
         Log.Information("setup");
 
+        #region select files
 
-        if (!Stations.TryReadCsv(transform, out var allStations))
+        var allStations = Stations.CollectFromFamilyInstances(document!, transform);
+ 
+        #endregion select files
+
+        #region write stations to csv
+
+        if (!Stations.WriteCsv(projectPath, allStations))
         {
-            TaskDialog.Show("Error", "Failed to read stations CSV. Please check the log for details.");
+            Log.Error("Error writing stations to CSV");
+            TaskDialog.Show("Error", "Failed to write stations to CSV. Please check the log for details.");
             return Result.Failed;
         }
 
+        #endregion write stations to csv
 
-        Log.Information("read files");
-
-        #region ScanStation
-
-        if (!Stations.TryLoadAndPlaceSphereFamily(document!, projectPath, allStations))
-        {
-            Log.Error("Error loading and placing ScanStation family.");
-            TaskDialog.Show("Error", "Failed to load or place ScanStation family. Please check the log for details.");
-            return Result.Failed;
-        }
-
-        #endregion ScanStation
 
         TaskDialog.Show("Message", allStations.Count + " ScanStations");
-        Log.Information("end LoadStations");
+        Log.Information("end SaveStations");
         return Result.Succeeded;
     }
 

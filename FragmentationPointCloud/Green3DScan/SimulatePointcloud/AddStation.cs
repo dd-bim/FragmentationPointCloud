@@ -58,7 +58,7 @@ public class AddStation : IExternalCommand
                     // Benutzer wählt einen Punkt
                     var point = uiDocument.Selection.PickPoint("Click to place a ScanStation or press ESC to finish");
                     // Höhe auf Scannerhöhe setzen
-                    var position = new XYZ(point.X, point.Y, settings.HeightOfScanner_Meter * Constants.meter2Feet);
+                    var position = new XYZ(point.X, point.Y, point.Z + (settings.HeightOfScanner_Meter * Constants.meter2Feet));
 
                     using var tx = new Transaction(document, "Place ScanStation");
                     tx.Start();
@@ -73,23 +73,9 @@ public class AddStation : IExternalCommand
             tg.Assimilate(); // commit the transaction group
         }
 
-        var allStations = Stations.CollectFromFamilyInstances(document!, transform);
-        TaskDialog.Show("Message", allStations.Count + " ScanStations");
-
         #endregion create new stations
 
-        #region write stations to csv
-
-        if (!Stations.WriteCsv(projectPath, allStations))
-        {
-            Log.Error("Error writing stations to CSV");
-            TaskDialog.Show("Error", "Failed to write stations to CSV. Please check the log for details.");
-            return Result.Failed;
-        }
-
-        #endregion write stations to csv
-
-
+ 
         Log.Information("end AddStation");
         return Result.Succeeded;
     }

@@ -206,12 +206,12 @@ internal static class Extensions
     }
 
 
-    public static Plane GetPlane(in XYZ position, in XYZ normal, in XYZ xAxis)
+    public static DataPlane GetPlane(in XYZ position, in XYZ normal, in XYZ xAxis)
     {
         var nrm = normal.Normalize();
         var planeX = xAxis.Normalize();
         var planeY = nrm.CrossProduct(planeX).Normalize();
-        return Plane.CreateByOriginAndBasis(position, planeX, planeY);
+        return new DataPlane(normal, planeX, planeY, position);
     }
 
 }

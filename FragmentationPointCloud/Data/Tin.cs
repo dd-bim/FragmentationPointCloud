@@ -24,7 +24,7 @@ public sealed record Tin(
     private static readonly Random Random = new();
     private static bool RandomNext => Random.Next(0, 2) == 0;
 
-    public static bool Create(Mesh mesh, Plane plane, Transform transform,
+    public static bool Create(Mesh mesh, DataPlane plane, Transform transform,
         out double maxDistance, out XYZ min3D, out XYZ max3D, out UV min2D, out UV max2D, out Tin? tin)
     {
         min3D = MaxXYZ;
@@ -255,14 +255,14 @@ public sealed record Tin(
         return true;
     }
 
-    public static bool Create(MeshTriangle triangle, Transform transform, out Plane plane,
+    public static bool Create(MeshTriangle triangle, Transform transform, out DataPlane plane,
        out XYZ min3D, out XYZ max3D, out UV min2D, out UV max2D, out Tin? tin)
     {
         var a = transform.OfPoint(triangle.get_Vertex(0)) * Constants.feet2Meter;
         var b = transform.OfPoint(triangle.get_Vertex(1)) * Constants.feet2Meter;
         var c = transform.OfPoint(triangle.get_Vertex(2)) * Constants.feet2Meter;
 
-        plane = Plane.CreateByThreePoints(a, b, c);
+        plane = DataPlane.CreateByThreePoints(a, b, c);
 
         plane.Project(a, out var uvA, out _);
         plane.Project(b, out var uvB, out _);

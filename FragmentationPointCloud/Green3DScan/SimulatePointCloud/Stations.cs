@@ -181,12 +181,20 @@ public static class Stations
             .Where(inst => inst.Symbol.Family.Id == familyId)];
     }
 
-    public static bool TryReadCsv(string path, Transform transform, out List<XYZ> stations)
+    public static bool TryReadCsv(Transform transform, out List<XYZ> stations)
     {
         string[] lines;
         stations = [];
+        string path = string.Empty;
         try
         {
+            if (!ExternalCommandHelper.GetOpenFilePathDialog("Select CSV file with stations from Revit!", CsvFilter, out path))
+            {
+                Log.Error("Error: Failed to get csvpath");
+                TaskDialog.Show("Error", "Failed to get path to CSV file.");
+                return false;
+            }
+
             lines = File.ReadAllLines(path);
         }
         catch (Exception e)
@@ -254,13 +262,21 @@ public static class Stations
 
     public static bool WriteCsv(string projectPath, List<XYZ> stations, Transform? transform = null)
     {
-        string csvPath = Path.Combine(projectPath, StationDirectory);
+        string csvPath = System.IO.Path.Combine(projectPath, StationDirectory);
         try
         {
             if (!Directory.Exists(csvPath))
                 Directory.CreateDirectory(csvPath);
 
-            string path = Path.Combine(csvPath, StationsFileName);
+            string path = System.IO.Path.Combine(csvPath, StationsFileName);
+
+            if (!ExternalCommandHelper.GetSaveFilePathDialog("Select or Create CSV file for stations from Revit!", CsvFilter, path, out path))
+            {
+                Log.Error("Error: Failed to get csvpath");
+                TaskDialog.Show("Error", "Failed to get path to CSV file.");
+                return false;
+            }
+
 
             using var csv = File.CreateText(path);
             csv.WriteLine(CsvHeader);

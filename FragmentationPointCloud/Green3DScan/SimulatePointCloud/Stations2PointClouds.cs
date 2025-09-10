@@ -102,37 +102,39 @@ public class Stations2PointClouds : IExternalCommand
         for (int i = 0; i < allStations.Count; i++)
         {
             var lines = new List<string>();
+            var stationPoints = pointClouds[i];
 
             // collect points of the current station
             for (int j = 0; j < pointClouds[i].Length; j++)
             {
-                lines.Add(pointClouds[i][j].X.ToStringInvariant() + " "
-                    + pointClouds[i][j].Y.ToStringInvariant() + " "
-                    + pointClouds[i][j].Z.ToStringInvariant());
+                var point = stationPoints[j];
+                lines.Add(point.X.ToStringInvariant() + " "
+                    + point.Y.ToStringInvariant() + " "
+                    + point.Z.ToStringInvariant());
             }
 
             // create file for the current station and save points
             string xyzPath = Path.Combine(csvPath, $"Station_{i}.xyz");
             File.WriteAllLines(xyzPath, lines);
 
-            // conversion with cloudcompare
-            double tx = -allStations[i].X;
-            double ty = -allStations[i].Y;
-            double tz = -allStations[i].Z;
+            //// conversion with cloudcompare
+            //double tx = -allStations[i].X;
+            //double ty = -allStations[i].Y;
+            //double tz = -allStations[i].Z;
 
-            // create the transformation matrix for station-centered point cloud
-            string[] transformationLines =
-            [
-                "1 0 0 " + tx.ToStringInvariant(),
-                "0 1 0 " + ty.ToStringInvariant(),
-                "0 0 1 " + tz.ToStringInvariant(),
-                "0 0 0 1"
-            ];
+            //// create the transformation matrix for station-centered point cloud
+            //string[] transformationLines =
+            //[
+            //    "1 0 0 " + tx.ToStringInvariant(),
+            //    "0 1 0 " + ty.ToStringInvariant(),
+            //    "0 0 1 " + tz.ToStringInvariant(),
+            //    "0 0 0 1"
+            //];
 
-            // path to transformation file
-            string transformationFilePath = Path.Combine(csvPath, "transformation.txt");
+            //// path to transformation file
+            //string transformationFilePath = Path.Combine(csvPath, "transformation.txt");
 
-            File.WriteAllLines(transformationFilePath, transformationLines);
+            //File.WriteAllLines(transformationFilePath, transformationLines);
 
             // path to E57
             string outputPointCloud = Path.Combine(csvPath, $"Station_{i}.e57");
@@ -141,8 +143,11 @@ public class Stations2PointClouds : IExternalCommand
 
             // Configure the process object with the required arguments
             cloudCompareProcess.StartInfo.FileName = settings.PathCloudCompare;
-            cloudCompareProcess.StartInfo.Arguments = "-SILENT -O \"" + xyzPath + "\" -APPLY_TRANS \"" +
-                                                      transformationFilePath +
+            //cloudCompareProcess.StartInfo.Arguments = "-SILENT -O \"" + xyzPath + "\" -APPLY_TRANS \"" +
+            //                                          transformationFilePath +
+            //                                          "\" -C_EXPORT_FMT E57 -SAVE_CLOUDS FILE \"" +
+            //                                          outputPointCloud + "\"";
+            cloudCompareProcess.StartInfo.Arguments = "-SILENT -O \"" + xyzPath +
                                                       "\" -C_EXPORT_FMT E57 -SAVE_CLOUDS FILE \"" +
                                                       outputPointCloud + "\"";
             cloudCompareProcess.Start();

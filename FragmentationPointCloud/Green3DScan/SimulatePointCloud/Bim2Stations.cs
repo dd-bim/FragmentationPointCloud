@@ -88,7 +88,7 @@ public class Bim2Stations : IExternalCommand
                 // combine ID
                 var id = new RD.Id(createStateId, objectId, faceId.ToString());
 
-                var plane = Plane.CreateByOriginAndBasis(
+                var plane = RD.DataPlane.CreateByOriginAndBasis(
                   transform.OfPoint(planarFace.Origin) * Constants.feet2Meter,
                   transform.OfVector(planarFace.XVector),
                   transform.OfVector(planarFace.YVector));
@@ -195,17 +195,17 @@ public class Bim2Stations : IExternalCommand
 
         Log.Information("ScanStation");
 
-        #region station to csv
+        //#region station to csv
 
-        if (!Stations.WriteCsv(projectPath, stations, transform))
-        {
-            TaskDialog.Show("Message", "Error writing stations to CSV file.");
-            return Result.Failed;
-        }
+        //if (!Stations.WriteCsv(projectPath, stations, transform))
+        //{
+        //    TaskDialog.Show("Message", "Error writing stations to CSV file.");
+        //    return Result.Failed;
+        //}
 
-        #endregion station to csv
+        //#endregion station to csv
 
-        Log.Information("station to csv");
+        //Log.Information("station to csv");
         var allStations = Stations.CollectFromFamilyInstances(document, transform);
         TaskDialog.Show("Message", $"{stations.Count} new ScanStations, total {allStations.Count} ScanStations.");
         Log.Information("end Revit2Station");

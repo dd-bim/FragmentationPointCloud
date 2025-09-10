@@ -18,7 +18,7 @@ namespace Revit.Data;
 /// for working with CSV-formatted data.</remarks>
 /// <param name="Id"></param>
 /// <param name="Plane"></param>
-public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<ReferencePlane>
+public sealed record ReferencePlane(string Id, DataPlane Plane) : IEquatable<ReferencePlane>
 {
 
     /// <summary>
@@ -33,7 +33,7 @@ public sealed record ReferencePlane(string Id, Plane Plane) : IEquatable<Referen
     /// to 3 if not specified.</param>
     /// <returns>A <see cref="ReferencePlane"/> instance uniquely identified by a string that encodes the plane's orientation, 
     /// distance from the origin, and a hash of its properties.</returns>
-    public static ReferencePlane Create(in Plane plane, int digits = 3)
+    public static ReferencePlane Create(in DataPlane plane, int digits = 3)
     {
         var x = (n: double.Abs(plane.Normal.X), c: 'X');
         var y = (n: double.Abs(plane.Normal.Y), c: 'Y');

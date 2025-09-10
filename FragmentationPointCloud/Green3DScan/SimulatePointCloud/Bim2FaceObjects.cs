@@ -202,10 +202,10 @@ public class Bim2FaceObjects : IExternalCommand
 
             if (mesh.NumberOfNormals == 1)
             {
-                Plane plane;
+                RD.DataPlane plane;
                 if (face is PlanarFace planar)
                 {
-                    plane = Plane.CreateByOriginAndBasis(
+                    plane = RD.DataPlane.CreateByOriginAndBasis(
                       transform.OfPoint(planar.Origin) * Constants.feet2Meter,
                       transform.OfVector(planar.XVector),
                       transform.OfVector(planar.YVector));
@@ -213,7 +213,7 @@ public class Bim2FaceObjects : IExternalCommand
                 else
                 {
                     var faceTrans = face.ComputeDerivatives(UV.Zero);
-                    plane = Plane.CreateByOriginAndBasis(
+                    plane = RD.DataPlane.CreateByOriginAndBasis(
                       transform.OfPoint(faceTrans.Origin) * Constants.feet2Meter,
                       transform.OfVector(faceTrans.BasisX),
                       transform.OfVector(faceTrans.BasisY));

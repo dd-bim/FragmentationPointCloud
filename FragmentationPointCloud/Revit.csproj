@@ -29,7 +29,7 @@
         <Content Include="Resources\cloud.PNG" />
         <Content Include="Resources\grid.png" />
         <Content Include="Resources\ifc.PNG" />
-        <Content Include="Resources\loadStations.png" />
+        <Content Include="Resources\saveStations.png" />
         <Content Include="Resources\server.png" />
         <Content Include="Resources\stations2NotVisibleFaces.png" />
         <Content Include="Resources\stations2PointClouds.png" />
