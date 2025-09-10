@@ -9,6 +9,7 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 using RD = Revit.Data;
 
@@ -69,24 +70,29 @@ public class Stations2NotVisibleFaces : IExternalCommand
 
         var stations = Stations.CollectFromFamilyInstances(document!, transform);
 
+        if (raycast(document!, stations, transform))
+        {
+            Log.Information("raycst");
+        }
+
         #endregion read files
 
         Log.Information("read files");
 
-        #region write stations to csv
+        //#region write stations to csv
 
-        if (!Stations.WriteCsv(projectPath, stations))
-        {
-            Log.Error("Error writing stations to CSV.");
-            TaskDialog.Show("Error", "Failed to write stations to CSV. Please check the log for details.");
-            return Result.Failed;
-        }
+        //if (!Stations.WriteCsv(projectPath, stations))
+        //{
+        //    Log.Error("Error writing stations to CSV.");
+        //    TaskDialog.Show("Error", "Failed to write stations to CSV. Please check the log for details.");
+        //    return Result.Failed;
+        //}
 
-        Log.Information(stations.Count + " stations");
+        //Log.Information(stations.Count + " stations");
 
-        #endregion read files
+        //#endregion read files
 
-        Log.Information("write stations to csv");
+        //Log.Information("write stations to csv");
 
         #region visible and not visible faces
 
@@ -185,4 +191,52 @@ public class Stations2NotVisibleFaces : IExternalCommand
         Log.Information("end Stations2NotVisibleFaces");
         return Result.Succeeded;
     }
+
+
+    private bool raycast(Document document, List<XYZ> stations, Transform transform)
+    {
+        // Get a 3D view from active document
+        View3D? view3D = null;
+        FilteredElementCollector collector = new(document);
+        foreach (var v in collector.OfClass(typeof(View3D)).ToElements())
+        {
+            // skip view template here because view templates are invisible in project browsers
+            if (v is View3D v3 && !v3.IsTemplate && v3.Name == "{3D}")
+            {
+                view3D = v3;
+                break;
+            }
+        }
+        if (view3D == null)
+        {
+            TaskDialog.Show("Revit", "A default 3D view (named {3D}) must exist before running this command");
+            return false;
+        }
+        ReferenceIntersector referenceIntersector = new(view3D);
+
+        var coss = new List<double>();
+        foreach (var station in stations)
+        {
+            XYZ direction = new(1, 0, 0);
+            var s = transform.Inverse.OfPoint(station * Constants.meter2Feet);
+            var nearest = referenceIntersector.FindNearest(s, direction);
+            if(nearest == null) continue;
+            Reference reference = nearest.GetReference();
+            Element referenceElement = document.GetElement(reference);
+            GeometryObject referenceObject = referenceElement.GetGeometryObjectFromReference(reference);
+            var endpt = reference.GlobalPoint;
+            if (referenceObject is not Face face || face.MaterialElementId == ElementId.InvalidElementId)
+            {
+                continue;
+            }
+            var endptUV = reference.UVPoint;
+            var FaceNormal = face.ComputeDerivatives(endptUV).BasisZ;  // face normal where ray hits
+            FaceNormal = nearest.GetInstanceTransform().OfVector(FaceNormal); // transformation to get it in terms of document coordinates instead of the parent symbol
+            double cos = direction.DotProduct(FaceNormal);
+            coss.Add(cos);
+
+        }
+        return true;
+    }
+
 }
