@@ -38,6 +38,11 @@ public class Stations2NotVisibleFaces : IExternalCommand
 
         Log.Information("setup");
 
+        if (raycast(document!, Stations.CollectFromFamilyInstances(document!), transform))
+        {
+            Log.Information("raycst");
+        }
+
         #region select files
 
         // Faces
@@ -70,10 +75,7 @@ public class Stations2NotVisibleFaces : IExternalCommand
 
         var stations = Stations.CollectFromFamilyInstances(document!, transform);
 
-        if (raycast(document!, stations, transform))
-        {
-            Log.Information("raycst");
-        }
+
 
         #endregion read files
 
@@ -218,8 +220,8 @@ public class Stations2NotVisibleFaces : IExternalCommand
         foreach (var station in stations)
         {
             XYZ direction = new(1, 0, 0);
-            var s = transform.Inverse.OfPoint(station * Constants.meter2Feet);
-            var nearest = referenceIntersector.FindNearest(s, direction);
+            //var s = transform.Inverse.OfPoint(station * Constants.meter2Feet);
+            var nearest = referenceIntersector.FindNearest(station, direction);
             if(nearest == null) continue;
             Reference reference = nearest.GetReference();
             Element referenceElement = document.GetElement(reference);
