@@ -65,6 +65,19 @@ public static class Stations
             .Select(inst => trans.OfPoint(((LocationPoint)inst.Location).Point) * Constants.feet2Meter)];
     }
 
+    public static List<XYZ> CollectFromFamilyInstances(Document doc)
+    {
+        if (!TryGetFamilyByName(doc, ScanStationFamilyName, out var family))
+        {
+            TaskDialog.Show("Message", $"Family {ScanStationFamilyName} not found.");
+            return [];
+        }
+
+        return [.. GetFamilyInstances(doc, family!.Id)
+            .Where(inst => inst.Location is LocationPoint)
+            .Select(inst => ((LocationPoint)inst.Location).Point)];
+    }
+
     public static void EnsureScanStationFamily(UIApplication app, string familyPath, SettingsJson settings)
     {
         string familyFile = Path.Combine(familyPath, ScanStationFamilyFile);
