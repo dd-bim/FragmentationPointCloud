@@ -20,7 +20,7 @@ public class LoadStations : IExternalCommand
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
         // Initialization
-        if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out var document, out _))
+        if (!ExternalCommandHelper.GetProjectPath(commandData, out string projectPath, out var document, out var uiDocument))
         {
             TaskDialog.Show("Message", "The project file has not been saved yet.");
             return Result.Failed;
@@ -47,6 +47,8 @@ public class LoadStations : IExternalCommand
         Log.Information("read files");
 
         #region ScanStation
+
+        Stations.EnsureScanStationFamily(uiDocument.Application, projectPath, settings);
 
         if (!Stations.TryLoadAndPlaceSphereFamily(document!, projectPath, allStations))
         {

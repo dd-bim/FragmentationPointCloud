@@ -43,6 +43,8 @@ public class AddStation : IExternalCommand
         {
             tg.Start();
 
+            Stations.EnsureScanStationFamily(uiDocument.Application, projectPath, settings);
+
             if (!Stations.TryLoadSphereFamily(document!, projectPath, out var familySymbol))
             {
                 Log.Error("Error loading ScanStation family.");
